@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    --accent: #fffa6c;
+    --border: #e5e7eb;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    touch-action: pan-x pan-y;
+  }
+}
+
+/* Hide scrollbar for category horizontal scroll */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
