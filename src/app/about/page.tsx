@@ -21,7 +21,7 @@ export default function AboutPage() {
               <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
-                  src=`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/irina.png` 
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/irina.png`}
                   alt="Irina - Founder of SPHOT" 
                   className="absolute inset-0 w-full h-full object-cover object-center"
                 />
