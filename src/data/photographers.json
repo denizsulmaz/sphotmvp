@@ -190,7 +190,8 @@
   },
   {
     "ID": "S01014",
-    "Name": "지석 임",
+    "Name": "behighshot studio",
+    "IsStudio": true,
     "Delivery Time": "1 week",
     "Global Categories": "Branding, Business, Couple, Family, Editorial, Individual",
     "Instagram": "@behighshot_studio",
@@ -271,6 +272,7 @@
   {
     "ID": "S01021",
     "Name": "Hyunsuk Jung",
+    "IsStudio": true,
     "Delivery Time": "2-3 days",
     "Global Categories": "Branding, Business, Couple, Family, Editorial, Individual, Lifestyle, Hanbok",
     "Instagram": "@holyholy_studio",
@@ -279,7 +281,7 @@
     "English Level": "Basic",
     "Other (Languages)": "Nope",
     "Location Types": "Historical / Landmarks, Indoor / Studio, Nature / Parks, Outdoor / City etc",
-    "Min Price KRW(per hour & starting from)": "₩200",
+    "Min Price KRW(per hour & starting from)": "₩200,000",
     "Response Speed": "1–3 hours",
     "Style": "Aesthetic Body-focused, Baby born, Business / Branding / Personal Branding, Dating Apps photo, Elopements, Hanbok, Professional / High-end, Sensual / Boudoir, Women's Portraits",
     "Style (Other)": "Nope"

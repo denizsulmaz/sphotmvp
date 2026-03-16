@@ -51,20 +51,14 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
                  <p className="text-gray-500 font-medium mt-1">
                    From <span className="text-foreground font-bold">{photographer["Min Price KRW(per hour & starting from)"]}</span>
                  </p>
+                 {photographer.IsStudio && (
+                   <span className="inline-block mt-2 px-2 py-0.5 bg-black text-white rounded text-[10px] font-bold uppercase tracking-widest">
+                     Studio
+                   </span>
+                 )}
                </div>
              </div>
 
-             {photographer.Instagram && (
-               <a
-                 href={photographer["URL Instagram"] || `https://instagram.com/${photographer.Instagram.replace("@", "")}`}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 className="inline-flex items-center gap-1.5 mb-6 text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
-               >
-                 <Instagram size={16} />
-                 {photographer.Instagram.split(";")[0]}
-               </a>
-             )}
 
              {/* Categories & Styles */}
              <div className="mb-8 flex flex-wrap gap-2">

@@ -13,17 +13,18 @@ export interface Photographer {
   "Response Speed": string;
   Style: string;
   "Style (Other)": string;
+  IsStudio?: boolean;
 }
 
 export const CATEGORIES = [
-  "Individual",
-  "Couple",
+  "Hanbok",
   "Family",
+  "Couple",
+  "Individual",
   "Wedding",
   "Editorial",
   "Lifestyle",
   "Event",
-  "Hanbok",
   "Business",
   "Branding",
   "Sports",
