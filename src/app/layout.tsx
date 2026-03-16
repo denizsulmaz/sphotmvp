@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
 import FooterCity from '@/components/FooterCity';
+import Script from 'next/script';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,6 +19,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-BX3S1J7C4J"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-BX3S1J7C4J');
+          `}
+        </Script>
+      </head>
       <body className={inter.className}>
         <div className="min-h-screen bg-white text-foreground flex flex-col w-full">
 
