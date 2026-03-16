@@ -11,7 +11,7 @@ export default function ImageGrid({ photographerId }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   
   // Create an array of potential image paths (e.g. 1 to 12)
-  const potentialImages = Array.from({ length: 12 }, (_, i) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographerId}/${i + 1}.webp`);
+  const potentialImages = Array.from({ length: 20 }, (_, i) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographerId}/${i + 1}.webp`);
   
   // We'll track which images successfully loaded
   const [loadedImages, setLoadedImages] = useState<string[]>([]);
