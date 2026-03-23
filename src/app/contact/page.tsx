@@ -1,16 +1,21 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft, Mail, Instagram, MessageCircle } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function ContactPage() {
+  const { t } = useLanguage();
+
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 py-12">
       <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-foreground font-semibold mb-10 transition-colors text-sm">
         <ArrowLeft size={16} />
-        Back to Home
+        {t("backToHome")}
       </Link>
 
-      <h1 className="text-4xl font-black tracking-tight mb-2">Contact Us</h1>
-      <p className="text-gray-500 text-lg mb-12">We'd love to hear from you — whether you're a prospective photographer, a client, or a partner.</p>
+      <h1 className="text-4xl font-black tracking-tight mb-2">{t("contactTitle")}</h1>
+      <p className="text-gray-500 text-lg mb-12">{t("contactSubtitle")}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Email */}
@@ -22,9 +27,9 @@ export default function ContactPage() {
             <Mail size={22} className="text-foreground" />
           </div>
           <div>
-            <p className="font-bold text-foreground text-lg">Email</p>
+            <p className="font-bold text-foreground text-lg">{t("emailLabel")}</p>
             <p className="text-gray-500 text-sm mt-1">hi@booksphot.com</p>
-            <p className="text-xs text-gray-400 mt-2">General inquiries, partnerships, photographer applications</p>
+            <p className="text-xs text-gray-400 mt-2">{t("emailDesc")}</p>
           </div>
         </a>
 
@@ -41,7 +46,7 @@ export default function ContactPage() {
           <div>
             <p className="font-bold text-foreground text-lg">Instagram</p>
             <p className="text-gray-500 text-sm mt-1">@booksphot</p>
-            <p className="text-xs text-gray-400 mt-2">DMs open — fastest way to reach us</p>
+            <p className="text-xs text-gray-400 mt-2">{t("instagramDesc")}</p>
           </div>
         </a>
 
@@ -60,7 +65,7 @@ export default function ContactPage() {
           <div>
             <p className="font-bold text-foreground text-lg">TikTok</p>
             <p className="text-gray-500 text-sm mt-1">@booksphot</p>
-            <p className="text-xs text-gray-400 mt-2">Behind the scenes & photographer spotlights</p>
+            <p className="text-xs text-gray-400 mt-2">{t("tiktokDesc")}</p>
           </div>
         </a>
 
@@ -77,20 +82,19 @@ export default function ContactPage() {
           <div>
             <p className="font-bold text-foreground text-lg">WhatsApp</p>
             <p className="text-gray-500 text-sm mt-1">+82 10-7905-9788</p>
-            <p className="text-xs text-gray-400 mt-2">Booking support & urgent questions</p>
+            <p className="text-xs text-gray-400 mt-2">{t("whatsappDesc")}</p>
           </div>
         </a>
       </div>
 
       <div className="mt-12 p-6 rounded-2xl bg-gray-50 border border-gray-100">
-        <h2 className="font-bold text-lg mb-2">Are you a photographer?</h2>
+        <h2 className="font-bold text-lg mb-2">{t("photographerCTA")}</h2>
         <p className="text-gray-600 text-sm leading-relaxed">
-          Interested in joining the SPHOT roster? We are always looking for talented photographers across all categories.
-          Send us your portfolio and Instagram handle to{" "}
+          {t("photographerCTAText")}{" "}
           <a href="mailto:hi@booksphot.com" className="font-bold text-foreground underline underline-offset-2 hover:text-accent transition-colors">
             hi@booksphot.com
           </a>{" "}
-          with the subject line <em>"Photographer Application"</em>.
+          with the subject line <em>{t("photographerCTASubject")}</em>.
         </p>
       </div>
     </div>

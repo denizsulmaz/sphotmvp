@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { Photographer } from "@/lib/types";
 import { MessageCircle, Zap } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Props {
   photographer: Photographer;
 }
 
 export default function PhotographerCard({ photographer }: Props) {
+  const { t, tCategory } = useLanguage();
   const images = [1, 2, 3].map((n) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${n}.webp`);
   const profilePic = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
@@ -94,7 +96,7 @@ export default function PhotographerCard({ photographer }: Props) {
                 key={cat}
                 className="px-2 py-0.5 bg-gray-50 text-gray-600 border border-gray-100 rounded-md text-[10px] font-bold uppercase tracking-wider"
               >
-                {cat}
+                {tCategory(cat)}
               </span>
             ))}
           </div>
@@ -116,7 +118,7 @@ export default function PhotographerCard({ photographer }: Props) {
             className="px-4 py-2.5 rounded-xl bg-accent text-foreground text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center gap-1.5"
           >
             <MessageCircle size={16} />
-            Book
+            {t("book")}
           </a>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { X, SlidersHorizontal } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface FilterState {
   style: string | null;
@@ -37,6 +38,7 @@ const FILTER_OPTIONS = {
 };
 
 export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: Props) {
+  const { t, tFilterOption } = useLanguage();
   const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
   // Sync localFilters every time the drawer opens
@@ -84,7 +86,7 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
                 : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
             }`}
           >
-            {opt}
+            {tFilterOption(opt)}
           </button>
         ))}
       </div>
@@ -98,7 +100,7 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <SlidersHorizontal size={20} className="text-foreground" />
-            <h2 className="text-lg font-extrabold text-foreground">Filters</h2>
+            <h2 className="text-lg font-extrabold text-foreground">{t("filters")}</h2>
           </div>
           <button onClick={onClose} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors text-gray-500">
             <X size={20} />
@@ -106,19 +108,19 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
         </div>
 
         <div className="p-5 overflow-y-auto flex-1 hide-scrollbar">
-          <Section title="Style" filterKey="style" options={FILTER_OPTIONS.style} />
-          <Section title="Location" filterKey="location" options={FILTER_OPTIONS.location} />
-          <Section title="Languages" filterKey="language" options={FILTER_OPTIONS.language} />
-          <Section title="Delivery Time" filterKey="deliveryTime" options={FILTER_OPTIONS.deliveryTime} />
-          <Section title="Response Speed" filterKey="responseSpeed" options={FILTER_OPTIONS.responseSpeed} />
+          <Section title={t("filterStyle")} filterKey="style" options={FILTER_OPTIONS.style} />
+          <Section title={t("filterLocation")} filterKey="location" options={FILTER_OPTIONS.location} />
+          <Section title={t("filterLanguages")} filterKey="language" options={FILTER_OPTIONS.language} />
+          <Section title={t("filterDeliveryTime")} filterKey="deliveryTime" options={FILTER_OPTIONS.deliveryTime} />
+          <Section title={t("filterResponseSpeed")} filterKey="responseSpeed" options={FILTER_OPTIONS.responseSpeed} />
         </div>
 
         <div className="p-4 border-t border-gray-100 bg-white grid grid-cols-2 gap-3 sticky bottom-0 z-10 pb-8">
           <button onClick={handleReset} className="py-3.5 rounded-xl font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors">
-            Reset
+            {t("reset")}
           </button>
           <button onClick={handleApply} className="py-3.5 rounded-xl font-bold bg-accent text-foreground shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
-            Apply Filters
+            {t("applyFilters")}
             {Object.values(localFilters).filter(Boolean).length > 0 && (
               <span className="bg-foreground text-accent text-[10px] w-5 h-5 flex items-center justify-center rounded-full leading-none shrink-0">
                 {Object.values(localFilters).filter(Boolean).length}

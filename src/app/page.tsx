@@ -9,8 +9,10 @@ import CategoryScroll from "@/components/CategoryScroll";
 import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
 import { SlidersHorizontal } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function Home() {
+  const { t, tCategory } = useLanguage();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   // null = "All" (no category filter)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -101,16 +103,16 @@ export default function Home() {
         {showGroupedView ? (
           /* Default: Grouped by category */
           <div className="space-y-14 mt-2">
-            <h2 className="text-3xl font-extrabold tracking-tight pb-4 border-b">Explore Photographers in Seoul</h2>
+            <h2 className="text-3xl font-extrabold tracking-tight pb-4 border-b">{t("exploreHeading")}</h2>
             {groupedPhotographers.map(([category, group]) => (
               <section key={category}>
                 <div className="flex justify-between items-end mb-4">
-                  <h3 className="text-2xl font-bold">{category}</h3>
+                  <h3 className="text-2xl font-bold">{tCategory(category)}</h3>
                   <button
                     onClick={() => setSelectedCategory(category)}
                     className="text-sm font-bold text-gray-400 hover:text-foreground transition-colors"
                   >
-                    View all ({group.length})
+                    {t("viewAll")} ({group.length})
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -126,12 +128,12 @@ export default function Home() {
           <>
             <div className="flex justify-between items-end mb-6">
               <h2 className="text-xl font-bold">
-                {selectedCategory || "All Photographers"}
+                {selectedCategory ? tCategory(selectedCategory) : t("allPhotographers")}
                 {activeFilterCount > 0 && (
-                  <span className="ml-2 text-sm font-normal text-gray-400">· {activeFilterCount} filter{activeFilterCount > 1 ? "s" : ""} active</span>
+                  <span className="ml-2 text-sm font-normal text-gray-400">· {activeFilterCount} {activeFilterCount > 1 ? t("filtersActive") : t("filterActive")}</span>
                 )}
               </h2>
-              <p className="text-sm font-semibold text-gray-500">{filteredPhotographers.length} results</p>
+              <p className="text-sm font-semibold text-gray-500">{filteredPhotographers.length} {t("results")}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -142,7 +144,7 @@ export default function Home() {
 
             {filteredPhotographers.length === 0 && (
               <div className="py-20 text-center">
-                <p className="text-gray-500 font-medium">No photographers found matching your criteria.</p>
+                <p className="text-gray-500 font-medium">{t("noResults")}</p>
                 <button
                   onClick={() => {
                     setSelectedCategory(null);
@@ -150,7 +152,7 @@ export default function Home() {
                   }}
                   className="mt-4 text-sm font-bold border-b-2 border-foreground pb-0.5"
                 >
-                  Clear all filters
+                  {t("clearFilters")}
                 </button>
               </div>
             )}

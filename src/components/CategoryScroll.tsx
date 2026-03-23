@@ -1,6 +1,7 @@
 "use client";
 
 import { CATEGORIES } from "@/lib/types";
+import { useLanguage } from "@/context/LanguageContext";
 
 // Map each category to a local static image downloaded from Unsplash
 const CATEGORY_IMAGES: Record<string, string> = {
@@ -23,7 +24,8 @@ interface Props {
 }
 
 export default function CategoryScroll({ selectedCategory, onSelect }: Props) {
-  const allCategories = [{ key: null, label: "All" }, ...CATEGORIES.map(c => ({ key: c, label: c }))];
+  const { t, tCategory } = useLanguage();
+  const allCategories = [{ key: null, label: t("all") }, ...CATEGORIES.map(c => ({ key: c, label: tCategory(c) }))];
 
   return (
     <div className="w-full overflow-x-auto hide-scrollbar py-3 px-4">
