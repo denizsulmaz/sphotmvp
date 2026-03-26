@@ -90,8 +90,12 @@ export default function Home() {
 
       <HomeBanner />
 
+      <div className="px-4 md:px-8 mt-6 md:mt-10 mb-2">
+        <h2 className="text-3xl font-extrabold tracking-tight">{t("exploreHeading")}</h2>
+      </div>
+
       {/* Category Scroll */}
-      <div className="bg-white">
+      <div className="bg-white border-b border-gray-100">
         <CategoryScroll
           selectedCategory={selectedCategory}
           onSelect={(cat) => {
@@ -102,11 +106,10 @@ export default function Home() {
         />
       </div>
 
-      <main className="px-4 md:px-8 mt-6">
+      <main className="px-4 md:px-8 mt-10 md:mt-12">
         {showGroupedView ? (
           /* Default: Grouped by category */
           <div className="space-y-14 mt-2">
-            <h2 className="text-3xl font-extrabold tracking-tight pb-4">{t("exploreHeading")}</h2>
             {groupedPhotographers.map(([category, group]) => (
               <section key={category}>
                 <div className="flex justify-between items-end mb-4">
