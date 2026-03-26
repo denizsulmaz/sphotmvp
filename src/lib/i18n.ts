@@ -1,4 +1,4 @@
-export type Lang = 'en' | 'ru' | 'ko';
+export type Lang = 'en' | 'ru' | 'ko' | 'tr';
 
 export const translations = {
   en: {
@@ -7,6 +7,11 @@ export const translations = {
     backToPhotographers: 'Back to Photographers',
 
     // Home page
+    homeBannerTitle: 'Book your perfect photographer in minutes',
+    homeBannerSubtitle: 'The easiest way to discover and book vetted pros across Seoul.',
+    homeBannerStep1: 'Explore by style & availability.',
+    homeBannerStep2: 'Review portfolio & pricing.',
+    homeBannerStep3: 'Book instantly via WhatsApp.',
     exploreHeading: 'Explore Photographers in Seoul',
     viewAll: 'View all',
     results: 'results',
@@ -98,6 +103,11 @@ export const translations = {
     backToHome: 'На главную',
     backToPhotographers: 'К фотографам',
 
+    homeBannerTitle: 'Забронируйте фотографа за несколько минут',
+    homeBannerSubtitle: 'Самый простой способ найти и забронировать проверенных профи в Сеуле.',
+    homeBannerStep1: 'Ищите по стилю и дате.',
+    homeBannerStep2: 'Смотрите портфолио и цены.',
+    homeBannerStep3: 'Бронируйте через WhatsApp.',
     exploreHeading: 'Фотографы Сеула',
     viewAll: 'Смотреть всех',
     results: 'результатов',
@@ -182,6 +192,11 @@ export const translations = {
     backToHome: '홈으로 돌아가기',
     backToPhotographers: '사진작가 목록으로',
 
+    homeBannerTitle: '단 몇 분 만에 완벽한 사진작가를 예약하세요',
+    homeBannerSubtitle: '서울 전역의 검증된 전문 사진작가를 예약하는 가장 쉬운 방법.',
+    homeBannerStep1: '스타일과 가능 일자로 탐색.',
+    homeBannerStep2: '포트폴리오와 가격 확인.',
+    homeBannerStep3: 'WhatsApp으로 즉시 예약.',
     exploreHeading: '서울의 사진작가 탐색',
     viewAll: '전체 보기',
     results: '결과',
@@ -261,6 +276,95 @@ export const translations = {
     footerConnect: '소셜 미디어',
     footerRights: '모든 권리 보유.',
   },
+
+  tr: {
+    backToHome: 'Ana Sayfaya Dön',
+    backToPhotographers: 'Fotoğrafçılara Dön',
+
+    homeBannerTitle: 'Mükemmel fotoğrafçınızı dakikalar içinde bulun',
+    homeBannerSubtitle: 'Seul genelindeki doğrulanmış profesyonelleri keşfetmenin ve ayırtmanın en kolay yolu.',
+    homeBannerStep1: 'Tarz ve uygunluk durumuna göre keşfedin.',
+    homeBannerStep2: 'Portfolyoları ve fiyatları inceleyin.',
+    homeBannerStep3: 'WhatsApp ile anında rezerve edin.',
+    exploreHeading: 'Seul\'daki Fotoğrafçıları Keşfedin',
+    viewAll: 'Tümünü Gör',
+    results: 'sonuç',
+    allPhotographers: 'Tüm Fotoğrafçılar',
+    filtersActive: 'filtre aktif',
+    filterActive: 'filtre aktif',
+    noResults: 'Kriterlerinize uygun fotoğrafçı bulunamadı.',
+    clearFilters: 'Filtreleri Sıfırla',
+    from: 'Başlangıç',
+    all: 'Tümü',
+
+    filters: 'Filtreler',
+    filterStyle: 'Tarz',
+    filterLocation: 'Konum',
+    filterLanguages: 'Diller',
+    filterDeliveryTime: 'Teslim Süresi',
+    filterResponseSpeed: 'Yanıt Hızı',
+    reset: 'Sıfırla',
+    applyFilters: 'Filtreleri Uygula',
+
+    information: 'Bilgi',
+    locationTypes: 'Konum Türü',
+    languages: 'Diller',
+    deliveryTime: 'Teslim Süresi',
+    responseSpeed: 'Yanıt Hızı',
+    portfolio: 'Portföy',
+    bookPhotographer: 'Fotoğrafçıdan Randevu Al',
+    bookViaWhatsApp: 'WhatsApp Üzerinden Randevu Al',
+    book: 'Randevu Al',
+    studio: 'Stüdyo',
+
+    aboutTitle: 'SPHOT Hakkında',
+    aboutSubtitle: 'En sevdiğiniz fotoğrafçı keşif platformunun arkasındaki hikaye.',
+    meetFounder: 'Kurucuyla Tanışın',
+    founderStory1:
+      'Merhaba, ben Irina! Seul\'e taşındığımda, ister kişisel bir portre, ister bir aşk hikayesi, isterse profesyonel bir marka çekimi olsun, doğru fotoğrafçıyı bulmanın ne kadar inanılmaz derecede zor olduğunu fark ettim. Sosyal medyada saatlerce gezinmek, mesajları çevirmek ve fiyatları karşılaştırmak bunaltıcı hissettiriyordu.',
+    founderStory2:
+      'SPHOT\'u tam da bu sorunu çözmek için kurdum: güzel fotoğraflar isteyen insanları, bu anları zekice yakalayan yetenekli, onaylanmış fotoğrafçılarla buluşturan kolay ve şeffaf bir yol.',
+    whatIsSphot: 'SPHOT Nedir?',
+    whatIsSphotText:
+      'SPHOT, yetenekli ve doğrulanmış Seul fotoğrafçılarını müşterilerle buluşturan küratörlü bir pazar yeridir. İster portre seansına, gün batımında çift çekimine, kurumsal kimlik çekimine veya etkinlik fotoğrafçısına ihtiyacınız olsun; anınızı yakalayacak mükemmel fotoğrafçıyı bulmayı ve rezerve etmeyi kolaylaştırır.',
+    ourMission: 'Misyonumuz',
+    ourMissionText:
+      'Biz, her anın güzel bir şekilde yakalanmayı hak ettiğine inanıyoruz. Misyonumuz, Seoul\'de anılar biriktiren bir turist, bir aşk hikayesi arayan bir çift ya da görsel kimliğini geliştiren bir marka olsanız da profesyonel fotoğrafçılığı herkes için erişilebilir ve kolay hale getirmektir.',
+    howItWorks: 'Nasıl Çalışır?',
+    step1Label: 'Keşfet',
+    step1Text: 'Fotoğrafçıları kategori, tarz ve müsaitlik durumuna göre inceleyin.',
+    step2Label: 'Seç',
+    step2Text: 'Portföylerini, fiyatlandırmalarını ve yanıt hızlarını gözden geçirin.',
+    step3Label: 'Rezerve Et',
+    step3Text: 'Çekim seansınızı onaylamak için anında WhatsApp üzerinden bağlanın.',
+    getInTouch: 'İletişime Geçin',
+    getInTouchText: 'Bir sorunuz, ortaklık talebiniz veya sadece merhaba demek mi istiyorsunuz? Bize ulaşın:',
+    followUs: 'Yolculuğumuzu takip edin:',
+    and: 've',
+    at: 'adreslerinde',
+
+    contactTitle: 'Bize Ulaşın',
+    contactSubtitle: 'Gelecekteki bir fotoğrafçı, müşteri veya iş ortağı olun — sizden haber almaktan harika hissederiz.',
+    emailLabel: 'E-posta',
+    emailDesc: 'Genel sorular, işbirlikleri, fotoğrafçı başvuruları',
+    instagramDesc: 'DM\'ler açık — bize ulaşmanın en hızlı yolu',
+    tiktokDesc: 'Kamera arkası ve öne çıkan fotoğrafçılar',
+    whatsappDesc: 'Rezervasyon desteği ve acil sorular',
+    photographerCTA: 'Siz bir fotoğrafçı mısınız?',
+    photographerCTAText:
+      'SPHOT kadrosuna katılmakla ilgileniyor musunuz? Her zaman tüm kategorilerde yetenekli fotoğrafçılar arıyoruz. Portföyünüzü ve Instagram hesabınızı bize e-posta gönderin:',
+    photographerCTASubject: '"Fotoğrafçı Başvurusu"',
+
+    footerTagline: 'Seul\'daki en iyi fotoğrafçıları keşfedin ve ayırtın. Profesyonel çekimler, gerçek anlar.',
+    footerCompany: 'Şirket',
+    footerAbout: 'SPHOT Hakkında',
+    footerContact: 'Bize Ulaşın',
+    footerLegal: 'Yasal',
+    footerTerms: 'Hizmet Şartları',
+    footerPrivacy: 'Gizlilik Politikası',
+    footerConnect: 'Bağlanın',
+    footerRights: 'Tüm hakları saklıdır.',
+  },
 } as const;
 
 export type TranslationKey = keyof typeof translations.en;
@@ -307,6 +411,19 @@ export const categoryNames: Record<Lang, Record<string, string>> = {
     Branding: '브랜딩',
     Sports: '스포츠',
   },
+  tr: {
+    Individual: 'Bireysel',
+    Couple: 'Çift',
+    Family: 'Aile',
+    Wedding: 'Düğün',
+    Editorial: 'Moda Çekimi',
+    Lifestyle: 'Yaşam Tarzı',
+    Event: 'Etkinlik',
+    Hanbok: 'Hanbok',
+    Business: 'İş / Kurumsal',
+    Branding: 'Marka / Branding',
+    Sports: 'Spor',
+  },
 };
 
 // ─── Style name translations ───────────────────────────────────────────────────
@@ -343,6 +460,17 @@ export const styleNames: Record<Lang, Record<string, string>> = {
     'Sensual / Boudoir': '센슈얼 / 부두아르',
     "Women's Portraits": '여성 인물 사진',
     'Baby born': '신생아 사진',
+  },
+  tr: {
+    'Hanbok': 'Hanbok',
+    'Professional / High-end': 'Profesyonel / Üst Düzey',
+    'Aesthetic Body-focused': 'Vücut Estetiği',
+    'Business / Branding / Personal Branding': 'İş / Kişisel Markalaşma',
+    'Dating Apps photo': 'Arkadaşlık Uygulaması',
+    'Elopements': 'Kaçamak (Elopements)',
+    'Sensual / Boudoir': 'Duyusal / Boudoir',
+    "Women's Portraits": 'Kadın Portreleri',
+    'Baby born': 'Yeni Doğan',
   },
 };
 
@@ -428,5 +556,30 @@ export const filterOptionLabels: Record<Lang, Record<string, string>> = {
     'Sensual / Boudoir': '센슈얼 / 부두아르',
     "Women's Portraits": '여성 인물 사진',
     'Baby born': '신생아 사진',
+  },
+  tr: {
+    Indoor: 'İç Mekan',
+    Outdoor: 'Dış Mekan',
+    Historical: 'Tarihi Mekanlar',
+    English: 'İngilizce',
+    Korean: 'Korece',
+    Other: 'Diğer',
+    'Within 24 hours': '24 Saat İçinde',
+    '2-3 days': '2-3 Gün',
+    '1 week': '1 Hafta',
+    '2 weeks': '2 Hafta',
+    'Over 2 weeks': '2 Haftadan Fazla',
+    'Under 1 hour': '1 Saatin Altında',
+    '1–3 hours': '1–3 Saat',
+    '3–6 hours': '3–6 Saat',
+    'Hanbok': 'Hanbok',
+    'Professional / High-end': 'Profesyonel / Üst Düzey',
+    'Aesthetic Body-focused': 'Vücut Estetiği',
+    'Business / Branding / Personal Branding': 'İş / Kişisel Markalaşma',
+    'Dating Apps photo': 'Arkadaşlık Uygulaması',
+    'Elopements': 'Kaçamak (Elopements)',
+    'Sensual / Boudoir': 'Duyusal / Boudoir',
+    "Women's Portraits": 'Kadın Portreleri',
+    'Baby born': 'Yeni Doğan',
   },
 };

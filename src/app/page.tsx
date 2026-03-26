@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import PhotographerCard from "@/components/PhotographerCard";
 import FilterDrawer from "@/components/FilterDrawer";
 import CategoryScroll from "@/components/CategoryScroll";
+import HomeBanner from "@/components/HomeBanner";
 import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
 import { SlidersHorizontal } from "lucide-react";
@@ -84,11 +85,13 @@ export default function Home() {
   const filterSlot = mounted ? document.getElementById("nav-filter-slot") : null;
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 bg-gray-50/50">
       {filterSlot && createPortal(filterButton, filterSlot)}
 
+      <HomeBanner />
+
       {/* Category Scroll */}
-      <div className="bg-white border-b border-gray-100">
+      <div className="bg-white">
         <CategoryScroll
           selectedCategory={selectedCategory}
           onSelect={(cat) => {
@@ -103,7 +106,7 @@ export default function Home() {
         {showGroupedView ? (
           /* Default: Grouped by category */
           <div className="space-y-14 mt-2">
-            <h2 className="text-3xl font-extrabold tracking-tight pb-4 border-b">{t("exploreHeading")}</h2>
+            <h2 className="text-3xl font-extrabold tracking-tight pb-4">{t("exploreHeading")}</h2>
             {groupedPhotographers.map(([category, group]) => (
               <section key={category}>
                 <div className="flex justify-between items-end mb-4">

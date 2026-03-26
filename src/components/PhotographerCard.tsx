@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Photographer } from "@/lib/types";
-import { MessageCircle, Zap } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface Props {
@@ -102,22 +102,16 @@ export default function PhotographerCard({ photographer }: Props) {
           </div>
         )}
 
-        {/* Response speed + Book CTA */}
-        <div className="flex items-center justify-between gap-3 mt-1">
-          <div className="bg-accent/20 px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold text-foreground overflow-hidden whitespace-nowrap">
-            <Zap size={14} className="text-amber-500 fill-amber-500 shrink-0" />
-            <span className="truncate">{photographer["Response Speed"]}</span>
-          </div>
-
-          {/* Book button — stopPropagation prevents card link from firing */}
+        {/* Book CTA */}
+        <div className="mt-2">
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="px-4 py-2.5 rounded-xl bg-accent text-foreground text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center gap-1.5"
+            className="w-full px-4 py-2.5 rounded-xl bg-accent text-foreground text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
           >
-            <MessageCircle size={16} />
+            <MessageCircle size={18} />
             {t("book")}
           </a>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
+import { ChevronRight } from "lucide-react";
 import { CATEGORIES } from "@/lib/types";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -27,9 +29,30 @@ export default function CategoryScroll({ selectedCategory, onSelect }: Props) {
   const { t, tCategory } = useLanguage();
   const allCategories = [{ key: null, label: t("all") }, ...CATEGORIES.map(c => ({ key: c, label: tCategory(c) }))];
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    handleScroll();
+    window.addEventListener("resize", handleScroll);
+    return () => window.removeEventListener("resize", handleScroll);
+  }, [allCategories.length]);
+
   return (
-    <div className="w-full overflow-x-auto hide-scrollbar py-3 px-4">
-      <div className="flex space-x-3">
+    <div className="relative w-full">
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="w-full overflow-x-auto hide-scrollbar py-3 px-4"
+      >
+        <div className="flex space-x-3">
         {allCategories.map(({ key, label }) => {
           const isSelected = selectedCategory === key;
           const bgImage = key ? (CATEGORY_IMAGES[key] || "") : "";
@@ -74,6 +97,23 @@ export default function CategoryScroll({ selectedCategory, onSelect }: Props) {
           );
         })}
       </div>
+      </div>
+
+      {showRightArrow && (
+        <button 
+          onClick={() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollBy({ left: 300, behavior: "smooth" });
+            }
+          }}
+          className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-end bg-gradient-to-l from-white via-white/80 to-transparent pr-2 z-40 focus:outline-none group opacity-90 transition-opacity hover:opacity-100"
+          aria-label="Scroll right"
+        >
+          <div className="bg-white/90 rounded-full p-1 shadow-sm border border-gray-100 animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform text-gray-600">
+            <ChevronRight className="w-6 h-6" />
+          </div>
+        </button>
+      )}
     </div>
   );
 }

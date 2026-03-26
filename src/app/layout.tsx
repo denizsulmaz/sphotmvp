@@ -41,7 +41,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <LanguageProvider>
-        <div className="min-h-screen bg-white text-foreground flex flex-col w-full">
+        <div className="min-h-screen bg-white text-foreground flex flex-col w-full overflow-x-hidden">
 
           {/* ═══════════ GLOBALLY FIXED TOP NAV ═══════════ */}
           <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm">
