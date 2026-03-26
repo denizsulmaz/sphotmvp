@@ -59,9 +59,9 @@ export default function HomeBanner() {
         </div>
 
         {/* 3 steps grid with connecting timeline */}
-        <div className="relative flex flex-col sm:flex-row justify-between items-start text-center max-w-3xl mx-auto">
-          {/* Connecting line (Desktop) */}
-          <div className="hidden sm:block absolute top-[47px] md:top-[51px] left-[16%] right-[16%] h-[2px] bg-gray-800 z-0 overflow-hidden rounded-full">
+        <div className="relative flex flex-row justify-between items-start text-center max-w-3xl mx-auto px-2 md:px-0">
+          {/* Connecting line (Global, scales up for Desktop) */}
+          <div className="absolute top-[37px] md:top-[51px] left-[16%] right-[16%] h-[2px] bg-gray-800 z-0 overflow-hidden rounded-full">
              {/* Animated fill line */}
              <div 
                className="h-full bg-accent transition-all duration-700 ease-in-out"
@@ -76,12 +76,12 @@ export default function HomeBanner() {
             const isLit = isActive || isPast;
 
             return (
-              <div key={idx} className="relative z-10 flex flex-col items-center flex-1 mb-6 sm:mb-0 w-full">
-                <p className={`text-[10px] md:text-xs font-bold uppercase tracking-widest mb-2 transition-colors duration-500 ${isLit ? "text-accent" : "text-gray-500"}`}>
+              <div key={idx} className="relative z-10 flex flex-col items-center flex-1 px-1 md:px-0 w-full">
+                <p className={`text-[9px] md:text-xs font-bold uppercase tracking-widest mb-1.5 md:mb-2 transition-colors duration-500 ${isLit ? "text-accent" : "text-gray-500"}`}>
                   {step.label}
                 </p>
                 <div 
-                  className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center mb-3 transition-all duration-500 border-2 ${
+                  className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center mb-2 md:mb-3 transition-all duration-500 border-2 ${
                     isActive ? "bg-accent border-accent text-black scale-110 shadow-[0_0_20px_rgba(255,250,108,0.4)]" :
                     isPast ? "bg-black border-accent text-accent" :
                     "bg-black border-gray-800 text-gray-600"
@@ -89,10 +89,10 @@ export default function HomeBanner() {
                 >
                   <Icon className="w-5 h-5 md:w-6 md:h-6" />
                 </div>
-                <h3 className={`text-base md:text-lg font-bold mb-1 transition-colors duration-500 ${isLit ? "text-white" : "text-gray-400"}`}>
+                <h3 className={`text-xs md:text-lg font-bold mb-0.5 md:mb-1 transition-colors duration-500 ${isLit ? "text-white" : "text-gray-400"}`}>
                   {step.title}
                 </h3>
-                <p className={`text-xs md:text-sm max-w-[160px] mx-auto leading-snug transition-colors duration-500 ${isLit ? "text-gray-300" : "text-gray-600"}`}>
+                <p className={`text-[9px] md:text-sm max-w-[110px] md:max-w-[160px] mx-auto leading-snug transition-colors duration-500 ${isLit ? "text-gray-300" : "text-gray-600"}`}>
                   {step.description}
                 </p>
               </div>
