@@ -14,7 +14,7 @@ const CATEGORY_IMAGES: Record<string, string> = {
   "Editorial":   `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/editorial.png`,
   "Lifestyle":   `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/lifestyle.png`,
   "Event":       `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/event.png`,
-  "Hanbok":      `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/hanbok.png`,
+  "Hanbok":      `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/S01001/1.webp`,
   "Business":    `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/business.png`,
   "Branding":    `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/branding.png`,
   "Sports":      `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/categories/sports.png`,
