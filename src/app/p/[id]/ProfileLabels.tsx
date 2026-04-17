@@ -37,6 +37,29 @@ export default function ProfileLabels({
 }: Props) {
   const { t, tCategory, tStyle } = useLanguage();
 
+  const formatLanguages = () => {
+    let allLangs: string[] = [];
+    
+    if (languages) {
+      const parts = languages.split(",").map(l => l.trim());
+      parts.forEach(p => {
+        if (p.toLowerCase() === "other") return;
+        if (p.toLowerCase() === "english" && englishLevel) {
+          allLangs.push(`English (${englishLevel})`);
+        } else {
+          allLangs.push(p);
+        }
+      });
+    }
+
+    if (otherLanguages && !["X", "-", ".", "N/a", "Nope", "Nothing", ""].includes(otherLanguages.trim())) {
+      const parts = otherLanguages.split(",").map(l => l.trim());
+      allLangs.push(...parts);
+    }
+
+    return allLangs.join(", ");
+  };
+
   return (
     <>
       {/* Back link */}
@@ -95,14 +118,7 @@ export default function ProfileLabels({
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("languages")}</p>
             <p className="text-sm font-medium mt-0.5">
-              {languages} <span className="text-gray-400">({englishLevel} English)</span>
-              {otherLanguages && 
-               !["X", "-", ".", "N/a", "Nope", "Nothing", ""].includes(otherLanguages.trim()) && (
-                <>
-                  <br />
-                  <span className="text-gray-600 text-xs">Also speaks: {otherLanguages}</span>
-                </>
-              )}
+              {formatLanguages()}
             </p>
           </div>
         </div>
