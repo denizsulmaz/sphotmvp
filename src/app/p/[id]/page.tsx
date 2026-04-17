@@ -49,6 +49,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
               locationTypes={photographer["Location Types"] ?? ""}
               languages={photographer.Languages ?? ""}
               englishLevel={photographer["English Level"] ?? ""}
+              otherLanguages={photographer["Other (Languages)"] ?? ""}
               deliveryTime={photographer["Delivery Time"] ?? ""}
               responseSpeed={photographer["Response Speed"] ?? ""}
               whatsappUrl={whatsappUrl}

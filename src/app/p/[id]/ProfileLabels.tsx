@@ -14,6 +14,7 @@ interface Props {
   locationTypes: string;
   languages: string;
   englishLevel: string;
+  otherLanguages?: string;
   deliveryTime: string;
   responseSpeed: string;
   whatsappUrl: string;
@@ -29,6 +30,7 @@ export default function ProfileLabels({
   locationTypes,
   languages,
   englishLevel,
+  otherLanguages,
   deliveryTime,
   responseSpeed,
   whatsappUrl,
@@ -94,6 +96,13 @@ export default function ProfileLabels({
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("languages")}</p>
             <p className="text-sm font-medium mt-0.5">
               {languages} <span className="text-gray-400">({englishLevel} English)</span>
+              {otherLanguages && 
+               !["X", "-", ".", "N/a", "Nope", "Nothing", ""].includes(otherLanguages.trim()) && (
+                <>
+                  <br />
+                  <span className="text-gray-600 text-xs">Also speaks: {otherLanguages}</span>
+                </>
+              )}
             </p>
           </div>
         </div>
