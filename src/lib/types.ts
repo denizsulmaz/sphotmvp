@@ -14,6 +14,7 @@ export interface Photographer {
   Style: string;
   "Style (Other)": string;
   IsStudio?: boolean;
+  hidden?: boolean;
 }
 
 export const CATEGORIES = [

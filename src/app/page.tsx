@@ -38,7 +38,8 @@ export default function Home() {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    const shuffled = [...(photographersData as Photographer[])].sort(() => 0.5 - Math.random());
+    const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
+    const shuffled = [...visible].sort(() => 0.5 - Math.random());
     setPhotographers(shuffled);
   }, []);
 
