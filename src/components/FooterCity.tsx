@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const CITIES = ["Seoul 🇰🇷", "Istanbul 🇹🇷", "Bangkok 🇹🇭", "London 🇬🇧", "Berlin 🇩🇪", "Moscow 🇷🇺"];
+const CITIES = ["Seoul 🇰🇷", "Istanbul 🇹🇷", "Bangkok 🇹🇭", "London 🇬🇧"];
 
 export default function FooterCity() {
   const [index, setIndex] = useState(0);
