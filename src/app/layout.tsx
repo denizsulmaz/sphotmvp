@@ -42,7 +42,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body className={`${inter.className} transition-colors duration-300`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <LanguageProvider>
         <div className="min-h-screen bg-white dark:bg-black text-foreground dark:text-zinc-100 flex flex-col w-full overflow-x-hidden">
 
