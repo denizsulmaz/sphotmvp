@@ -53,6 +53,12 @@ export default function ViewCounter({
     const baseline = getSeededBaseline(photographerId);
 
     async function processViews() {
+      // Early exit if Supabase is not initialized
+      if (!supabase) {
+        if (isMounted) setViews(baseline);
+        return;
+      }
+
       if (increment) {
         // Only hit Supabase if the 24-hour cooldown has expired
         if (shouldCountView(photographerId)) {
