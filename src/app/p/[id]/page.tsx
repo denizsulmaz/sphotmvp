@@ -40,6 +40,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
             {/* ProfileLabels is a client component that renders:
                 back link, price/studio badge, info card, and desktop CTA */}
             <ProfileLabels
+              id={photographer.ID}
               name={photographer.Name}
               profilePic={profilePic}
               minPrice={photographer["Min Price KRW(per hour & starting from)"]}
@@ -58,7 +59,7 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
 
           {/* Main Portfolio Content */}
           <div className="md:col-span-8">
-            <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-100">Portfolio</h2>
+            <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-100 dark:border-zinc-800 dark:text-white">Portfolio</h2>
             {/* Portfolio Grid component (Client) */}
             <ImageGrid photographerId={photographer.ID} />
           </div>
@@ -66,14 +67,14 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Fixed Bottom CTA (Mobile Only) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-100 z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-gray-100 dark:border-zinc-800 z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
         <a
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-foreground text-accent text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-transform"
+          className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-accent text-black text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-transform"
         >
-          <MessageCircle size={22} className="fill-accent" />
+          <MessageCircle size={22} className="fill-black" />
           Book via WhatsApp
         </a>
       </div>

@@ -7,6 +7,7 @@ import PhotographerCard from "@/components/PhotographerCard";
 import FilterDrawer from "@/components/FilterDrawer";
 import CategoryScroll from "@/components/CategoryScroll";
 import HomeBanner from "@/components/HomeBanner";
+import ReviewsSlider from "@/components/ReviewsSlider";
 import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
 import { SlidersHorizontal } from "lucide-react";
@@ -73,12 +74,12 @@ export default function Home() {
   const filterButton = (
     <button
       onClick={() => setIsFilterOpen(true)}
-      className="relative p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors"
+      className="relative p-2 bg-gray-50 dark:bg-zinc-900 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
       aria-label="Open filters"
     >
-      <SlidersHorizontal size={20} className="text-foreground" />
+      <SlidersHorizontal size={20} className="text-foreground dark:text-white" />
       {activeFilterCount > 0 && (
-        <span className="absolute top-0.5 right-0.5 bg-accent w-2.5 h-2.5 rounded-full border-2 border-white" />
+        <span className="absolute top-0.5 right-0.5 bg-accent w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900" />
       )}
     </button>
   );
@@ -86,17 +87,17 @@ export default function Home() {
   const filterSlot = mounted ? document.getElementById("nav-filter-slot") : null;
 
   return (
-    <div className="pb-20 bg-gray-50/50">
+    <div className="pb-20 bg-gray-50/50 dark:bg-transparent">
       {filterSlot && createPortal(filterButton, filterSlot)}
 
       <HomeBanner />
 
       <div className="px-4 md:px-8 mt-6 md:mt-10 mb-2">
-        <h2 className="text-3xl font-extrabold tracking-tight">{t("exploreHeading")}</h2>
+        <h2 className="text-3xl font-extrabold tracking-tight dark:text-white">{t("exploreHeading")}</h2>
       </div>
 
       {/* Category Scroll */}
-      <div className="bg-white border-b border-gray-100">
+      <div className="bg-white dark:bg-transparent border-b border-gray-100 dark:border-zinc-800">
         <CategoryScroll
           selectedCategory={selectedCategory}
           onSelect={(cat) => {
@@ -114,10 +115,10 @@ export default function Home() {
             {groupedPhotographers.map(([category, group]) => (
               <section key={category}>
                 <div className="flex justify-between items-end mb-4">
-                  <h3 className="text-2xl font-bold">{tCategory(category)}</h3>
+                  <h3 className="text-2xl font-bold dark:text-white">{tCategory(category)}</h3>
                   <button
                     onClick={() => setSelectedCategory(category)}
-                    className="text-sm font-bold text-gray-400 hover:text-foreground transition-colors"
+                    className="text-sm font-bold text-gray-400 dark:text-zinc-500 hover:text-foreground dark:hover:text-white transition-colors"
                   >
                     {t("viewAll")} ({group.length})
                   </button>
@@ -134,13 +135,13 @@ export default function Home() {
           /* Filtered flat view: used when a category is selected OR any filter is active */
           <>
             <div className="flex justify-between items-end mb-6">
-              <h2 className="text-xl font-bold">
+              <h2 className="text-xl font-bold dark:text-white">
                 {selectedCategory ? tCategory(selectedCategory) : t("allPhotographers")}
                 {activeFilterCount > 0 && (
-                  <span className="ml-2 text-sm font-normal text-gray-400">· {activeFilterCount} {activeFilterCount > 1 ? t("filtersActive") : t("filterActive")}</span>
+                  <span className="ml-2 text-sm font-normal text-gray-400 dark:text-zinc-500">· {activeFilterCount} {activeFilterCount > 1 ? t("filtersActive") : t("filterActive")}</span>
                 )}
               </h2>
-              <p className="text-sm font-semibold text-gray-500">{filteredPhotographers.length} {t("results")}</p>
+              <p className="text-sm font-semibold text-gray-500 dark:text-zinc-500">{filteredPhotographers.length} {t("results")}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -157,7 +158,7 @@ export default function Home() {
                     setSelectedCategory(null);
                     setFilters({ style: null, location: null, language: null, deliveryTime: null, responseSpeed: null });
                   }}
-                  className="mt-4 text-sm font-bold border-b-2 border-foreground pb-0.5"
+                  className="mt-4 text-sm font-bold border-b-2 border-foreground dark:border-white pb-0.5 dark:text-white"
                 >
                   {t("clearFilters")}
                 </button>
@@ -166,6 +167,8 @@ export default function Home() {
           </>
         )}
       </main>
+
+      {/* <ReviewsSlider /> */}
 
       <FilterDrawer
         isOpen={isFilterOpen}

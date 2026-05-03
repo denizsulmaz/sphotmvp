@@ -8,7 +8,7 @@ export default function FooterContent() {
   const { t } = useLanguage();
 
   return (
-    <footer className="w-full bg-gray-950 text-white py-16 mt-24">
+    <footer className="w-full bg-black text-white py-16 mt-24 border-t-2 border-transparent dark:border-accent">
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         {/* Top Row */}
         <div className="flex flex-col md:flex-row justify-between gap-12 mb-12">
@@ -63,6 +63,7 @@ export default function FooterContent() {
               <h3 className="font-bold text-white mb-4 uppercase tracking-wider text-xs">{t("footerCompany")}</h3>
               <ul className="space-y-3 text-gray-400">
                 <li><Link href="/about" className="hover:text-white transition-colors">{t("footerAbout")}</Link></li>
+                <li><Link href="/blog" className="hover:text-white transition-colors">Blog</Link></li>
                 <li><a href="mailto:hi@booksphot.com" className="hover:text-white transition-colors">{t("footerContact")}</a></li>
               </ul>
             </div>

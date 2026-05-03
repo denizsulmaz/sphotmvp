@@ -82,8 +82,8 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
             onClick={() => toggleFilter(filterKey, opt)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
               localFilters[filterKey] === opt
-                ? "bg-foreground text-background border-foreground"
-                : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                : "bg-white dark:bg-zinc-900 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700"
             }`}
           >
             {tFilterOption(opt)}
@@ -96,13 +96,13 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 bg-white z-50 rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transform transition-transform md:max-w-xl md:mx-auto">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black z-50 rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transform transition-transform md:max-w-xl md:mx-auto">
+        <div className="p-4 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-black sticky top-0 z-10">
           <div className="flex items-center gap-2">
-            <SlidersHorizontal size={20} className="text-foreground" />
-            <h2 className="text-lg font-extrabold text-foreground">{t("filters")}</h2>
+            <SlidersHorizontal size={20} className="text-foreground dark:text-white" />
+            <h2 className="text-lg font-extrabold text-foreground dark:text-white">{t("filters")}</h2>
           </div>
-          <button onClick={onClose} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors text-gray-500">
+          <button onClick={onClose} className="p-2 bg-gray-50 dark:bg-zinc-900 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors text-gray-500 dark:text-zinc-400">
             <X size={20} />
           </button>
         </div>
@@ -115,14 +115,14 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
           <Section title={t("filterResponseSpeed")} filterKey="responseSpeed" options={FILTER_OPTIONS.responseSpeed} />
         </div>
 
-        <div className="p-4 border-t border-gray-100 bg-white grid grid-cols-2 gap-3 sticky bottom-0 z-10 pb-8">
-          <button onClick={handleReset} className="py-3.5 rounded-xl font-bold text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors">
+        <div className="p-4 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-black grid grid-cols-2 gap-3 sticky bottom-0 z-10 pb-8">
+          <button onClick={handleReset} className="py-3.5 rounded-xl font-bold text-gray-600 dark:text-zinc-400 bg-gray-50 dark:bg-zinc-900 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors">
             {t("reset")}
           </button>
-          <button onClick={handleApply} className="py-3.5 rounded-xl font-bold bg-accent text-foreground shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <button onClick={handleApply} className="py-3.5 rounded-xl font-bold bg-accent text-black shadow-sm active:scale-95 transition-transform flex items-center justify-center gap-2">
             {t("applyFilters")}
             {Object.values(localFilters).filter(Boolean).length > 0 && (
-              <span className="bg-foreground text-accent text-[10px] w-5 h-5 flex items-center justify-center rounded-full leading-none shrink-0">
+              <span className="bg-black dark:bg-white text-accent dark:text-zinc-950 text-[10px] w-5 h-5 flex items-center justify-center rounded-full leading-none shrink-0">
                 {Object.values(localFilters).filter(Boolean).length}
               </span>
             )}

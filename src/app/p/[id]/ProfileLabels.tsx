@@ -3,8 +3,10 @@
 import { useLanguage } from "@/context/LanguageContext";
 import { MapPin, Globe, Clock, Zap, MessageCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import ViewCounter from "@/components/ViewCounter";
 
 interface Props {
+  id: string;
   name: string;
   profilePic: string;
   minPrice: string;
@@ -21,6 +23,7 @@ interface Props {
 }
 
 export default function ProfileLabels({
+  id,
   name,
   profilePic,
   minPrice,
@@ -63,79 +66,81 @@ export default function ProfileLabels({
   return (
     <>
       {/* Back link */}
-      <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-foreground font-semibold mb-6 transition-colors">
+      <Link href="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-foreground dark:text-zinc-500 dark:hover:text-white font-semibold mb-6 transition-colors">
         <ArrowLeft size={20} />
         {t("backToPhotographers")}
       </Link>
 
       {/* Name + profile pic */}
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm border border-gray-200">
+        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 flex-shrink-0 shadow-sm border border-gray-200 dark:border-zinc-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={profilePic} alt={name} className="object-cover w-full h-full object-center" />
         </div>
         <div>
-          <h1 className="text-3xl font-black text-foreground">{name}</h1>
-          <p className="text-gray-500 font-medium mt-1">
-            {t("from")} <span className="text-foreground font-bold">{minPrice}</span>
+          <h1 className="text-3xl font-black text-foreground dark:text-white">{name}</h1>
+          <p className="text-gray-500 dark:text-zinc-400 font-medium mt-1">
+            {t("from")} <span className="text-foreground dark:text-zinc-200 font-bold">{minPrice}</span>
           </p>
-          {isStudio && (
-            <span className="inline-block mt-2 px-2 py-0.5 bg-black text-white rounded text-[10px] font-bold uppercase tracking-widest">
-              {t("studio")}
-            </span>
-          )}
+          <div className="mt-2 flex items-center gap-3">
+            {isStudio && (
+              <span className="inline-block px-2 py-0.5 bg-black dark:bg-white text-white dark:text-black rounded text-[10px] font-bold uppercase tracking-widest">
+                {t("studio")}
+              </span>
+            )}
+            <ViewCounter photographerId={id} increment={true} showText={true} />
+          </div>
         </div>
       </div>
 
-      {/* Categories & Styles */}
       <div className="mb-8 flex flex-wrap gap-2">
         {categories.split(",").filter(Boolean).map((cat) => (
-          <span key={cat.trim()} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold">
+          <span key={cat.trim()} className="px-3 py-1 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 rounded-lg text-xs font-bold">
             {tCategory(cat.trim())}
           </span>
         ))}
         {styles.split(",").filter(Boolean).map((style) => (
-          <span key={style.trim()} className="px-3 py-1 bg-accent/20 border border-accent/50 text-foreground rounded-lg text-xs font-bold">
+          <span key={style.trim()} className="px-3 py-1 bg-accent/20 border border-accent/50 text-foreground dark:text-white rounded-lg text-xs font-bold">
             {tStyle(style.trim())}
           </span>
         ))}
       </div>
 
       {/* Information Details */}
-      <div className="space-y-4 bg-gray-50 p-6 rounded-2xl border border-gray-100">
-        <h2 className="text-lg font-bold mb-4">{t("information")}</h2>
+      <div className="space-y-4 bg-gray-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-gray-100 dark:border-zinc-800">
+        <h2 className="text-lg font-bold mb-4 dark:text-white">{t("information")}</h2>
 
         <div className="flex items-start gap-3">
-          <MapPin className="text-gray-400 mt-0.5" size={20} />
+          <MapPin className="text-gray-400 dark:text-zinc-600 mt-0.5" size={20} />
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("locationTypes")}</p>
-            <p className="text-sm font-medium mt-0.5">{locationTypes}</p>
+            <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">{t("locationTypes")}</p>
+            <p className="text-sm font-medium mt-0.5 dark:text-zinc-300">{locationTypes}</p>
           </div>
         </div>
 
         <div className="flex items-start gap-3">
-          <Globe className="text-gray-400 mt-0.5" size={20} />
+          <Globe className="text-gray-400 dark:text-zinc-600 mt-0.5" size={20} />
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("languages")}</p>
-            <p className="text-sm font-medium mt-0.5">
+            <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">{t("languages")}</p>
+            <p className="text-sm font-medium mt-0.5 dark:text-zinc-300">
               {formatLanguages()}
             </p>
           </div>
         </div>
 
         <div className="flex items-start gap-3">
-          <Clock className="text-gray-400 mt-0.5" size={20} />
+          <Clock className="text-gray-400 dark:text-zinc-600 mt-0.5" size={20} />
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("deliveryTime")}</p>
-            <p className="text-sm font-medium mt-0.5">{deliveryTime}</p>
+            <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">{t("deliveryTime")}</p>
+            <p className="text-sm font-medium mt-0.5 dark:text-zinc-300">{deliveryTime}</p>
           </div>
         </div>
 
         <div className="flex items-start gap-3">
           <Zap className="text-amber-500 mt-0.5" size={20} />
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("responseSpeed")}</p>
-            <p className="text-sm font-bold text-foreground mt-0.5">{responseSpeed}</p>
+            <p className="text-xs font-bold text-gray-500 dark:text-zinc-500 uppercase tracking-wider">{t("responseSpeed")}</p>
+            <p className="text-sm font-bold text-foreground dark:text-white mt-0.5">{responseSpeed}</p>
           </div>
         </div>
       </div>
@@ -146,9 +151,9 @@ export default function ProfileLabels({
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-foreground text-accent text-lg font-black shadow-xl hover:-translate-y-1 active:scale-95 transition-transform"
+          className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-accent text-black text-lg font-black shadow-xl hover:-translate-y-1 active:scale-95 transition-transform"
         >
-          <MessageCircle size={22} className="fill-accent" />
+          <MessageCircle size={22} className="fill-black" />
           {t("bookPhotographer")}
         </a>
       </div>

@@ -46,50 +46,50 @@ export default function AboutPage() {
       </div>
 
       {/* Light Content Section */}
-      <div className="bg-white text-foreground w-full py-16 md:py-24">
+      <div className="bg-white dark:bg-black text-foreground dark:text-zinc-100 w-full py-16 md:py-24 transition-colors">
         <div className="max-w-4xl mx-auto px-4 md:px-8">
-          <div className="prose prose-gray max-w-none space-y-12">
+          <div className="prose prose-gray dark:prose-invert max-w-none space-y-12">
             <section>
-              <h2 className="text-3xl font-bold mb-4">{t("whatIsSphot")}</h2>
-              <p className="text-gray-600 leading-relaxed text-lg">{t("whatIsSphotText")}</p>
+              <h2 className="text-3xl font-bold mb-4 dark:text-white">{t("whatIsSphot")}</h2>
+              <p className="text-gray-600 dark:text-zinc-400 leading-relaxed text-lg">{t("whatIsSphotText")}</p>
             </section>
 
             <section>
-              <h2 className="text-3xl font-bold mb-4">{t("ourMission")}</h2>
-              <p className="text-gray-600 leading-relaxed text-lg">{t("ourMissionText")}</p>
+              <h2 className="text-3xl font-bold mb-4 dark:text-white">{t("ourMission")}</h2>
+              <p className="text-gray-600 dark:text-zinc-400 leading-relaxed text-lg">{t("ourMissionText")}</p>
             </section>
 
             <section>
-              <h2 className="text-3xl font-bold mb-6">{t("howItWorks")}</h2>
-              <ol className="space-y-6 text-gray-600 text-lg">
+              <h2 className="text-3xl font-bold mb-6 dark:text-white">{t("howItWorks")}</h2>
+              <ol className="space-y-6 text-gray-600 dark:text-zinc-400 text-lg">
                 <li className="flex gap-5 items-start">
                   <span className="flex-shrink-0 w-10 h-10 mt-1 rounded-full bg-accent flex items-center justify-center font-black text-black">1</span>
-                  <div className="pt-2"><strong className="text-foreground">{t("step1Label")} </strong>{t("step1Text")}</div>
+                  <div className="pt-2"><strong className="text-foreground dark:text-white">{t("step1Label")} </strong>{t("step1Text")}</div>
                 </li>
                 <li className="flex gap-5 items-start">
                   <span className="flex-shrink-0 w-10 h-10 mt-1 rounded-full bg-accent flex items-center justify-center font-black text-black">2</span>
-                  <div className="pt-2"><strong className="text-foreground">{t("step2Label")} </strong>{t("step2Text")}</div>
+                  <div className="pt-2"><strong className="text-foreground dark:text-white">{t("step2Label")} </strong>{t("step2Text")}</div>
                 </li>
                 <li className="flex gap-5 items-start">
                   <span className="flex-shrink-0 w-10 h-10 mt-1 rounded-full bg-accent flex items-center justify-center font-black text-black">3</span>
-                  <div className="pt-2"><strong className="text-foreground">{t("step3Label")} </strong>{t("step3Text")}</div>
+                  <div className="pt-2"><strong className="text-foreground dark:text-white">{t("step3Label")} </strong>{t("step3Text")}</div>
                 </li>
               </ol>
             </section>
 
             <section>
-              <h2 className="text-3xl font-bold mb-4">{t("getInTouch")}</h2>
-              <p className="text-gray-600 leading-relaxed text-lg">
+              <h2 className="text-3xl font-bold mb-4 dark:text-white">{t("getInTouch")}</h2>
+              <p className="text-gray-600 dark:text-zinc-400 leading-relaxed text-lg">
                 {t("getInTouchText")}{" "}
-                <a href="mailto:hi@booksphot.com" className="text-foreground font-bold underline underline-offset-4 hover:text-accent transition-colors">
+                <a href="mailto:hi@booksphot.com" className="text-foreground dark:text-white font-bold underline underline-offset-4 hover:text-accent transition-colors">
                   hi@booksphot.com
                 </a>.
                 <br /><br />
                 {t("followUs")}{" "}
-                <a href="https://instagram.com/booksphot" target="_blank" rel="noopener noreferrer" className="text-foreground font-bold underline underline-offset-4 hover:text-accent transition-colors">Instagram</a>{" "}
+                <a href="https://instagram.com/booksphot" target="_blank" rel="noopener noreferrer" className="text-foreground dark:text-white font-bold underline underline-offset-4 hover:text-accent transition-colors">Instagram</a>{" "}
                 {t("and")}{" "}
-                <a href="https://tiktok.com/@booksphot" target="_blank" rel="noopener noreferrer" className="text-foreground font-bold underline underline-offset-4 hover:text-accent transition-colors">TikTok</a>{" "}
-                {t("at")} <strong>@booksphot</strong>.
+                <a href="https://tiktok.com/@booksphot" target="_blank" rel="noopener noreferrer" className="text-foreground dark:text-white font-bold underline underline-offset-4 hover:text-accent transition-colors">TikTok</a>{" "}
+                {t("at")} <strong className="dark:text-white">@booksphot</strong>.
               </p>
             </section>
           </div>

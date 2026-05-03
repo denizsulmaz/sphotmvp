@@ -63,9 +63,9 @@ export default function CategoryScroll({ selectedCategory, onSelect }: Props) {
               onClick={() => onSelect(key)}
               className={`relative flex-shrink-0 w-28 rounded-2xl overflow-hidden shadow-sm flex flex-col items-center justify-end transition-all active:scale-95 ${
                 isSelected
-                  ? "ring-2 ring-offset-2 ring-accent scale-[1.03]"
+                  ? "ring-2 ring-offset-2 ring-accent dark:ring-offset-zinc-950 scale-[1.03]"
                   : "hover:scale-[1.02]"
-              } ${!key ? "bg-accent" : ""}`}
+              } ${!key ? "bg-accent" : "bg-zinc-100 dark:bg-zinc-900"}`}
               style={{ height: "108px" }}
             >
               {/* Fallback gradient behind the image (only for categories, not 'All') */}
@@ -106,10 +106,10 @@ export default function CategoryScroll({ selectedCategory, onSelect }: Props) {
               scrollContainerRef.current.scrollBy({ left: 300, behavior: "smooth" });
             }
           }}
-          className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-end bg-gradient-to-l from-white via-white/80 to-transparent pr-2 z-40 focus:outline-none group opacity-90 transition-opacity hover:opacity-100"
+          className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-end bg-gradient-to-l from-white dark:from-zinc-950 via-white/80 dark:via-zinc-950/80 to-transparent pr-2 z-40 focus:outline-none group opacity-90 transition-opacity hover:opacity-100"
           aria-label="Scroll right"
         >
-          <div className="bg-white/90 rounded-full p-1 shadow-sm border border-gray-100 animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform text-gray-600">
+          <div className="bg-white/90 dark:bg-zinc-900/90 rounded-full p-1 shadow-sm border border-gray-100 dark:border-zinc-800 animate-pulse group-hover:animate-none group-hover:scale-110 transition-transform text-gray-600 dark:text-zinc-400">
             <ChevronRight className="w-6 h-6" />
           </div>
         </button>
