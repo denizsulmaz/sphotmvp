@@ -19,7 +19,7 @@ function getSeededBaseline(id: string): number {
   return 503 + Math.abs(hash % 150);
 }
 
-const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const COOLDOWN_MS = 0; // Temporarily 0 for testing
 
 /** Returns true if we should count this visit, and records the timestamp. */
 function shouldCountView(photographerId: string): boolean {
