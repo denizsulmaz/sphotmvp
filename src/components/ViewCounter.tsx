@@ -19,7 +19,7 @@ function getSeededBaseline(id: string): number {
   return 503 + Math.abs(hash % 150);
 }
 
-const COOLDOWN_MS = 0; // Temporarily 0 for testing
+const COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 /** Returns true if we should count this visit, and records the timestamp. */
 function shouldCountView(photographerId: string): boolean {
@@ -53,10 +53,8 @@ export default function ViewCounter({
     const baseline = getSeededBaseline(photographerId);
 
     async function processViews() {
-      console.log("Is Supabase configured?", !!supabase);
       // Early exit if Supabase is not initialized
       if (!supabase) {
-        console.error("Supabase is NULL - Environment variables are missing!");
         if (isMounted) setViews(baseline);
         return;
       }
@@ -68,7 +66,6 @@ export default function ViewCounter({
             "increment_photographer_view",
             { p_id: photographerId }
           );
-          if (error) console.error("Supabase RPC Error:", error);
           if (!error && data !== null && isMounted) {
             setViews(baseline + data);
             return;
@@ -80,7 +77,6 @@ export default function ViewCounter({
             .select("count")
             .eq("photographer_id", photographerId)
             .single();
-          if (error) console.error("Supabase Read Error:", error);
           if (!error && data && isMounted) {
             setViews(baseline + data.count);
             return;
