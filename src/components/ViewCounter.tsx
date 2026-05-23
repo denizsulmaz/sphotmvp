@@ -66,6 +66,7 @@ export default function ViewCounter({
             "increment_photographer_view",
             { p_id: photographerId }
           );
+          if (error) console.error("Supabase RPC Error:", error);
           if (!error && data !== null && isMounted) {
             setViews(baseline + data);
             return;
@@ -77,6 +78,7 @@ export default function ViewCounter({
             .select("count")
             .eq("photographer_id", photographerId)
             .single();
+          if (error) console.error("Supabase Read Error:", error);
           if (!error && data && isMounted) {
             setViews(baseline + data.count);
             return;
