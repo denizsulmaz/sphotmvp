@@ -53,8 +53,10 @@ export default function ViewCounter({
     const baseline = getSeededBaseline(photographerId);
 
     async function processViews() {
+      console.log("Is Supabase configured?", !!supabase);
       // Early exit if Supabase is not initialized
       if (!supabase) {
+        console.error("Supabase is NULL - Environment variables are missing!");
         if (isMounted) setViews(baseline);
         return;
       }
