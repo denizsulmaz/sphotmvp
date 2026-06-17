@@ -6,9 +6,8 @@ import FooterContent from '@/components/FooterContent';
 import Script from 'next/script';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { AuthProvider } from '@/context/AuthContext';
-import LanguageSelector from '@/components/LanguageSelector';
+import HeaderNav from '@/components/HeaderNav';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import ThemeToggle from '@/components/ThemeToggle';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -49,24 +48,7 @@ export default function RootLayout({
         <div className="min-h-screen bg-white dark:bg-black text-foreground dark:text-zinc-100 flex flex-col w-full overflow-x-hidden">
 
           {/* ═══════════ GLOBALLY FIXED TOP NAV ═══════════ */}
-          <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800 shadow-sm dark:shadow-none">
-            <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-              <Link href="/" className="text-2xl font-black tracking-tighter text-foreground dark:text-white">
-                SPHOT<span className="text-accent">.</span>
-              </Link>
-              {/* Right side: language selector + filter slot (filled by page via portal) */}
-              <div className="flex items-center gap-4">
-                <Link href="/blog" className="text-sm font-bold text-gray-600 dark:text-zinc-400 hover:text-foreground dark:hover:text-white transition-colors hidden md:block">
-                  Blog
-                </Link>
-                <div className="flex items-center gap-2">
-                  <ThemeToggle />
-                  <LanguageSelector />
-                  <div id="nav-filter-slot" />
-                </div>
-              </div>
-            </div>
-          </header>
+          <HeaderNav />
 
           {/* Push content below fixed header */}
           <div className="pt-16 flex-1 flex flex-col">
