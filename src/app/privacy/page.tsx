@@ -15,7 +15,7 @@ export default function PrivacyPage() {
       <div className="space-y-8 text-gray-600 leading-relaxed">
         <section>
           <h2 className="text-xl font-bold text-foreground mb-2">1. Information We Collect</h2>
-          <p>SPHOT is a static discovery platform. We do not currently collect personal data directly through the site. When you use the WhatsApp booking link, your communication is handled through WhatsApp's own platform and privacy policy applies to those interactions.</p>
+          <p>SPHOT is a static discovery platform. We do not currently collect personal data directly through the site. When you use the WhatsApp booking link, your communication is handled through WhatsApp&apos;s own platform and privacy policy applies to those interactions.</p>
         </section>
 
         <section>

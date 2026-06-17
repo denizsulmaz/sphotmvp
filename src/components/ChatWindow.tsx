@@ -69,7 +69,7 @@ export default function ChatWindow({
           table: "messages",
           filter: `booking_id=eq.${bookingId}`,
         },
-        (payload) => {
+        (payload: any) => {
           const newMessage = payload.new as Message;
           // Avoid duplicate appends (if insert resolves immediately locally)
           setMessages((prev) => {

@@ -15,7 +15,7 @@ export default function TermsPage() {
       <div className="space-y-8 text-gray-600 leading-relaxed">
         <section>
           <h2 className="text-xl font-bold text-foreground mb-2">1. Acceptance of Terms</h2>
-          <p>By accessing or using SPHOT ("the Platform"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Platform.</p>
+          <p>By accessing or using SPHOT (&quot;the Platform&quot;), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Platform.</p>
         </section>
 
         <section>

@@ -187,7 +187,7 @@ export default function AuthPage() {
                       : "border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-700"
                   }`}
                 >
-                  I'm a Photographer
+                  I&apos;m a Photographer
                 </button>
               </div>
 

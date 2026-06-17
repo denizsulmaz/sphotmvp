@@ -43,7 +43,7 @@ export default function Home() {
     const fetchPhotographers = async () => {
       try {
         if (!supabase) {
-          useStaticFallback();
+          staticFallback();
           return;
         }
 
@@ -59,7 +59,7 @@ export default function Home() {
           .eq("is_approved", true);
 
         if (error || !data || data.length === 0) {
-          useStaticFallback();
+          staticFallback();
         } else {
           const mapped: Photographer[] = data.map((row: any) => ({
             ID: row.id,
@@ -85,11 +85,11 @@ export default function Home() {
         }
       } catch (err) {
         console.error("Error fetching photographers, using static fallback:", err);
-        useStaticFallback();
+        staticFallback();
       }
     };
 
-    const useStaticFallback = () => {
+    const staticFallback = () => {
       const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
       const shuffled = [...visible].sort(() => 0.5 - Math.random());
       setPhotographers(shuffled);
