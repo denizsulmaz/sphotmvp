@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { Calendar, Clock, CreditCard, User, Mail, Lock, AlertCircle, Sparkles } from "lucide-react";
+import photographersData from "@/data/photographers.json";
+
+export function generateStaticParams() {
+  return photographersData.map((p) => ({
+    id: p.ID,
+  }));
+}
 
 interface PhotographerProfile {
   id: string;

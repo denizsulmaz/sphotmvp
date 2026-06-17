@@ -8,7 +8,7 @@ import ImageGrid from "./ImageGrid";
 import ProfileLabels from "./ProfileLabels";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/context/LanguageContext";
-import { Calendar as CalendarIcon, Clock, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, ChevronRight, MessageCircle } from "lucide-react";
 
 interface DBAvailabilitySlot {
   id: string;
