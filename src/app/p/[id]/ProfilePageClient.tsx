@@ -110,8 +110,47 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
             setSlots(dbSlots as DBAvailabilitySlot[]);
             setHasDBSlots(true);
           } else {
-            setSlots([]);
-            setHasDBSlots(false);
+            // Test Mode: Auto-populate mock slots for testing/QA purposes if no active slots exist in DB
+            const mockSlots: DBAvailabilitySlot[] = [];
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            // Slot 1: Tomorrow 10:00 AM - 11:00 AM
+            const t1Start = new Date(tomorrow);
+            t1Start.setHours(10, 0, 0, 0);
+            const t1End = new Date(tomorrow);
+            t1End.setHours(11, 0, 0, 0);
+
+            // Slot 2: Tomorrow 2:00 PM - 3:00 PM
+            const t2Start = new Date(tomorrow);
+            t2Start.setHours(14, 0, 0, 0);
+            const t2End = new Date(tomorrow);
+            t2End.setHours(15, 0, 0, 0);
+
+            const dayAfter = new Date();
+            dayAfter.setDate(dayAfter.getDate() + 2);
+
+            // Slot 3: Day after 11:00 AM - 12:00 PM
+            const d1Start = new Date(dayAfter);
+            d1Start.setHours(11, 0, 0, 0);
+            const d1End = new Date(dayAfter);
+            d1End.setHours(12, 0, 0, 0);
+
+            // Slot 4: Day after 4:00 PM - 5:00 PM
+            const d2Start = new Date(dayAfter);
+            d2Start.setHours(16, 0, 0, 0);
+            const d2End = new Date(dayAfter);
+            d2End.setHours(17, 0, 0, 0);
+
+            mockSlots.push(
+              { id: "mock-slot-1", photographer_id: id, start_time: t1Start.toISOString(), end_time: t1End.toISOString(), status: "available" },
+              { id: "mock-slot-2", photographer_id: id, start_time: t2Start.toISOString(), end_time: t2End.toISOString(), status: "available" },
+              { id: "mock-slot-3", photographer_id: id, start_time: d1Start.toISOString(), end_time: d1End.toISOString(), status: "available" },
+              { id: "mock-slot-4", photographer_id: id, start_time: d2Start.toISOString(), end_time: d2End.toISOString(), status: "available" }
+            );
+
+            setSlots(mockSlots);
+            setHasDBSlots(true);
           }
         }
       } catch (err) {

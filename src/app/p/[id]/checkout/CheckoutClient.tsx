@@ -83,17 +83,51 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
         // 2. Fetch slot
         if (slotId) {
-          const { data: dbSlot } = await supabase
-            .from("availability_slots")
-            .select("*")
-            .eq("id", slotId)
-            .eq("status", "available")
-            .single();
+          if (slotId.startsWith("mock-slot-")) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const dayAfter = new Date();
+            dayAfter.setDate(dayAfter.getDate() + 2);
 
-          if (dbSlot) {
-            setSlot(dbSlot as SlotDetails);
+            let start = new Date(tomorrow);
+            let end = new Date(tomorrow);
+
+            if (slotId === "mock-slot-1") {
+              start.setHours(10, 0, 0, 0);
+              end.setHours(11, 0, 0, 0);
+            } else if (slotId === "mock-slot-2") {
+              start.setHours(14, 0, 0, 0);
+              end.setHours(15, 0, 0, 0);
+            } else if (slotId === "mock-slot-3") {
+              start = new Date(dayAfter);
+              start.setHours(11, 0, 0, 0);
+              end = new Date(dayAfter);
+              end.setHours(12, 0, 0, 0);
+            } else if (slotId === "mock-slot-4") {
+              start = new Date(dayAfter);
+              start.setHours(16, 0, 0, 0);
+              end = new Date(dayAfter);
+              end.setHours(17, 0, 0, 0);
+            }
+
+            setSlot({
+              id: slotId,
+              start_time: start.toISOString(),
+              end_time: end.toISOString()
+            });
           } else {
-            setError("This availability slot is no longer available.");
+            const { data: dbSlot } = await supabase
+              .from("availability_slots")
+              .select("*")
+              .eq("id", slotId)
+              .eq("status", "available")
+              .single();
+
+            if (dbSlot) {
+              setSlot(dbSlot as SlotDetails);
+            } else {
+              setError("This availability slot is no longer available.");
+            }
           }
         }
       } catch (err) {
@@ -164,12 +198,13 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       if (!supabase) return;
 
       // 1. Create a pending booking record
+      const isMockSlot = slotId && slotId.startsWith("mock-slot-");
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
         .insert({
           client_id: user.id,
           photographer_id: photographer.id,
-          slot_id: slotId || null,
+          slot_id: isMockSlot ? null : (slotId || null),
           status: "pending",
           fee_krw: 25000,
         })
