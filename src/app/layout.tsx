@@ -5,6 +5,7 @@ import Link from 'next/link';
 import FooterContent from '@/components/FooterContent';
 import Script from 'next/script';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { AuthProvider } from '@/context/AuthContext';
 import LanguageSelector from '@/components/LanguageSelector';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -43,6 +44,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} transition-colors duration-300`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <AuthProvider>
         <LanguageProvider>
         <div className="min-h-screen bg-white dark:bg-black text-foreground dark:text-zinc-100 flex flex-col w-full overflow-x-hidden">
 
@@ -76,6 +78,7 @@ export default function RootLayout({
           </div>
         </div>
         </LanguageProvider>
+        </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
