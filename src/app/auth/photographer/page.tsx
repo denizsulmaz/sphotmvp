@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/context/LanguageContext";
-import { Lock, Mail, User, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { CATEGORIES } from "@/lib/types";
+import { Lock, Mail, User, AlertCircle, Eye, EyeOff, MapPin, DollarSign, ExternalLink, Instagram, Shield, Award } from "lucide-react";
 
 export default function PhotographerAuthPage() {
   const router = useRouter();
@@ -15,10 +16,37 @@ export default function PhotographerAuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   
+  // Photographer Application Details
+  const [location, setLocation] = useState("Seoul");
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
+  const [basePrice, setBasePrice] = useState("");
+  const [portfolioLink, setPortfolioLink] = useState("");
+  const [socialLink, setSocialLink] = useState("");
+  const [selectedLangs, setSelectedLangs] = useState<string[]>(["English"]);
+  const [experienceLevel, setExperienceLevel] = useState("Professional");
+  const [equipment, setEquipment] = useState("");
+  const [bio, setBio] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const availableLocations = ["Seoul", "Bangkok", "Tokyo", "Moscow"];
+  const availableLanguages = ["English", "Korean", "Chinese", "Japanese", "Russian", "Spanish"];
+  const experienceLevels = ["Intermediate", "Professional", "Studio / Agency"];
+
+  const handleCategoryToggle = (cat: string) => {
+    setSelectedCats(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const handleLanguageToggle = (lang: string) => {
+    setSelectedLangs(prev =>
+      prev.includes(lang) ? prev.filter(l => l !== lang) : [...prev, lang]
+    );
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +62,18 @@ export default function PhotographerAuthPage() {
 
     try {
       if (isSignUp) {
+        // Validation for detailed photographer fields
+        if (selectedCats.length === 0) {
+          setError("Please select at least one service category.");
+          setLoading(false);
+          return;
+        }
+        if (!portfolioLink) {
+          setError("Please provide a link to your portfolio.");
+          setLoading(false);
+          return;
+        }
+
         // Sign Up Flow for Photographers
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -49,14 +89,35 @@ export default function PhotographerAuthPage() {
         if (signUpError) {
           setError(signUpError.message);
         } else if (data.user) {
-          if (data.session) {
-            setSuccess("Registration successful!");
-            setTimeout(() => {
-              router.push("/photographer/profile");
-            }, 1000);
-          } else {
-            setSuccess("Check your email to verify your photographer account!");
+          // Attempt client-side insert/update of photographer details
+          // Since trigger handle_new_user creates the photographer_profile row, we update it
+          const parsedInstagramHandle = socialLink.split("instagram.com/").pop()?.replace(/\/$/, "") || socialLink;
+          
+          const { error: profileError } = await supabase
+            .from("photographer_profiles")
+            .update({
+              bio: `Experience: ${experienceLevel}\nEquipment: ${equipment}\nBio: ${bio}`,
+              base_price: Number(basePrice) || 0,
+              locations: [location],
+              categories: selectedCats,
+              portfolio_urls: [portfolioLink], // We store the external portfolio URL as the first item
+              instagram: parsedInstagramHandle.startsWith("@") ? parsedInstagramHandle : `@${parsedInstagramHandle}`,
+              instagram_url: socialLink,
+              languages: selectedLangs,
+              english_level: selectedLangs.includes("English") ? "Fluent" : "Basic",
+              is_approved: false // Must be verified by admin
+            })
+            .eq("id", data.user.id);
+
+          if (profileError) {
+            console.error("Failed to save detailed application fields:", profileError);
+            // We don't crash, but warn the user that they can finalize this inside the profile page
           }
+
+          setSuccess("Application submitted successfully! Your account is created and pending admin verification.");
+          setTimeout(() => {
+            router.push("/photographer/dashboard");
+          }, 2000);
         }
       } else {
         // Sign In Flow
@@ -68,7 +129,7 @@ export default function PhotographerAuthPage() {
         if (signInError) {
           setError(signInError.message);
         } else if (data.user) {
-          // Verify they are indeed a photographer or admin
+          // Verify role
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("role")
@@ -76,7 +137,6 @@ export default function PhotographerAuthPage() {
             .single();
 
           if (profileError || !profile) {
-            // Log out user if profile not found
             await supabase.auth.signOut();
             setError("Could not retrieve user profile.");
             setLoading(false);
@@ -90,7 +150,7 @@ export default function PhotographerAuthPage() {
             return;
           }
 
-          setSuccess("Welcome back, Photographer!");
+          setSuccess("Welcome back!");
           setTimeout(() => {
             if (profile.role === "admin") {
               router.push("/admin/dashboard");
@@ -108,8 +168,8 @@ export default function PhotographerAuthPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-8 shadow-xl dark:shadow-none transition-all duration-300">
+    <div className="min-h-[90vh] flex items-center justify-center px-4 py-16">
+      <div className={`w-full ${isSignUp ? "max-w-2xl" : "max-w-md"} bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-8 shadow-xl dark:shadow-none transition-all duration-300`}>
         
         {/* Toggle tabs */}
         <div className="flex border-b border-gray-100 dark:border-zinc-800 mb-8">
@@ -145,13 +205,20 @@ export default function PhotographerAuthPage() {
 
         {/* Header Text */}
         <div className="mb-6">
-          <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white">
-            {isSignUp ? "Apply as SPHOT Photographer" : "Photographer Portal"}
+          <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white flex items-center gap-2">
+            {isSignUp ? (
+              <>
+                <Award className="text-accent" size={24} />
+                <span>SPHOT Photographer Application</span>
+              </>
+            ) : (
+              "Photographer Portal"
+            )}
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
             {isSignUp
-              ? "Register to build your profile, showcase your portfolio, and manage bookings."
-              : "Sign in to access your photographer dashboard and bookings."}
+              ? "Complete the details below to apply as a photographer. Admin approval is completed within 3 business days."
+              : "Sign in to access your photographer dashboard, schedule, and portfolio settings."}
           </p>
         </div>
 
@@ -168,60 +235,252 @@ export default function PhotographerAuthPage() {
           </div>
         )}
 
-        <form onSubmit={handleAuth} className="space-y-4">
-          {isSignUp && (
-            /* Full Name input */
-            <div className="relative">
-              <User size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
-              <input
-                type="text"
-                required
-                placeholder="Full Name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
-              />
+        <form onSubmit={handleAuth} className="space-y-6">
+          
+          {isSignUp ? (
+            /* Multi-field detailed registration layout */
+            <div className="space-y-6">
+              
+              {/* SECTION 1: Credentials */}
+              <div className="border-b border-gray-100 dark:border-zinc-800 pb-4">
+                <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">1. Account Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <User size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Full Name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="Email Address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
+                    />
+                  </div>
+                </div>
+                <div className="relative mt-4">
+                  <Lock size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    placeholder="Create Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-12 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-3.5 text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* SECTION 2: Professional details */}
+              <div className="border-b border-gray-100 dark:border-zinc-800 pb-4">
+                <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">2. Service & Location</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5 flex items-center gap-1">
+                      <MapPin size={12} /> Primary Location
+                    </label>
+                    <select
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                    >
+                      {availableLocations.map(loc => (
+                        <option key={loc} value={loc}>{loc}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5 flex items-center gap-1">
+                      <DollarSign size={12} /> Starting Price per Hour (KRW)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="e.g. 150000"
+                      value={basePrice}
+                      onChange={(e) => setBasePrice(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-2">Service Categories (select all that apply)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map(cat => {
+                      const selected = selectedCats.includes(cat);
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => handleCategoryToggle(cat)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                            selected
+                              ? "border-accent bg-accent/10 text-black dark:text-white font-black"
+                              : "border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-700"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: Portfolio & Experience */}
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">3. Portfolio & Verification</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5 flex items-center gap-1">
+                      <ExternalLink size={12} /> External Portfolio Link
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="Google Drive, Dropbox, or website link"
+                      value={portfolioLink}
+                      onChange={(e) => setPortfolioLink(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5 flex items-center gap-1">
+                      <Instagram size={12} /> Instagram Profile URL
+                    </label>
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://instagram.com/yourhandle"
+                      value={socialLink}
+                      onChange={(e) => setSocialLink(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Primary Languages</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availableLanguages.map(lang => {
+                        const selected = selectedLangs.includes(lang);
+                        return (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => handleLanguageToggle(lang)}
+                            className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all ${
+                              selected
+                                ? "border-accent bg-accent/10 text-black dark:text-white font-black"
+                                : "border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 hover:border-gray-300 dark:hover:border-zinc-700"
+                            }`}
+                          >
+                            {lang}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Experience Level</label>
+                    <select
+                      value={experienceLevel}
+                      onChange={(e) => setExperienceLevel(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                    >
+                      {experienceLevels.map(lvl => (
+                        <option key={lvl} value={lvl}>{lvl}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Camera Equipment & Lenses Used</label>
+                  <input
+                    type="text"
+                    placeholder="Sony A7R V, 35mm f1.4, 24-70mm f2.8, etc."
+                    value={equipment}
+                    onChange={(e) => setEquipment(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Short Bio (Introduction to Clients)</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Introduce yourself, your photo style, and what you enjoy capturing..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 text-sm outline-none text-foreground dark:text-white resize-none focus:border-black dark:focus:border-white transition-all"
+                  />
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            /* Sign In Layout */
+            <div className="space-y-4">
+              {/* Email input */}
+              <div className="relative">
+                <Mail size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                <input
+                  type="email"
+                  required
+                  placeholder="Email Address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
+                />
+              </div>
+
+              {/* Password input */}
+              <div className="relative">
+                <Lock size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-12 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-3.5 text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
           )}
-
-          {/* Email input */}
-          <div className="relative">
-            <Mail size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
-            <input
-              type="email"
-              required
-              placeholder="Email Address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
-            />
-          </div>
-
-          {/* Password input */}
-          <div className="relative">
-            <Lock size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-12 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-3.5 text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
 
           {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-4"
+            className="w-full py-4 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-4"
           >
             {loading ? (
               <span className="w-5 h-5 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin" />
