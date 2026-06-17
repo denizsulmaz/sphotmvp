@@ -12,6 +12,7 @@ import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
 import { SlidersHorizontal } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const { t, tCategory } = useLanguage();
@@ -39,9 +40,62 @@ export default function Home() {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
-    const shuffled = [...visible].sort(() => 0.5 - Math.random());
-    setPhotographers(shuffled);
+    const fetchPhotographers = async () => {
+      try {
+        if (!supabase) {
+          useStaticFallback();
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("photographer_profiles")
+          .select(`
+            *,
+            profiles:id (
+              full_name,
+              avatar_url
+            )
+          `)
+          .eq("is_approved", true);
+
+        if (error || !data || data.length === 0) {
+          useStaticFallback();
+        } else {
+          const mapped: Photographer[] = data.map((row: any) => ({
+            ID: row.id,
+            Name: row.profiles?.full_name || "Unknown Photographer",
+            "Delivery Time": row.delivery_time || "1 week",
+            "Global Categories": row.categories ? row.categories.join(", ") : "",
+            Instagram: row.instagram || "",
+            "URL Instagram": row.instagram_url || "",
+            Languages: row.languages ? row.languages.join(", ") : "English",
+            "English Level": row.english_level || "Basic",
+            "Other (Languages)": "",
+            "Location Types": row.locations ? row.locations.join(", ") : "Outdoor / City etc",
+            "Min Price KRW(per hour & starting from)": `₩${row.base_price?.toLocaleString() || "0"}`,
+            "Response Speed": row.response_speed || "1–3 hours",
+            Style: row.styles ? row.styles.join(", ") : "",
+            "Style (Other)": "",
+            IsStudio: false,
+            hidden: false
+          }));
+          
+          const shuffled = [...mapped].sort(() => 0.5 - Math.random());
+          setPhotographers(shuffled);
+        }
+      } catch (err) {
+        console.error("Error fetching photographers, using static fallback:", err);
+        useStaticFallback();
+      }
+    };
+
+    const useStaticFallback = () => {
+      const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
+      const shuffled = [...visible].sort(() => 0.5 - Math.random());
+      setPhotographers(shuffled);
+    };
+
+    fetchPhotographers();
   }, []);
 
   // filteredPhotographers: always respects BOTH active category AND all drawer filters
