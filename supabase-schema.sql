@@ -82,3 +82,173 @@ CREATE POLICY "public_read_reviews" ON reviews
 --   published    BOOLEAN DEFAULT false,
 --   created_at   TIMESTAMPTZ DEFAULT NOW()
 -- );
+
+-- ─── 4. User Profiles & Roles ──────────────────────────────
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id          UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  role        TEXT NOT NULL CHECK (role IN ('admin', 'photographer', 'client')),
+  full_name   TEXT,
+  avatar_url  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read for profiles" ON public.profiles
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow users to update their own profile" ON public.profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- ─── 5. Photographer Profiles ───────────────────────────────
+CREATE TABLE IF NOT EXISTS public.photographer_profiles (
+  id              UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  bio             TEXT,
+  base_price      INTEGER DEFAULT 0,
+  locations       TEXT[] DEFAULT '{}',
+  categories      TEXT[] DEFAULT '{}',
+  portfolio_urls  TEXT[] DEFAULT '{}',
+  is_approved     BOOLEAN DEFAULT false,
+  approved_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.photographer_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can select approved photographers, admin/owner can select all
+CREATE POLICY "Allow public read for approved photographers" ON public.photographer_profiles
+  FOR SELECT USING (
+    is_approved = true OR 
+    auth.uid() = id OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Allow photographers to update own profile" ON public.photographer_profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Allow admins to manage photographer profiles" ON public.photographer_profiles
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- ─── 6. Availability Slots ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.availability_slots (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  photographer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  start_time      TIMESTAMPTZ NOT NULL,
+  end_time        TIMESTAMPTZ NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'booked')),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.availability_slots ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read for availability slots" ON public.availability_slots
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow photographers to manage own slots" ON public.availability_slots
+  FOR ALL USING (
+    auth.uid() = photographer_id AND
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'photographer')
+  );
+
+CREATE POLICY "Allow admins to manage all slots" ON public.availability_slots
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- ─── 7. Bookings ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.bookings (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id       UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  photographer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  slot_id         UUID REFERENCES public.availability_slots(id) ON DELETE SET NULL,
+  status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'completed', 'cancelled')),
+  fee_krw         INTEGER NOT NULL DEFAULT 25000,
+  checkout_id     TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to view their own bookings" ON public.bookings
+  FOR SELECT USING (
+    auth.uid() = client_id OR 
+    auth.uid() = photographer_id OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Allow clients to create bookings" ON public.bookings
+  FOR INSERT WITH CHECK (
+    auth.uid() = client_id
+  );
+
+CREATE POLICY "Allow participants to update bookings" ON public.bookings
+  FOR UPDATE USING (
+    auth.uid() = client_id OR 
+    auth.uid() = photographer_id OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- ─── 8. Real-time Messages ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.messages (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id  UUID REFERENCES public.bookings(id) ON DELETE CASCADE NOT NULL,
+  sender_id   UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  content     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow booking participants to view messages" ON public.messages
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.bookings b
+      WHERE b.id = booking_id AND (auth.uid() = b.client_id OR auth.uid() = b.photographer_id)
+    ) OR
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+CREATE POLICY "Allow booking participants to insert messages" ON public.messages
+  FOR INSERT WITH CHECK (
+    auth.uid() = sender_id AND
+    EXISTS (
+      SELECT 1 FROM public.bookings b
+      WHERE b.id = booking_id AND (auth.uid() = b.client_id OR auth.uid() = b.photographer_id)
+    )
+  );
+
+-- ─── 9. Auth Trigger: Create profile automatically ──────────
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, avatar_url)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
+    COALESCE(new.raw_user_meta_data->>'role', 'client'),
+    COALESCE(new.raw_user_meta_data->>'avatar_url', '')
+  );
+
+  -- If signing up as a photographer, also initialize photographer_profile
+  IF COALESCE(new.raw_user_meta_data->>'role', 'client') = 'photographer' THEN
+    INSERT INTO public.photographer_profiles (id, bio, base_price, locations, categories, portfolio_urls, is_approved)
+    VALUES (new.id, '', 0, '{}', '{}', '{}', false);
+  END IF;
+
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.recreate_user_trigger()
+RETURNS void AS $$
+BEGIN
+  DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+  CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+SELECT public.recreate_user_trigger();
