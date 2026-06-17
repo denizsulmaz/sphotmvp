@@ -5,14 +5,21 @@ import ImageLightbox from "@/components/ImageLightbox";
 
 interface Props {
   photographerId: string;
+  portfolioUrls?: string[];
 }
 
-export default function ImageGrid({ photographerId }: Props) {
+export default function ImageGrid({ photographerId, portfolioUrls }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [loadedImages, setLoadedImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (portfolioUrls && portfolioUrls.length > 0) {
+      setLoadedImages(portfolioUrls);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
     
     async function discoverImages() {
