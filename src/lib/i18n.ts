@@ -5,6 +5,8 @@ export const translations = {
     // Nav / general
     backToHome: 'Back to Home',
     backToPhotographers: 'Back to Photographers',
+    signIn: 'Sign In',
+    register: 'Register',
 
     // Home page
     homeBannerTitle: 'Book your perfect photographer in minutes',
@@ -102,6 +104,8 @@ export const translations = {
   ru: {
     backToHome: 'На главную',
     backToPhotographers: 'К фотографам',
+    signIn: 'Войти',
+    register: 'Регистрация',
 
     homeBannerTitle: 'Забронируйте фотографа за несколько минут',
     homeBannerSubtitle: 'Самый простой способ найти и забронировать проверенных профи в Сеуле.',
@@ -191,6 +195,8 @@ export const translations = {
   ko: {
     backToHome: '홈으로 돌아가기',
     backToPhotographers: '사진작가 목록으로',
+    signIn: '로그인',
+    register: '회원가입',
 
     homeBannerTitle: '단 몇 분 만에 완벽한 사진작가를 예약하세요',
     homeBannerSubtitle: '서울 전역의 검증된 전문 사진작가를 예약하는 가장 쉬운 방법.',
@@ -280,6 +286,8 @@ export const translations = {
   tr: {
     backToHome: 'Ana Sayfaya Dön',
     backToPhotographers: 'Fotoğrafçılara Dön',
+    signIn: 'Giriş Yap',
+    register: 'Kayıt Ol',
 
     homeBannerTitle: 'Mükemmel fotoğrafçınızı dakikalar içinde bulun',
     homeBannerSubtitle: 'Seul genelindeki doğrulanmış profesyonelleri keşfetmenin ve ayırtmanın en kolay yolu.',

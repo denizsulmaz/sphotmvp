@@ -119,7 +119,7 @@ export default function AuthPage() {
                 : "text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white"
             }`}
           >
-            {t("Sign In")}
+            {t("signIn")}
           </button>
           <button
             onClick={() => {
@@ -133,7 +133,7 @@ export default function AuthPage() {
                 : "text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white"
             }`}
           >
-            {t("Register") || "Register"}
+            {t("register") || "Register"}
           </button>
         </div>
 
