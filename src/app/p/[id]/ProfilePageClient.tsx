@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
+import Link from "next/link";
 import photographersData from "@/data/photographers.json";
 import { Photographer } from "@/lib/types";
 import ImageGrid from "./ImageGrid";
@@ -237,76 +238,6 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
 
           {/* Main Content & Portfolio */}
           <div className="md:col-span-8">
-            
-            {/* Booking Slots Section */}
-            {hasDBSlots ? (
-              <section className="mb-10 bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <CalendarIcon className="text-accent" size={22} />
-                  <h3 className="text-xl font-black text-foreground dark:text-white">Select Availability Slot</h3>
-                </div>
-                
-                <p className="text-xs text-gray-500 dark:text-zinc-400 mb-4">
-                  Choose an available hourly booking slot. The flat platform reservation fee is 25,000 KRW.
-                </p>
-
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 hide-scrollbar">
-                  {Object.entries(groupedSlots).map(([dateStr, daySlots]) => (
-                    <div key={dateStr} className="space-y-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                        {formatSlotDate(daySlots[0].start_time)}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {daySlots.map((slot) => (
-                          <button
-                            key={slot.id}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
-                              selectedSlot?.id === slot.id
-                                ? "border-accent bg-accent/10 text-black dark:text-white font-black shadow-sm"
-                                : "border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300"
-                            }`}
-                          >
-                            <span className="flex items-center gap-2">
-                              <Clock size={14} className="text-gray-400" />
-                              {formatSlotTime(slot.start_time, slot.end_time)}
-                            </span>
-                            {selectedSlot?.id === slot.id && <ChevronRight size={16} className="text-black dark:text-white" />}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Inline CTA for selected slot */}
-                {selectedSlot && (
-                  <button
-                    onClick={handleBookSlot}
-                    className="w-full mt-6 py-4 rounded-2xl bg-black dark:bg-white text-white dark:text-black font-black text-lg shadow-lg hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-                  >
-                    <span>Proceed to Book Slot</span>
-                  </button>
-                )}
-              </section>
-            ) : (
-              <section className="mb-10 bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm py-8 text-center">
-                <div className="flex flex-col items-center gap-3">
-                  <CalendarIcon className="text-gray-400 dark:text-zinc-500 mb-1" size={32} />
-                  <h3 className="text-lg font-black text-foreground dark:text-white">Request Custom Date &amp; Time</h3>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400 max-w-sm mb-4">
-                    This photographer doesn&apos;t have public slots listed. You can request a custom shoot date and time directly in the booking process.
-                  </p>
-                  <button
-                    onClick={() => router.push(`/p/${photographer.ID}/checkout`)}
-                    className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-black text-xs rounded-full hover:opacity-90 transition-opacity border border-transparent"
-                  >
-                    Request Custom Booking
-                  </button>
-                </div>
-              </section>
-            )}
-
             <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-100 dark:border-zinc-800 dark:text-white">Portfolio</h2>
             <ImageGrid photographerId={photographer.ID} portfolioUrls={portfolioUrls} />
           </div>
@@ -315,18 +246,12 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
 
       {/* Fixed Bottom CTA (Mobile Only) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-gray-100 dark:border-zinc-800 z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <button
-          onClick={() => {
-            if (selectedSlot) {
-              router.push(`/p/${photographer.ID}/checkout?slot=${selectedSlot.id}`);
-            } else {
-              router.push(`/p/${photographer.ID}/checkout`);
-            }
-          }}
-          className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-accent text-black text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-transform"
+        <Link
+          href={`/p/${photographer.ID}/checkout`}
+          className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-accent text-black text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-all text-center block"
         >
-          {selectedSlot ? "Proceed to Book Slot" : "Book Photographer"}
-        </button>
+          Book Photographer
+        </Link>
       </div>
     </div>
   );

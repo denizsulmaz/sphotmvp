@@ -147,15 +147,12 @@ export default function ProfileLabels({
 
       {/* Desktop CTA */}
       <div className="hidden md:block mt-6">
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-accent text-black text-lg font-black shadow-xl hover:-translate-y-1 active:scale-95 transition-transform"
+        <Link
+          href={`/p/${id}/checkout`}
+          className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-accent text-black text-lg font-black shadow-xl hover:-translate-y-1 active:scale-95 transition-all text-center block"
         >
-          <MessageCircle size={22} className="fill-black" />
-          {t("bookPhotographer")}
-        </a>
+          {t("bookPhotographer") || "Book Photographer"}
+        </Link>
       </div>
     </>
   );
