@@ -6,12 +6,11 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/context/LanguageContext";
 import { Lock, Mail, User, AlertCircle, Eye, EyeOff } from "lucide-react";
 
-export default function AuthPage() {
+export default function PhotographerAuthPage() {
   const router = useRouter();
   const { t } = useLanguage();
 
   const [isSignUp, setIsSignUp] = useState(false);
-  const [role, setRole] = useState<"client" | "photographer">("client");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -35,14 +34,14 @@ export default function AuthPage() {
 
     try {
       if (isSignUp) {
-        // Sign Up Flow
+        // Sign Up Flow for Photographers
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
               full_name: fullName,
-              role: role,
+              role: "photographer",
             },
           },
         });
@@ -51,18 +50,12 @@ export default function AuthPage() {
           setError(signUpError.message);
         } else if (data.user) {
           if (data.session) {
-            // Logged in immediately (email confirmation disabled in Supabase)
             setSuccess("Registration successful!");
             setTimeout(() => {
-              if (role === "photographer") {
-                router.push("/photographer/profile");
-              } else {
-                router.push("/client/dashboard");
-              }
+              router.push("/photographer/profile");
             }, 1000);
           } else {
-            // Email verification required
-            setSuccess("Check your email to verify your account!");
+            setSuccess("Check your email to verify your photographer account!");
           }
         }
       } else {
@@ -75,21 +68,34 @@ export default function AuthPage() {
         if (signInError) {
           setError(signInError.message);
         } else if (data.user) {
-          setSuccess("Welcome back!");
-          // Fetch user profile to route properly
-          const { data: profile } = await supabase
+          // Verify they are indeed a photographer or admin
+          const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("role")
             .eq("id", data.user.id)
             .single();
 
+          if (profileError || !profile) {
+            // Log out user if profile not found
+            await supabase.auth.signOut();
+            setError("Could not retrieve user profile.");
+            setLoading(false);
+            return;
+          }
+
+          if (profile.role !== "photographer" && profile.role !== "admin") {
+            await supabase.auth.signOut();
+            setError("Access denied. This portal is for photographers only.");
+            setLoading(false);
+            return;
+          }
+
+          setSuccess("Welcome back, Photographer!");
           setTimeout(() => {
-            if (profile?.role === "admin") {
+            if (profile.role === "admin") {
               router.push("/admin/dashboard");
-            } else if (profile?.role === "photographer") {
-              router.push("/photographer/dashboard");
             } else {
-              router.push("/client/dashboard");
+              router.push("/photographer/dashboard");
             }
           }, 1000);
         }
@@ -133,19 +139,19 @@ export default function AuthPage() {
                 : "text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white"
             }`}
           >
-            {t("register") || "Register"}
+            Apply to Join
           </button>
         </div>
 
         {/* Header Text */}
         <div className="mb-6">
           <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white">
-            {isSignUp ? "Create your SPHOT account" : "Welcome back to SPHOT"}
+            {isSignUp ? "Apply as SPHOT Photographer" : "Photographer Portal"}
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
             {isSignUp
-              ? "Create your client account to get started with booking."
-              : "Sign in to access your dashboard and bookings."}
+              ? "Register to build your profile, showcase your portfolio, and manage bookings."
+              : "Sign in to access your photographer dashboard and bookings."}
           </p>
         </div>
 
@@ -164,20 +170,18 @@ export default function AuthPage() {
 
         <form onSubmit={handleAuth} className="space-y-4">
           {isSignUp && (
-            <>
-              {/* Full Name input */}
-              <div className="relative">
-                <User size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
-                <input
-                  type="text"
-                  required
-                  placeholder="Full Name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
-                />
-              </div>
-            </>
+            /* Full Name input */
+            <div className="relative">
+              <User size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+              <input
+                type="text"
+                required
+                placeholder="Full Name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
+              />
+            </div>
           )}
 
           {/* Email input */}
@@ -222,7 +226,7 @@ export default function AuthPage() {
             {loading ? (
               <span className="w-5 h-5 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin" />
             ) : isSignUp ? (
-              "Sign Up"
+              "Submit Application"
             ) : (
               "Sign In"
             )}

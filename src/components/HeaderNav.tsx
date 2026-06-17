@@ -30,8 +30,14 @@ export default function HeaderNav() {
             Blog
           </Link>
 
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <LanguageSelector />
+            <div id="nav-filter-slot" />
+          </div>
+
           {!loading && (
-            <>
+            <div className="border-l border-gray-200 dark:border-zinc-800 pl-3 flex items-center">
               {user ? (
                 <div className="flex items-center gap-3">
                   <Link
@@ -60,14 +66,8 @@ export default function HeaderNav() {
                   <span>{t ? t("signIn") || "Sign In" : "Sign In"}</span>
                 </Link>
               )}
-            </>
+            </div>
           )}
-
-          <div className="flex items-center gap-2 border-l border-gray-200 dark:border-zinc-800 pl-3">
-            <ThemeToggle />
-            <LanguageSelector />
-            <div id="nav-filter-slot" />
-          </div>
         </div>
       </div>
     </header>

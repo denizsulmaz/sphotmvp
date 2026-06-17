@@ -14,7 +14,7 @@ export default function PhotographerLayout({ children }: { children: React.React
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push("/auth");
+        router.push("/auth/photographer");
       } else if (role !== "photographer") {
         router.push("/");
       }
