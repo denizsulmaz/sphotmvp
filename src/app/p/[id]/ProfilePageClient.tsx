@@ -200,7 +200,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
           <div className="md:col-span-8">
             
             {/* Booking Slots Section */}
-            {hasDBSlots && (
+            {hasDBSlots ? (
               <section className="mb-10 bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <CalendarIcon className="text-accent" size={22} />
@@ -250,6 +250,22 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
                   </button>
                 )}
               </section>
+            ) : (
+              <section className="mb-10 bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm py-8 text-center">
+                <div className="flex flex-col items-center gap-3">
+                  <CalendarIcon className="text-gray-400 dark:text-zinc-500 mb-1" size={32} />
+                  <h3 className="text-lg font-black text-foreground dark:text-white">Request Custom Date &amp; Time</h3>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 max-w-sm mb-4">
+                    This photographer doesn&apos;t have public slots listed. You can request a custom shoot date and time directly in the booking process.
+                  </p>
+                  <button
+                    onClick={() => router.push(`/p/${photographer.ID}/checkout`)}
+                    className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-black text-xs rounded-full hover:opacity-90 transition-opacity border border-transparent"
+                  >
+                    Request Custom Booking
+                  </button>
+                </div>
+              </section>
             )}
 
             <h2 className="text-2xl font-bold mb-6 pb-2 border-b border-gray-100 dark:border-zinc-800 dark:text-white">Portfolio</h2>
@@ -258,20 +274,21 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
         </div>
       </div>
 
-      {/* Fixed Bottom CTA (Mobile Only - Fallback to WhatsApp if photographer has no active DB slots) */}
-      {!hasDBSlots && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-gray-100 dark:border-zinc-800 z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-accent text-black text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-transform"
-          >
-            <MessageCircle size={22} className="fill-black" />
-            Book via WhatsApp
-          </a>
-        </div>
-      )}
+      {/* Fixed Bottom CTA (Mobile Only) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-gray-100 dark:border-zinc-800 z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <button
+          onClick={() => {
+            if (selectedSlot) {
+              router.push(`/p/${photographer.ID}/checkout?slot=${selectedSlot.id}`);
+            } else {
+              router.push(`/p/${photographer.ID}/checkout`);
+            }
+          }}
+          className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-accent text-black text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-transform"
+        >
+          {selectedSlot ? "Proceed to Book Slot" : "Book Photographer"}
+        </button>
+      </div>
     </div>
   );
 }

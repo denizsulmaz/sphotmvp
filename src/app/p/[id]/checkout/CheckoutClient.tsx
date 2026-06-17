@@ -34,8 +34,17 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const [photographer, setPhotographer] = useState<PhotographerProfile | null>(null);
   const [slot, setSlot] = useState<SlotDetails | null>(null);
   
+  // Custom Scheduling (only shown if slotId is not present)
+  const [customDate, setCustomDate] = useState("");
+  const [customTime, setCustomTime] = useState("");
+
+  // Detailed Pre-information
+  const [shootLocation, setShootLocation] = useState("");
+  const [groupSize, setGroupSize] = useState("1 person");
+  const [shootStyle, setShootStyle] = useState("Individual");
+  const [customDetails, setCustomDetails] = useState("");
+
   // Checkout & Auth form state
-  const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -46,11 +55,6 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!slotId) {
-      router.push(`/p/${id}`);
-      return;
-    }
-
     const loadCheckoutData = async () => {
       setLoading(true);
       try {
@@ -78,17 +82,19 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         }
 
         // 2. Fetch slot
-        const { data: dbSlot } = await supabase
-          .from("availability_slots")
-          .select("*")
-          .eq("id", slotId)
-          .eq("status", "available")
-          .single();
+        if (slotId) {
+          const { data: dbSlot } = await supabase
+            .from("availability_slots")
+            .select("*")
+            .eq("id", slotId)
+            .eq("status", "available")
+            .single();
 
-        if (dbSlot) {
-          setSlot(dbSlot as SlotDetails);
-        } else {
-          setError("This availability slot is no longer available.");
+          if (dbSlot) {
+            setSlot(dbSlot as SlotDetails);
+          } else {
+            setError("This availability slot is no longer available.");
+          }
         }
       } catch (err) {
         console.error("Error loading checkout details:", err);
@@ -141,7 +147,16 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   };
 
   const handleProceedToPayment = async () => {
-    if (!user || !slot || !photographer) return;
+    if (!user || !photographer) return;
+    if (!slotId && (!customDate || !customTime)) {
+      setError("Please specify your preferred date and time.");
+      return;
+    }
+    if (!shootLocation || !customDetails) {
+      setError("Please fill in all the required shoot details.");
+      return;
+    }
+
     setError(null);
     setActionLoading(true);
 
@@ -154,7 +169,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         .insert({
           client_id: user.id,
           photographer_id: photographer.id,
-          slot_id: slot.id,
+          slot_id: slotId || null,
           status: "pending",
           fee_krw: 25000,
         })
@@ -163,7 +178,32 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
       if (bookingError) throw bookingError;
 
-      // 2. Build Lemon Squeezy custom checkout URL
+      // 2. Format detailed pre-information message
+      const scheduleInfo = slot 
+        ? `${formatSlotDateTime(slot.start_time, slot.end_time).dateStr} at ${formatSlotDateTime(slot.start_time, slot.end_time).timeStr}`
+        : `${customDate} at ${customTime}`;
+
+      const detailsMessage = `📸 **Shoot Pre-Information**
+📍 **Shoot Location/Venue:** ${shootLocation}
+👥 **Group Size:** ${groupSize}
+✨ **Preferred Style/Theme:** ${shootStyle}
+⏰ **Schedule / Proposed Window:** ${scheduleInfo}
+📝 **Shoot Concept & Requests:**
+${customDetails}`;
+
+      const { error: msgError } = await supabase
+        .from("messages")
+        .insert({
+          booking_id: booking.id,
+          sender_id: user.id,
+          content: detailsMessage,
+        });
+
+      if (msgError) {
+        console.error("Failed to insert booking pre-information message:", msgError);
+      }
+
+      // 3. Build Lemon Squeezy custom checkout URL
       const storeId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_STORE_ID || "sphot";
       const productId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_ID || "";
       const baseCheckoutUrl = `https://${storeId}.lemonsqueezy.com/checkout/buy/${productId}`;
@@ -172,7 +212,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       const nameParam = encodeURIComponent(profile?.full_name || "");
       const checkoutUrl = `${baseCheckoutUrl}?checkout[custom][booking_id]=${booking.id}&checkout[email]=${emailParam}&checkout[name]=${nameParam}`;
 
-      // 3. Redirect user to Lemon Squeezy
+      // 4. Redirect user to Lemon Squeezy
       router.push(checkoutUrl);
     } catch (err: any) {
       setError(err.message || "Failed to initialize reservation payment.");
@@ -197,6 +237,10 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     return { dateStr, timeStr };
   };
 
+  const isFormValid = slotId 
+    ? (shootLocation.trim() !== "" && customDetails.trim() !== "")
+    : (customDate.trim() !== "" && customTime.trim() !== "" && shootLocation.trim() !== "" && customDetails.trim() !== "");
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mt-4">
@@ -209,7 +253,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
               Booking Details
             </h2>
 
-            {photographer && slot && (
+            {photographer && (
               <div className="space-y-4">
                 {/* Photographer Card */}
                 <div className="flex items-center gap-4 bg-gray-50 dark:bg-zinc-900/40 p-4 rounded-2xl">
@@ -223,26 +267,56 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                 </div>
 
                 {/* Selected Slot info */}
-                <div className="space-y-3 bg-gray-50 dark:bg-zinc-900/40 p-4 rounded-2xl">
-                  <div className="flex items-start gap-3">
-                    <Calendar className="text-gray-400 dark:text-zinc-500 mt-0.5" size={18} />
-                    <div>
-                      <p className="text-xs text-gray-400 dark:text-zinc-500">Date</p>
-                      <p className="text-sm font-bold text-foreground dark:text-white">
-                        {formatSlotDateTime(slot.start_time, slot.end_time).dateStr}
-                      </p>
+                {slot ? (
+                  <div className="space-y-3 bg-gray-50 dark:bg-zinc-900/40 p-4 rounded-2xl">
+                    <div className="flex items-start gap-3">
+                      <Calendar className="text-gray-400 dark:text-zinc-500 mt-0.5" size={18} />
+                      <div>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500">Date</p>
+                        <p className="text-sm font-bold text-foreground dark:text-white">
+                          {formatSlotDateTime(slot.start_time, slot.end_time).dateStr}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 border-t border-gray-200/50 dark:border-zinc-800/50 pt-3">
+                      <Clock className="text-gray-400 dark:text-zinc-500 mt-0.5" size={18} />
+                      <div>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500">Time Window</p>
+                        <p className="text-sm font-bold text-foreground dark:text-white">
+                          {formatSlotDateTime(slot.start_time, slot.end_time).timeStr}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 border-t border-gray-200/50 dark:border-zinc-800/50 pt-3">
-                    <Clock className="text-gray-400 dark:text-zinc-500 mt-0.5" size={18} />
-                    <div>
-                      <p className="text-xs text-gray-400 dark:text-zinc-500">Time Window</p>
-                      <p className="text-sm font-bold text-foreground dark:text-white">
-                        {formatSlotDateTime(slot.start_time, slot.end_time).timeStr}
-                      </p>
+                ) : (
+                  /* Custom Schedule Form (if booking custom date/time) */
+                  <div className="space-y-3 bg-gray-50 dark:bg-zinc-900/40 p-4 rounded-2xl">
+                    <p className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1">Proposed Schedule</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] text-gray-400 dark:text-zinc-500 mb-1">Choose Date</label>
+                        <input
+                          type="date"
+                          required
+                          min={new Date().toISOString().split("T")[0]}
+                          value={customDate}
+                          onChange={(e) => setCustomDate(e.target.value)}
+                          className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs outline-none text-foreground dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-gray-400 dark:text-zinc-500 mb-1">Preferred Time</label>
+                        <input
+                          type="time"
+                          required
+                          value={customTime}
+                          onChange={(e) => setCustomTime(e.target.value)}
+                          className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs outline-none text-foreground dark:text-white"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -333,15 +407,69 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
               </form>
             </div>
           ) : (
-            <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-              <h3 className="text-lg font-black mb-3 text-foreground dark:text-white">Shoot Requirements</h3>
-              <textarea
-                placeholder="Describe your ideas, location specifics, or general requests for this photo session (optional)..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={4}
-                className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white resize-none"
-              />
+            /* Shoot Pre-Information Details Form */
+            <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2">
+                Shoot Requirements & Details
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-zinc-400">
+                Please provide details about your desired photo shoot. This information will be sent directly to your photographer to finalize details.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Shoot Location / Venue</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Gyeongbokgung Palace, Hanok Village"
+                    value={shootLocation}
+                    onChange={(e) => setShootLocation(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Group Size / Number of People</label>
+                  <select
+                    value={groupSize}
+                    onChange={(e) => setGroupSize(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                  >
+                    <option value="1 person">1 person</option>
+                    <option value="2 people">2 people (Couple)</option>
+                    <option value="3-5 people">3-5 people (Family / Group)</option>
+                    <option value="6+ people">6+ people (Large Group)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Preferred Concept / Style</label>
+                <select
+                  value={shootStyle}
+                  onChange={(e) => setShootStyle(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                >
+                  <option value="Hanbok Traditional">Hanbok Traditional</option>
+                  <option value="Individual Portrait">Individual Portrait</option>
+                  <option value="Street / Lifestyle">Street / Lifestyle</option>
+                  <option value="Wedding / Engagement">Wedding / Engagement</option>
+                  <option value="Fashion / Editorial">Fashion / Editorial</option>
+                  <option value="Custom / Other">Custom / Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Shoot Details, Ideas & Special Requests</label>
+                <textarea
+                  required
+                  placeholder="Tell your photographer about the concept, specific outfits, expectations, or questions you have..."
+                  value={customDetails}
+                  onChange={(e) => setCustomDetails(e.target.value)}
+                  rows={4}
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white resize-none"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -367,7 +495,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
               <span className="text-xl text-black dark:text-white font-black">25,000 KRW</span>
             </div>
 
-            {error && !user && (
+            {error && (
               <div className="bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-xs mb-4">
                 {error}
               </div>
@@ -375,7 +503,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
             <button
               onClick={handleProceedToPayment}
-              disabled={!user || actionLoading || !slot}
+              disabled={!user || actionLoading || (slotId ? !slot : false) || !isFormValid}
               className="w-full py-4 rounded-xl bg-accent text-black font-black text-lg shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2"
             >
               {actionLoading ? (
