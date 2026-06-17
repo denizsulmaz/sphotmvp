@@ -108,6 +108,13 @@ CREATE TABLE IF NOT EXISTS public.photographer_profiles (
   locations       TEXT[] DEFAULT '{}',
   categories      TEXT[] DEFAULT '{}',
   portfolio_urls  TEXT[] DEFAULT '{}',
+  instagram       TEXT,
+  instagram_url   TEXT,
+  languages       TEXT[] DEFAULT '{}',
+  english_level   TEXT DEFAULT 'Basic',
+  response_speed  TEXT DEFAULT '1–3 hours',
+  delivery_time   TEXT DEFAULT '1 week',
+  styles          TEXT[] DEFAULT '{}',
   is_approved     BOOLEAN DEFAULT false,
   approved_at     TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -233,8 +240,16 @@ BEGIN
 
   -- If signing up as a photographer, also initialize photographer_profile
   IF COALESCE(new.raw_user_meta_data->>'role', 'client') = 'photographer' THEN
-    INSERT INTO public.photographer_profiles (id, bio, base_price, locations, categories, portfolio_urls, is_approved)
-    VALUES (new.id, '', 0, '{}', '{}', '{}', false);
+    INSERT INTO public.photographer_profiles (
+      id, bio, base_price, locations, categories, portfolio_urls,
+      instagram, instagram_url, languages, english_level, response_speed, delivery_time, styles, is_approved
+    )
+    VALUES (
+      new.id, '', 0, '{}', '{}', '{}',
+      COALESCE(new.raw_user_meta_data->>'instagram', ''),
+      COALESCE(new.raw_user_meta_data->>'instagram_url', ''),
+      '{}', 'Basic', '1–3 hours', '1 week', '{}', false
+    );
   END IF;
 
   RETURN new;
