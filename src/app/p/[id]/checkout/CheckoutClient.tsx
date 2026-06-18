@@ -623,7 +623,7 @@ ${customDetails}`;
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 hide-scrollbar">
                       {availableTimeSlots.map((slotItem) => {
                         const start = new Date(slotItem.start_time);
                         const isSelected = selectedSlots.some(s => s.id === slotItem.id);
@@ -888,7 +888,7 @@ ${customDetails}`;
                       <button
                         type="button"
                         onClick={() => setAuthView("signin")}
-                        className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 px-4 py-2.5 rounded-2xl border border-blue-100 dark:border-blue-900/40 transition-all hover:scale-[1.02]"
+                        className="text-xs font-extrabold text-gray-700 dark:text-zinc-300 hover:underline inline-flex items-center gap-1.5 bg-gray-50 dark:bg-zinc-900/40 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-800/80 transition-all hover:scale-[1.02] hover:bg-gray-100 dark:hover:bg-zinc-800/60"
                       >
                         Already have an account? Sign-in
                       </button>
@@ -969,7 +969,7 @@ ${customDetails}`;
                       <button
                         type="button"
                         onClick={() => setAuthView("register")}
-                        className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 px-4 py-2.5 rounded-2xl border border-blue-100 dark:border-blue-900/40 transition-all hover:scale-[1.02]"
+                        className="text-xs font-extrabold text-gray-700 dark:text-zinc-300 hover:underline inline-flex items-center gap-1.5 bg-gray-50 dark:bg-zinc-900/40 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-zinc-800/80 transition-all hover:scale-[1.02] hover:bg-gray-100 dark:hover:bg-zinc-800/60"
                       >
                         Don&apos;t have an account? Register
                       </button>
