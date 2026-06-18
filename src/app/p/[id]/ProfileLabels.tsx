@@ -19,7 +19,6 @@ interface Props {
   otherLanguages?: string;
   deliveryTime: string;
   responseSpeed: string;
-  whatsappUrl: string;
 }
 
 export default function ProfileLabels({
@@ -36,7 +35,6 @@ export default function ProfileLabels({
   otherLanguages,
   deliveryTime,
   responseSpeed,
-  whatsappUrl,
 }: Props) {
   const { t, tCategory, tStyle } = useLanguage();
 

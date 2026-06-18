@@ -21,10 +21,7 @@ export default function PhotographerCard({ photographer }: Props) {
     .filter(Boolean)
     .slice(0, 3) || [];
 
-  const whatsappMessage = encodeURIComponent(
-    `Hello SPHOT,\nI want to book photographer ${photographer.Name}.\nCity: Seoul`
-  );
-  const whatsappUrl = `https://wa.me/+821079059788?text=${whatsappMessage}`;
+
 
   return (
     // Entire card is a link to the profile
@@ -110,16 +107,13 @@ export default function PhotographerCard({ photographer }: Props) {
 
         {/* Book CTA */}
         <div className="mt-2">
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href={`/p/${photographer.ID}/checkout`}
             onClick={(e) => e.stopPropagation()}
-            className="w-full px-4 py-2.5 rounded-xl bg-accent text-foreground text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2"
+            className="w-full px-4 py-2.5 rounded-xl bg-accent text-foreground text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2 text-center"
           >
-            <MessageCircle size={18} />
             {t("book")}
-          </a>
+          </Link>
         </div>
       </div>
     </Link>

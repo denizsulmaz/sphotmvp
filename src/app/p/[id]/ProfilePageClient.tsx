@@ -176,10 +176,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
     notFound();
   }
 
-  const whatsappMessage = encodeURIComponent(
-    `Hello SPHOT,\nI want to book photographer ${photographer.Name}.\nCity: Seoul`
-  );
-  const whatsappUrl = `https://wa.me/+821079059788?text=${whatsappMessage}`;
+
   
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
   const profilePic = isUuid 
@@ -232,7 +229,6 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
               otherLanguages={photographer["Other (Languages)"] ?? ""}
               deliveryTime={photographer["Delivery Time"] ?? ""}
               responseSpeed={photographer["Response Speed"] ?? ""}
-              whatsappUrl={whatsappUrl}
             />
           </div>
 

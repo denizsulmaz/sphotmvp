@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import CustomDropdown from "@/components/CustomDropdown";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -75,6 +76,39 @@ const formatSelectedSlotsTime = (slotsList: SlotDetails[]) => {
   blocks.push(formatTimeRange(blockStart, blockEnd));
   return blocks.join(", ");
 };
+
+const locationTypeOptions = [
+  { value: "Outdoor", label: "Outdoor / City Settings" },
+  { value: "Indoor", label: "Indoor (Cafe, Studio, Room)" },
+  { value: "Mixed", label: "Mixed (Both Indoor & Outdoor)" },
+  { value: "Studio Studio", label: "Professional Studio" },
+];
+
+const groupSizeOptions = [
+  { value: "1 person", label: "1 person" },
+  { value: "2 people (Couple)", label: "2 people (Couple)" },
+  { value: "3-5 people (Family / Group)", label: "3-5 people (Family / Group)" },
+  { value: "6+ people (Large Group)", label: "6+ people (Large Group)" },
+];
+
+const shootStyleOptions = [
+  { value: "Casual / Street", label: "Casual / Street Snap" },
+  { value: "Portrait", label: "Portrait / Headshot" },
+  { value: "Couple / Date", label: "Couple / Wedding Date" },
+  { value: "Travel / Hanok", label: "Travel / Traditional Hanok" },
+  { value: "Concept / Artistic", label: "Concept / Artistic Theme" },
+  { value: "Commercial / Fashion", label: "Commercial / Fashion Editorial" },
+];
+
+const preferredLanguageOptions = [
+  { value: "English", label: "English" },
+  { value: "Korean", label: "Korean" },
+  { value: "Chinese", label: "Chinese" },
+  { value: "Japanese", label: "Japanese" },
+  { value: "Russian", label: "Russian" },
+  { value: "Spanish", label: "Spanish" },
+  { value: "Portuguese", label: "Portuguese" },
+];
 
 export default function CheckoutClient({ id }: CheckoutClientProps) {
   const router = useRouter();
@@ -543,7 +577,7 @@ ${customDetails}`;
                           }}
                           className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                             isSelected
-                              ? "border-accent bg-accent/10 text-black dark:text-white font-black shadow-sm"
+                              ? "border-black bg-black text-accent font-black shadow-sm dark:border-zinc-800"
                               : "border-gray-100 dark:border-zinc-900 bg-gray-50/50 dark:bg-zinc-900/20 text-gray-700 dark:text-zinc-300 hover:border-gray-200 dark:hover:border-zinc-800"
                           }`}
                         >
@@ -593,10 +627,10 @@ ${customDetails}`;
                             key={slotItem.id}
                             type="button"
                             onClick={() => handleToggleSlot(slotItem)}
-                            className={`w-full flex items-center justify-center py-4 rounded-2xl border-2 text-lg font-black tracking-wide transition-all duration-200 ${
+                            className={`w-full flex items-center justify-center py-4 rounded-xl border text-lg font-black tracking-wide transition-all duration-200 ${
                               isSelected
-                                ? "border-blue-600 bg-blue-600 text-white shadow-md scale-[1.01]"
-                                : "border-blue-500/20 hover:border-blue-500 bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400"
+                                ? "border-black bg-black text-accent shadow-md scale-[1.01] dark:border-zinc-800"
+                                : "border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-black dark:text-white hover:border-black dark:hover:border-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-800/40"
                             }`}
                           >
                             <span>{startHourStr}</span>
@@ -630,16 +664,11 @@ ${customDetails}`;
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <MapPin size={13} /> Location Type
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={locationTypeOptions}
                     value={locationType}
-                    onChange={(e) => setLocationType(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
-                  >
-                    <option value="Outdoor">Outdoor / City Settings</option>
-                    <option value="Indoor">Indoor (Cafe, Studio, Room)</option>
-                    <option value="Mixed">Mixed (Both Indoor &amp; Outdoor)</option>
-                    <option value="Studio Studio">Professional Studio</option>
-                  </select>
+                    onChange={setLocationType}
+                  />
                 </div>
 
                 {/* Specific shoot spot address */}
@@ -675,16 +704,11 @@ ${customDetails}`;
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <Users size={13} /> Group Size / Number of People
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={groupSizeOptions}
                     value={groupSize}
-                    onChange={(e) => setGroupSize(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
-                  >
-                    <option value="1 person">1 person</option>
-                    <option value="2 people (Couple)">2 people (Couple)</option>
-                    <option value="3-5 people (Family / Group)">3-5 people (Family / Group)</option>
-                    <option value="6+ people (Large Group)">6+ people (Large Group)</option>
-                  </select>
+                    onChange={setGroupSize}
+                  />
                 </div>
               </div>
 
@@ -694,18 +718,11 @@ ${customDetails}`;
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <Sparkles size={13} /> Preferred Style / Theme
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={shootStyleOptions}
                     value={shootStyle}
-                    onChange={(e) => setShootStyle(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
-                  >
-                    <option value="Casual / Street">Casual / Street Snap</option>
-                    <option value="Portrait">Portrait / Headshot</option>
-                    <option value="Couple / Date">Couple / Wedding Date</option>
-                    <option value="Travel / Hanok">Travel / Traditional Hanok</option>
-                    <option value="Concept / Artistic">Concept / Artistic Theme</option>
-                    <option value="Commercial / Fashion">Commercial / Fashion Editorial</option>
-                  </select>
+                    onChange={setShootStyle}
+                  />
                 </div>
 
                 {/* Language Preference */}
@@ -713,19 +730,11 @@ ${customDetails}`;
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                     <Languages size={13} /> Preferred Communication Language
                   </label>
-                  <select
+                  <CustomDropdown
+                    options={preferredLanguageOptions}
                     value={preferredLanguage}
-                    onChange={(e) => setPreferredLanguage(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
-                  >
-                    <option value="English">English</option>
-                    <option value="Korean">Korean</option>
-                    <option value="Chinese">Chinese</option>
-                    <option value="Japanese">Japanese</option>
-                    <option value="Russian">Russian</option>
-                    <option value="Spanish">Spanish</option>
-                    <option value="Portuguese">Portuguese</option>
-                  </select>
+                    onChange={setPreferredLanguage}
+                  />
                 </div>
               </div>
 
