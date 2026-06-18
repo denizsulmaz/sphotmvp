@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
 
 export interface Profile {
   id: string;
@@ -34,9 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [role, setRole] = useState<"admin" | "photographer" | "client" | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
-      if (!supabase) return;
+      if (!isSupabaseReady(supabase)) return;
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
@@ -48,22 +48,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
         setRole(null);
       } else if (data) {
-        setProfile(data as Profile);
-        setRole((data as Profile).role);
+        const profileData = data as Profile;
+        setProfile(profileData);
+        setRole(profileData.role);
       }
     } catch (err) {
       console.error("Failed to load profile:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!supabase) {
+    if (!isSupabaseReady(supabase)) {
       setLoading(false);
       return;
     }
 
     // 1. Check active session immediately
-    (supabase as any).auth.getSession().then(({ data }: any) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       const session = data?.session;
       if (session?.user) {
         setUser(session.user);
@@ -74,11 +75,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRole(null);
         setLoading(false);
       }
+    }).catch(err => {
+      console.error("AuthContext: getSession failed:", err);
+      setUser(null);
+      setProfile(null);
+      setRole(null);
+      setLoading(false);
     });
 
     // 2. Listen for auth changes
-    const { data: { subscription } } = (supabase as any).auth.onAuthStateChange(
-      async (event: any, session: any) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event: AuthChangeEvent, session: Session | null) => {
         setLoading(true);
         if (session?.user) {
           setUser(session.user);
@@ -95,17 +102,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile]);
 
-  const signOut = async () => {
-    if (!supabase) return;
+  const signOut = useCallback(async () => {
+    if (!isSupabaseReady(supabase)) return;
     setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setRole(null);
     setLoading(false);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, profile, role, loading, signOut }}>

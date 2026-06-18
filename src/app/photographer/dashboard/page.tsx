@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, RefreshCw } from "lucide-react";
+import { useToast } from "@/components/Toast";
 
 interface DBBooking {
   id: string;
@@ -27,8 +28,9 @@ export default function PhotographerDashboard() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     if (!user || !supabase) return;
     setLoading(true);
     setError(null);
@@ -61,11 +63,11 @@ export default function PhotographerDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchBookings();
-  }, [user]);
+  }, [fetchBookings]);
 
   const updateBookingStatus = async (bookingId: string, status: "completed" | "cancelled") => {
     if (!supabase) return;
@@ -84,7 +86,7 @@ export default function PhotographerDashboard() {
       );
     } catch (err: any) {
       console.error("Error updating booking status:", err);
-      alert("Failed to update booking status.");
+      showToast("Failed to update booking status.", "error");
     } finally {
       setActionLoading(null);
     }

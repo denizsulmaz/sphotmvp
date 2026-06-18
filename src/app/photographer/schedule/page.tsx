@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Plus, Trash2, Calendar, Clock, AlertCircle, Sparkles } from "lucide-react";
+import { useToast } from "@/components/Toast";
 
 interface AvailabilitySlot {
   id: string;
@@ -24,8 +25,9 @@ export default function ScheduleManager() {
   
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const { showToast } = useToast();
 
-  const fetchSlots = async () => {
+  const fetchSlots = useCallback(async () => {
     if (!user || !supabase) return;
     setLoading(true);
     try {
@@ -44,11 +46,11 @@ export default function ScheduleManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchSlots();
-  }, [user]);
+  }, [fetchSlots]);
 
   const handleAddSlot = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,7 +154,7 @@ export default function ScheduleManager() {
       setSlots(prev => prev.filter(s => s.id !== slotId));
     } catch (err: any) {
       console.error("Error deleting slot:", err);
-      alert("Failed to delete slot. Booked slots cannot be deleted.");
+      showToast("Failed to delete slot. Booked slots cannot be deleted.", "error");
     }
   };
 
@@ -171,8 +173,10 @@ export default function ScheduleManager() {
       {/* Left Column: Create Slot Form */}
       <div className="md:col-span-5 space-y-6">
         <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
-          <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-foreground dark:text-white">
-            <Sparkles className="text-accent" size={20} />
+          <h2 className="text-xl font-black mb-4 flex items-center gap-2.5 text-foreground dark:text-white">
+            <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+              <Sparkles size={16} />
+            </span>
             Add Availability Slot
           </h2>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import PhotographerCard from "@/components/PhotographerCard";
@@ -12,7 +12,17 @@ import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
 import { SlidersHorizontal } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseReady } from "@/lib/supabase";
+
+/** Deterministic shuffle using Fisher-Yates — only runs once per mount */
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export default function Home() {
   const { t, tCategory } = useLanguage();
@@ -20,6 +30,7 @@ export default function Home() {
   // null = "All" (no category filter)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const hasShuffled = useRef(false);
 
   const [filters, setFilters] = useState<{
     style: string | null;
@@ -40,9 +51,11 @@ export default function Home() {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchPhotographers = async () => {
       try {
-        if (!supabase) {
+        if (!isSupabaseReady(supabase)) {
           staticFallback();
           return;
         }
@@ -80,8 +93,12 @@ export default function Home() {
             hidden: false
           }));
           
-          const shuffled = [...mapped].sort(() => 0.5 - Math.random());
-          setPhotographers(shuffled);
+          if (isMounted && !hasShuffled.current) {
+            hasShuffled.current = true;
+            setPhotographers(shuffleArray(mapped));
+          } else if (isMounted) {
+            setPhotographers(mapped);
+          }
         }
       } catch (err) {
         console.error("Error fetching photographers, using static fallback:", err);
@@ -90,12 +107,21 @@ export default function Home() {
     };
 
     const staticFallback = () => {
+      if (!isMounted) return;
       const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
-      const shuffled = [...visible].sort(() => 0.5 - Math.random());
-      setPhotographers(shuffled);
+      if (!hasShuffled.current) {
+        hasShuffled.current = true;
+        setPhotographers(shuffleArray(visible));
+      } else {
+        setPhotographers(visible);
+      }
     };
 
     fetchPhotographers();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // filteredPhotographers: always respects BOTH active category AND all drawer filters
@@ -178,8 +204,8 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {group.slice(0, 4).map((p) => (
-                    <PhotographerCard key={p.ID} photographer={p} />
+                  {group.slice(0, 4).map((p, pIdx) => (
+                    <PhotographerCard key={p.ID} photographer={p} priority={pIdx < 2} />
                   ))}
                 </div>
               </section>
@@ -199,8 +225,8 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredPhotographers.map((p) => (
-                <PhotographerCard key={p.ID} photographer={p} />
+              {filteredPhotographers.map((p, pIdx) => (
+                <PhotographerCard key={p.ID} photographer={p} priority={pIdx < 4} />
               ))}
             </div>
 

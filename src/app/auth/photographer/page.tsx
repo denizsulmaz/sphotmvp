@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/context/LanguageContext";
 import { CATEGORIES } from "@/lib/types";
 import { Lock, Mail, User, AlertCircle, Eye, EyeOff, MapPin, DollarSign, ExternalLink, Instagram, Shield, Award } from "lucide-react";
+import Link from "next/link";
 
 export default function PhotographerAuthPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function PhotographerAuthPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
 
   const availableLocations = ["Seoul", "Bangkok", "Tokyo", "Moscow"];
   const availableLanguages = ["English", "Korean", "Chinese", "Japanese", "Russian", "Spanish"];
@@ -53,6 +55,12 @@ export default function PhotographerAuthPage() {
     setError(null);
     setSuccess(null);
     setLoading(true);
+
+    if (isSignUp && !privacyConsent) {
+      setError("You must agree to the Privacy Policy to apply.");
+      setLoading(false);
+      return;
+    }
 
     if (!supabase) {
       setError("Supabase client is not configured.");
@@ -204,18 +212,20 @@ export default function PhotographerAuthPage() {
         </div>
 
         {/* Header Text */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white flex items-center gap-2">
+        <div className="mb-6 text-center">
+          <h2 className="text-2xl font-black tracking-tight text-foreground dark:text-white flex items-center justify-center gap-2.5">
             {isSignUp ? (
               <>
-                <Award className="text-accent" size={24} />
+                <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                  <Award size={18} />
+                </span>
                 <span>SPHOT Photographer Application</span>
               </>
             ) : (
               "Photographer Portal"
             )}
           </h2>
-          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 max-w-lg mx-auto">
             {isSignUp
               ? "Complete the details below to apply as a photographer. Admin approval is completed within 3 business days."
               : "Sign in to access your photographer dashboard, schedule, and portfolio settings."}
@@ -474,6 +484,25 @@ export default function PhotographerAuthPage() {
                 </button>
               </div>
             </div>
+          )}
+
+          {isSignUp && (
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={privacyConsent}
+                onChange={(e) => setPrivacyConsent(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-600 accent-accent"
+                required
+              />
+              <span className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed">
+                I agree to the{" "}
+                <Link href="/privacy" className="underline font-bold text-foreground dark:text-white hover:text-accent transition-colors">
+                  Privacy Policy
+                </Link>{" "}
+                and consent to the processing of my personal data.
+              </span>
+            </label>
           )}
 
           {/* Submit Button */}

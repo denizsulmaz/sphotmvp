@@ -54,7 +54,7 @@ export default function ImageGrid({ photographerId, portfolioUrls }: Props) {
     return () => {
       isMounted = false;
     };
-  }, [photographerId]);
+  }, [photographerId, portfolioUrls]);
 
   if (isLoading) {
     return (

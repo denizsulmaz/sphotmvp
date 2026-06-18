@@ -90,8 +90,10 @@ export default function ClientChatPortal() {
       {/* Sidebar List of active photographers */}
       <div className="md:col-span-4 bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-4 shadow-sm flex flex-col h-full overflow-hidden">
         <div className="mb-4 px-2">
-          <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2">
-            <MessageSquare size={18} className="text-accent" />
+          <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+              <MessageSquare size={16} />
+            </span>
             Studio Chats
           </h3>
           <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Select a studio to coordinate details.</p>

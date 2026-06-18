@@ -46,7 +46,7 @@ export default function FilterDrawer({ filters, setFilters, isOpen, onClose }: P
     if (isOpen) {
       setLocalFilters(filters);
     }
-  }, [isOpen]);
+  }, [isOpen, filters]);
 
   if (!isOpen) return null;
 

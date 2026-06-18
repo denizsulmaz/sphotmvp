@@ -1,38 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { supabase } from "@/lib/supabase";
+import { getServerSupabase } from "@/lib/supabaseServer";
 
+/**
+ * Lemon Squeezy webhook handler.
+ * Uses the server-side Supabase client (service-role key) to bypass RLS.
+ */
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-signature") || "";
     const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
 
-    // 1. Validate signature using HMAC SHA256
+    if (!secret) {
+      console.error("[Webhook] LEMONSQUEEZY_WEBHOOK_SECRET is not configured.");
+      return new NextResponse("Server Configuration Error", { status: 500 });
+    }
+
+    // 1. Validate signature using timing-safe HMAC SHA256 comparison
     const hmac = crypto.createHmac("sha256", secret);
     const digest = hmac.update(rawBody).digest("hex");
 
-    if (signature !== digest) {
-      console.warn("Invalid Lemon Squeezy webhook signature");
+    if (
+      signature.length !== digest.length ||
+      !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))
+    ) {
+      console.warn("[Webhook] Invalid Lemon Squeezy webhook signature");
       return new NextResponse("Unauthorized Signature", { status: 401 });
     }
 
     // 2. Parse payload
     const payload = JSON.parse(rawBody);
-    const eventName = payload.meta?.event_name;
-    const customData = payload.meta?.custom_data;
+    const eventName: string | undefined = payload.meta?.event_name;
+    const customData: Record<string, string> | undefined =
+      payload.meta?.custom_data;
 
-    console.log(`Received Lemon Squeezy event: ${eventName}`, customData);
+    console.log(`[Webhook] Received event: ${eventName}`);
 
     // 3. Process paid order events
-    if ((eventName === "order_created" || eventName === "payment_succeeded") && customData?.booking_id) {
+    if (
+      (eventName === "order_created" || eventName === "payment_succeeded") &&
+      customData?.booking_id
+    ) {
       const bookingId = customData.booking_id;
       const orderId = payload.data?.id;
 
-      if (!supabase) {
-        console.error("Supabase client not initialized in webhook handler.");
-        return new NextResponse("Database Connection Error", { status: 500 });
-      }
+      const supabase = getServerSupabase();
 
       // Fetch booking details to get the associated availability slot ID
       const { data: booking, error: fetchError } = await supabase
@@ -42,7 +55,9 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (fetchError || !booking) {
-        console.error(`Booking with ID ${bookingId} not found in database.`);
+        console.error(
+          `[Webhook] Booking with ID ${bookingId} not found in database.`
+        );
         return new NextResponse("Booking Not Found", { status: 404 });
       }
 
@@ -51,12 +66,14 @@ export async function POST(req: NextRequest) {
         .from("bookings")
         .update({
           status: "paid",
-          checkout_id: String(orderId || "")
+          checkout_id: String(orderId || ""),
         })
         .eq("id", bookingId);
 
       if (updateBookingError) {
-        console.error(`Failed to update booking status to 'paid': ${updateBookingError.message}`);
+        console.error(
+          `[Webhook] Failed to update booking status: ${updateBookingError.message}`
+        );
         return new NextResponse("Database Update Error", { status: 500 });
       }
 
@@ -71,7 +88,9 @@ export async function POST(req: NextRequest) {
             .in("id", slotIds);
 
           if (updateSlotError) {
-            console.error(`Failed to update availability slots status to 'booked': ${updateSlotError.message}`);
+            console.error(
+              `[Webhook] Failed to update slot status: ${updateSlotError.message}`
+            );
           }
         }
       } else if (booking.slot_id) {
@@ -81,16 +100,20 @@ export async function POST(req: NextRequest) {
           .eq("id", booking.slot_id);
 
         if (updateSlotError) {
-          console.error(`Failed to update availability slot status to 'booked': ${updateSlotError.message}`);
+          console.error(
+            `[Webhook] Failed to update slot status: ${updateSlotError.message}`
+          );
         }
       }
 
-      console.log(`Successfully processed reservation payment for booking ID: ${bookingId}`);
+      console.log(
+        `[Webhook] Successfully processed reservation for booking: ${bookingId}`
+      );
     }
 
     return NextResponse.json({ received: true });
-  } catch (err: any) {
-    console.error("Webhook processing error:", err);
+  } catch (err) {
+    console.error("[Webhook] Processing error:", err);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

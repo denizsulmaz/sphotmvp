@@ -46,11 +46,11 @@ export default function ViewCounter({
   increment = false,
   showText = false,
 }: Props) {
-  const [views, setViews] = useState<number | null>(null);
+  const baseline = getSeededBaseline(photographerId);
+  const [views, setViews] = useState<number>(baseline);
 
   useEffect(() => {
     let isMounted = true;
-    const baseline = getSeededBaseline(photographerId);
 
     async function processViews() {
       // Early exit if Supabase is not initialized
@@ -106,17 +106,6 @@ export default function ViewCounter({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photographerId]);
-
-  if (views === null) {
-    return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500 font-medium">
-        <Eye size={14} />
-        {showText && <span>viewed </span>}
-        <div className="w-8 h-3 bg-gray-200 dark:bg-zinc-800 rounded animate-pulse" />
-        {showText && <span> times</span>}
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-zinc-400 font-medium">

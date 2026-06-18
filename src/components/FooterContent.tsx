@@ -67,7 +67,7 @@ export default function FooterContent() {
                 <li><a href="mailto:hi@booksphot.com" className="hover:text-white transition-colors">{t("footerContact")}</a></li>
                 <li className="pt-1">
                   <Link href="/auth/photographer" className="text-accent hover:underline font-extrabold transition-colors">
-                    apply to be a SPHOT photographer
+                    I&apos;m a photographer
                   </Link>
                 </li>
               </ul>

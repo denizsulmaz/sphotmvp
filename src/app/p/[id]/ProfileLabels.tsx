@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 import { MapPin, Globe, Clock, Zap, MessageCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -37,6 +38,7 @@ export default function ProfileLabels({
   responseSpeed,
 }: Props) {
   const { t, tCategory, tStyle } = useLanguage();
+  const [imgError, setImgError] = useState(false);
 
   const formatLanguages = () => {
     let allLangs: string[] = [];
@@ -71,9 +73,17 @@ export default function ProfileLabels({
 
       {/* Name + profile pic */}
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 flex-shrink-0 shadow-sm border border-gray-200 dark:border-zinc-800">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={profilePic} alt={name} className="object-cover w-full h-full object-center" />
+        <div className="w-20 h-20 rounded-full overflow-hidden bg-black dark:bg-zinc-800 flex items-center justify-center text-accent flex-shrink-0 shadow-sm border border-gray-200 dark:border-zinc-800 font-black text-xl">
+          {(!profilePic || imgError || profilePic.includes("default-profile.webp")) ? (
+            <span>{name.slice(0, 2).toUpperCase()}</span>
+          ) : (
+            <img 
+              src={profilePic} 
+              alt={name} 
+              className="object-cover w-full h-full object-center" 
+              onError={() => setImgError(true)}
+            />
+          )}
         </div>
         <div>
           <h1 className="text-3xl font-black text-foreground dark:text-white">{name}</h1>

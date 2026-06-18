@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Send, Clock, User, ShieldAlert } from "lucide-react";
+import { useToast } from "@/components/Toast";
 
 interface Message {
   id: string;
@@ -29,7 +30,14 @@ export default function ChatWindow({
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const initialScrollDone = useRef(false);
+  const { showToast } = useToast();
+
+  const PAGE_SIZE = 30;
 
   // Fetch initial messages
   useEffect(() => {
@@ -41,10 +49,21 @@ export default function ChatWindow({
           .from("messages")
           .select("*")
           .eq("booking_id", bookingId)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false })
+          .limit(PAGE_SIZE);
 
         if (error) throw error;
-        setMessages((data || []) as Message[]);
+        const fetched = (data || []) as Message[];
+        // Reverse because we queried descending
+        const reversed = [...fetched].reverse();
+        setMessages(reversed);
+        setHasMore(fetched.length === PAGE_SIZE);
+
+        // Scroll to bottom after layout paint
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+          initialScrollDone.current = true;
+        }, 100);
       } catch (err) {
         console.error("Error loading chat messages:", err);
       } finally {
@@ -55,11 +74,41 @@ export default function ChatWindow({
     fetchMessages();
   }, [bookingId]);
 
+  // Load older messages on demand
+  const loadOlderMessages = async () => {
+    if (loadingOlder || !hasMore || messages.length === 0 || !supabase) return;
+    setLoadingOlder(true);
+    try {
+      const oldestMessage = messages[0];
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .lt("created_at", oldestMessage.created_at)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE);
+
+      if (error) throw error;
+      const fetched = (data || []) as Message[];
+      if (fetched.length > 0) {
+        const reversed = [...fetched].reverse();
+        setMessages((prev) => [...reversed, ...prev]);
+      }
+      setHasMore(fetched.length === PAGE_SIZE);
+    } catch (err) {
+      console.error("Error loading older messages:", err);
+      showToast("Failed to load older messages.", "error");
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
+
   // Subscribe to real-time chat messages
   useEffect(() => {
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
 
-    const channel = supabase
+    const channel = client
       .channel(`booking-chat:${bookingId}`)
       .on(
         "postgres_changes",
@@ -76,19 +125,18 @@ export default function ChatWindow({
             if (prev.some((m) => m.id === newMessage.id)) return prev;
             return [...prev, newMessage];
           });
+          // Scroll to bottom smoothly for new messages
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [bookingId]);
-
-  // Scroll to bottom when messages list updates
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +156,7 @@ export default function ChatWindow({
       if (error) throw error;
     } catch (err) {
       console.error("Failed to send message:", err);
-      alert("Failed to send message. Please try again.");
+      showToast("Failed to send message. Please try again.", "error");
     } finally {
       setSending(false);
     }
@@ -149,26 +197,40 @@ export default function ChatWindow({
             <p className="text-xs">Send a greeting message to coordinate dates, shoot plans, or outfits!</p>
           </div>
         ) : (
-          messages.map((message) => {
-            const isMe = message.sender_id === currentUserId;
-            return (
-              <div key={message.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                <div
-                  className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${
-                    isMe
-                      ? "bg-black text-white dark:bg-white dark:text-black rounded-tr-none font-medium"
-                      : "bg-gray-100 text-foreground dark:bg-zinc-900 dark:text-zinc-100 rounded-tl-none font-medium"
-                  }`}
+          <>
+            {hasMore && (
+              <div className="flex justify-center pb-2">
+                <button
+                  type="button"
+                  onClick={loadOlderMessages}
+                  disabled={loadingOlder}
+                  className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 text-[10px] font-extrabold rounded-full text-gray-600 dark:text-zinc-400 transition-colors disabled:opacity-50"
                 >
-                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                </div>
-                <span className="text-[9px] text-gray-400 dark:text-zinc-600 mt-1 flex items-center gap-0.5">
-                  <Clock size={10} />
-                  {formatMessageTime(message.created_at)}
-                </span>
+                  {loadingOlder ? "Loading older messages..." : "Load older messages"}
+                </button>
               </div>
-            );
-          })
+            )}
+            {messages.map((message) => {
+              const isMe = message.sender_id === currentUserId;
+              return (
+                <div key={message.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                  <div
+                    className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm ${
+                      isMe
+                        ? "bg-black text-white dark:bg-white dark:text-black rounded-tr-none font-medium"
+                        : "bg-gray-100 text-foreground dark:bg-zinc-900 dark:text-zinc-100 rounded-tl-none font-medium"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                  </div>
+                  <span className="text-[9px] text-gray-400 dark:text-zinc-600 mt-1 flex items-center gap-0.5">
+                    <Clock size={10} />
+                    {formatMessageTime(message.created_at)}
+                  </span>
+                </div>
+              );
+            })}
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>

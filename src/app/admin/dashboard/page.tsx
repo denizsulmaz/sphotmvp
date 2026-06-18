@@ -157,8 +157,10 @@ export default function AdminDashboard() {
       {/* Approvals Queue */}
       <div className="space-y-4">
         <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm">
-          <h2 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2">
-            <Sparkles size={20} className="text-accent" />
+          <h2 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+              <Sparkles size={16} />
+            </span>
             Verification Queue
           </h2>
           <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Photographer profiles pending approval. Approvals are due in 3 business days.</p>

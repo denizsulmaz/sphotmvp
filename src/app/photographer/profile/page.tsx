@@ -285,8 +285,10 @@ export default function ProfileBuilder() {
 
           {/* Tag Selectors */}
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
-            <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2">
-              <MapPin size={18} className="text-accent" />
+            <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                <MapPin size={16} />
+              </span>
               Locations & Categories
             </h3>
 
@@ -342,8 +344,10 @@ export default function ProfileBuilder() {
           {/* Portfolio Portfolio Image list */}
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2">
-                <Camera size={18} className="text-accent" />
+              <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                  <Camera size={16} />
+                </span>
                 Portfolio ({portfolioUrls.length}/10)
               </h3>
               <label className="flex items-center gap-1.5 cursor-pointer text-xs font-black bg-black dark:bg-white text-white dark:text-black px-3.5 py-2 rounded-full hover:opacity-90 transition-opacity">
@@ -385,8 +389,10 @@ export default function ProfileBuilder() {
         {/* Right Sidebar Form Settings */}
         <div className="md:col-span-4 space-y-6">
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-black text-foreground dark:text-white flex items-center gap-2">
-              <Globe size={16} className="text-accent" />
+            <h3 className="text-base font-black text-foreground dark:text-white flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-md bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                <Globe size={14} />
+              </span>
               Service Performance
             </h3>
 

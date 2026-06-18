@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/context/LanguageContext";
 import { Lock, Mail, User, AlertCircle, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -20,12 +21,19 @@ export default function AuthPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setLoading(true);
+
+    if (isSignUp && !privacyConsent) {
+      setError("You must agree to the Privacy Policy to register.");
+      setLoading(false);
+      return;
+    }
 
     if (!supabase) {
       setError("Supabase client is not configured.");
@@ -212,6 +220,25 @@ export default function AuthPage() {
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+
+          {isSignUp && (
+            <label className="flex items-start gap-2.5 cursor-pointer mt-2">
+              <input
+                type="checkbox"
+                checked={privacyConsent}
+                onChange={(e) => setPrivacyConsent(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-zinc-600 accent-accent"
+                required
+              />
+              <span className="text-xs text-gray-500 dark:text-zinc-400 leading-relaxed">
+                I agree to the{" "}
+                <Link href="/privacy" className="underline font-bold text-foreground dark:text-white hover:text-accent transition-colors">
+                  Privacy Policy
+                </Link>{" "}
+                and consent to the processing of my personal data.
+              </span>
+            </label>
+          )}
 
           {/* Submit Button */}
           <button

@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Link from 'next/link';
 import FooterContent from '@/components/FooterContent';
-import Script from 'next/script';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { AuthProvider } from '@/context/AuthContext';
 import HeaderNav from '@/components/HeaderNav';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ToastProvider } from '@/components/Toast';
+import CookieConsent from '@/components/CookieConsent';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,25 +27,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-BX3S1J7C4J"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-
-            gtag('config', 'G-BX3S1J7C4J');
-          `}
-        </Script>
-      </head>
       <body className={`${inter.className} transition-colors duration-300`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <AuthProvider>
         <LanguageProvider>
+        <ToastProvider>
+        <ErrorBoundary>
         <div className="min-h-screen bg-white dark:bg-black text-foreground dark:text-zinc-100 flex flex-col w-full overflow-x-hidden">
 
           {/* ═══════════ GLOBALLY FIXED TOP NAV ═══════════ */}
@@ -59,6 +47,9 @@ export default function RootLayout({
             <FooterContent />
           </div>
         </div>
+        </ErrorBoundary>
+        <CookieConsent />
+        </ToastProvider>
         </LanguageProvider>
         </AuthProvider>
         </ThemeProvider>
@@ -66,4 +57,3 @@ export default function RootLayout({
     </html>
   );
 }
-

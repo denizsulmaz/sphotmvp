@@ -8,9 +8,10 @@ import ViewCounter from "./ViewCounter";
 
 interface Props {
   photographer: Photographer;
+  priority?: boolean;
 }
 
-export default function PhotographerCard({ photographer }: Props) {
+export default function PhotographerCard({ photographer, priority = false }: Props) {
   const { t, tCategory } = useLanguage();
   const images = [1, 2, 3].map((n) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${n}.webp`);
   const profilePic = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
@@ -43,7 +44,8 @@ export default function PhotographerCard({ photographer }: Props) {
             src={images[0]}
             alt="Portfolio 1"
             className="absolute inset-0 w-full h-full object-cover object-center"
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            {...(priority ? { fetchPriority: "high" } : {})}
           />
         </div>
         {/* Right: two stacked images */}
@@ -54,7 +56,7 @@ export default function PhotographerCard({ photographer }: Props) {
               src={images[1]}
               alt="Portfolio 2"
               className="absolute inset-0 w-full h-full object-cover object-center"
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
             />
           </div>
           <div className="relative overflow-hidden bg-gray-100 dark:bg-zinc-800">
@@ -63,7 +65,7 @@ export default function PhotographerCard({ photographer }: Props) {
               src={images[2]}
               alt="Portfolio 3"
               className="absolute inset-0 w-full h-full object-cover object-center"
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
             />
           </div>
         </div>
@@ -78,6 +80,7 @@ export default function PhotographerCard({ photographer }: Props) {
             src={profilePic}
             alt={photographer.Name}
             className="absolute inset-0 w-full h-full object-cover object-center"
+            loading={priority ? "eager" : "lazy"}
           />
         </div>
 
