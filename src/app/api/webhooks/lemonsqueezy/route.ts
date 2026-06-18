@@ -61,7 +61,20 @@ export async function POST(req: NextRequest) {
       }
 
       // Update the availability slot status to 'booked' to lock out other buyers
-      if (booking.slot_id) {
+      const slotIdsStr = customData?.slot_ids;
+      if (slotIdsStr) {
+        const slotIds = slotIdsStr.split(",").filter(Boolean);
+        if (slotIds.length > 0) {
+          const { error: updateSlotError } = await supabase
+            .from("availability_slots")
+            .update({ status: "booked" })
+            .in("id", slotIds);
+
+          if (updateSlotError) {
+            console.error(`Failed to update availability slots status to 'booked': ${updateSlotError.message}`);
+          }
+        }
+      } else if (booking.slot_id) {
         const { error: updateSlotError } = await supabase
           .from("availability_slots")
           .update({ status: "booked" })

@@ -39,6 +39,43 @@ interface CheckoutClientProps {
   id: string;
 }
 
+const formatTimeRange = (start: Date, end: Date) => {
+  const startStr = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const endStr = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${startStr} - ${endStr}`;
+};
+
+const formatSelectedSlotsTime = (slotsList: SlotDetails[]) => {
+  if (slotsList.length === 0) return "";
+  
+  // Sort slots by start time
+  const sorted = [...slotsList].sort(
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+  );
+  
+  // Find contiguous blocks
+  const blocks: string[] = [];
+  let blockStart = new Date(sorted[0].start_time);
+  let blockEnd = new Date(sorted[0].end_time);
+  
+  for (let i = 1; i < sorted.length; i++) {
+    const nextStart = new Date(sorted[i].start_time);
+    const nextEnd = new Date(sorted[i].end_time);
+    
+    // Check if contiguous (allow up to 1 minute gap)
+    if (Math.abs(nextStart.getTime() - blockEnd.getTime()) <= 60000) {
+      blockEnd = nextEnd;
+    } else {
+      blocks.push(formatTimeRange(blockStart, blockEnd));
+      blockStart = nextStart;
+      blockEnd = nextEnd;
+    }
+  }
+  
+  blocks.push(formatTimeRange(blockStart, blockEnd));
+  return blocks.join(", ");
+};
+
 export default function CheckoutClient({ id }: CheckoutClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -49,7 +86,8 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
   const [photographer, setPhotographer] = useState<PhotographerProfile | null>(null);
   const [dbSlots, setDbSlots] = useState<SlotDetails[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<SlotDetails | null>(null);
+  const [selectedSlots, setSelectedSlots] = useState<SlotDetails[]>([]);
+  const [authView, setAuthView] = useState<"register" | "signin">("register");
 
   // Booking Wizard Steps:
   // 1: Choose Schedule (21 Days Calendly View)
@@ -134,7 +172,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         if (initialSlotId) {
           const matchedSlot = fetchedSlots.find(s => s.id === initialSlotId);
           if (matchedSlot) {
-            setSelectedSlot(matchedSlot);
+            setSelectedSlots([matchedSlot]);
             const slotDate = new Date(matchedSlot.start_time);
             setSelectedDate(slotDate);
           }
@@ -175,34 +213,38 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       const t1Start = new Date(baseDate); t1Start.setHours(10, 0, 0, 0);
       const t1End = new Date(baseDate); t1End.setHours(11, 0, 0, 0);
       
-      // Slot 2: 2:00 PM - 4:00 PM (2 hours)
+      // Slot 2: 2:00 PM - 3:00 PM (1 hour)
       const t2Start = new Date(baseDate); t2Start.setHours(14, 0, 0, 0);
-      const t2End = new Date(baseDate); t2End.setHours(16, 0, 0, 0);
+      const t2End = new Date(baseDate); t2End.setHours(15, 0, 0, 0);
 
-      // Slot 3: 5:00 PM - 6:00 PM (1 hour)
-      const t3Start = new Date(baseDate); t3Start.setHours(17, 0, 0, 0);
-      const t3End = new Date(baseDate); t3End.setHours(18, 0, 0, 0);
+      // Slot 3: 3:00 PM - 4:00 PM (1 hour)
+      const t3Start = new Date(baseDate); t3Start.setHours(15, 0, 0, 0);
+      const t3End = new Date(baseDate); t3End.setHours(16, 0, 0, 0);
+
+      // Slot 4: 5:00 PM - 6:00 PM (1 hour)
+      const t4Start = new Date(baseDate); t4Start.setHours(17, 0, 0, 0);
+      const t4End = new Date(baseDate); t4End.setHours(18, 0, 0, 0);
 
       mockSlotsForDay.push(
         { id: `mock-slot-${dateStr}-1`, start_time: t1Start.toISOString(), end_time: t1End.toISOString() },
         { id: `mock-slot-${dateStr}-2`, start_time: t2Start.toISOString(), end_time: t2End.toISOString() },
-        { id: `mock-slot-${dateStr}-3`, start_time: t3Start.toISOString(), end_time: t3End.toISOString() }
+        { id: `mock-slot-${dateStr}-3`, start_time: t3Start.toISOString(), end_time: t3End.toISOString() },
+        { id: `mock-slot-${dateStr}-4`, start_time: t4Start.toISOString(), end_time: t4End.toISOString() }
       );
 
       setAvailableTimeSlots(mockSlotsForDay);
     }
   }, [selectedDate, dbSlots]);
 
-  // Automatically update shoot duration based on the selected slot
+  // Automatically update shoot duration based on selected slots
   useEffect(() => {
-    if (selectedSlot) {
-      const start = new Date(selectedSlot.start_time);
-      const end = new Date(selectedSlot.end_time);
-      const diffMs = end.getTime() - start.getTime();
-      const diffHours = Math.round(diffMs / (1000 * 60 * 60));
-      setDurationHours(`${diffHours} Hour${diffHours > 1 ? "s" : ""}`);
+    if (selectedSlots.length > 0) {
+      const totalHours = selectedSlots.length;
+      setDurationHours(`${totalHours} Hour${totalHours > 1 ? "s" : ""}`);
+    } else {
+      setDurationHours("");
     }
-  }, [selectedSlot]);
+  }, [selectedSlots]);
 
   // Skip Auth step if the user logs in / is already authenticated
   useEffect(() => {
@@ -211,9 +253,22 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
   }, [user, step]);
 
+  const handleToggleSlot = (slotItem: SlotDetails) => {
+    setSelectedSlots(prev => {
+      const exists = prev.some(s => s.id === slotItem.id);
+      if (exists) {
+        return prev.filter(s => s.id !== slotItem.id);
+      } else {
+        return [...prev, slotItem].sort(
+          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+      }
+    });
+  };
+
   const handleNextStep = () => {
     if (step === 1) {
-      if (!selectedSlot) {
+      if (selectedSlots.length === 0) {
         setError("Please choose a date and time slot first.");
         return;
       }
@@ -319,14 +374,14 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
   // Step 4 Final Booking & Payment trigger
   const handleProceedToPayment = async () => {
-    if (!user || !photographer || !selectedSlot) return;
+    if (!user || !photographer || selectedSlots.length === 0) return;
     setError(null);
     setActionLoading(true);
 
     try {
       if (!supabase) return;
 
-      const isMockSlot = selectedSlot.id.startsWith("mock-slot-");
+      const isMockSlot = selectedSlots[0].id.startsWith("mock-slot-");
 
       // 1. Create pending booking record
       const { data: booking, error: bookingError } = await supabase
@@ -334,7 +389,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         .insert({
           client_id: user.id,
           photographer_id: photographer.id,
-          slot_id: isMockSlot ? null : selectedSlot.id,
+          slot_id: isMockSlot ? null : selectedSlots[0].id,
           status: "pending",
           fee_krw: 25000,
         })
@@ -344,16 +399,15 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       if (bookingError) throw bookingError;
 
       // 2. Insert shoot pre-information as a message
-      const start = new Date(selectedSlot.start_time);
-      const end = new Date(selectedSlot.end_time);
+      const formattedTimes = formatSelectedSlotsTime(selectedSlots);
+      const start = new Date(selectedSlots[0].start_time);
       const dateStr = start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-      const timeStr = `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 
       const preInfoMessage = `📸 **Shoot Pre-Information**
 📍 **Shoot Location/Venue:** ${shootLocation} (${locationType})
 👥 **Group Size:** ${groupSize}
 ✨ **Preferred Style/Theme:** ${shootStyle}
-⏰ **Schedule Window:** ${dateStr} at ${timeStr} (${durationHours})
+⏰ **Schedule Window:** ${dateStr} at ${formattedTimes} (${durationHours})
 🌐 **Preferred Language:** ${preferredLanguage}
 📝 **Shoot Concept & Requests:**
 ${customDetails}`;
@@ -377,7 +431,8 @@ ${customDetails}`;
       
       const emailParam = encodeURIComponent(user.email || "");
       const nameParam = encodeURIComponent(profile?.full_name || "");
-      const checkoutUrl = `${baseCheckoutUrl}?checkout[custom][booking_id]=${booking.id}&checkout[email]=${emailParam}&checkout[name]=${nameParam}`;
+      const slotIdsParam = isMockSlot ? "" : selectedSlots.map(s => s.id).join(",");
+      const checkoutUrl = `${baseCheckoutUrl}?checkout[custom][booking_id]=${booking.id}&checkout[custom][slot_ids]=${slotIdsParam}&checkout[email]=${emailParam}&checkout[name]=${nameParam}`;
 
       router.push(checkoutUrl);
     } catch (err: any) {
@@ -484,7 +539,7 @@ ${customDetails}`;
                           type="button"
                           onClick={() => {
                             setSelectedDate(day);
-                            setSelectedSlot(null);
+                            setSelectedSlots([]);
                           }}
                           className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                             isSelected
@@ -526,30 +581,25 @@ ${customDetails}`;
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
                       {availableTimeSlots.map((slotItem) => {
                         const start = new Date(slotItem.start_time);
-                        const end = new Date(slotItem.end_time);
-                        const isSelected = selectedSlot?.id === slotItem.id;
+                        const isSelected = selectedSlots.some(s => s.id === slotItem.id);
                         
-                        const timeStr = `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+                        const startHourStr = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
                         
                         return (
                           <button
                             key={slotItem.id}
                             type="button"
-                            onClick={() => setSelectedSlot(slotItem)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                            onClick={() => handleToggleSlot(slotItem)}
+                            className={`w-full flex items-center justify-center py-4 rounded-2xl border-2 text-lg font-black tracking-wide transition-all duration-200 ${
                               isSelected
-                                ? "border-accent bg-accent text-black font-black shadow-md"
-                                : "border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300"
+                                ? "border-blue-600 bg-blue-600 text-white shadow-md scale-[1.01]"
+                                : "border-blue-500/20 hover:border-blue-500 bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400"
                             }`}
                           >
-                            <span className="flex items-center gap-2">
-                              <Clock size={14} className={isSelected ? "text-black" : "text-gray-400"} />
-                              {timeStr}
-                            </span>
-                            {isSelected && <CheckCircle2 size={16} className="text-black" />}
+                            <span>{startHourStr}</span>
                           </button>
                         );
                       })}
@@ -697,168 +747,190 @@ ${customDetails}`;
           {/* STEP 3: AUTHENTICATION BARRIER */}
           {step === 3 && !user && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
-              <div>
-                <h2 className="text-2xl font-black text-foreground dark:text-white text-center">
+              <div className="max-w-md mx-auto text-center space-y-2">
+                <h2 className="text-2xl font-black text-foreground dark:text-white">
                   Secure Your Reservation
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-zinc-400 text-center mt-1">
-                  Authenticate your client profile to secure your booking details and access real-time photographer chat.
+                <p className="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
+                  Authenticate your profile to secure your booking details and access real-time photographer chat.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 md:divide-x divide-gray-100 dark:divide-zinc-800">
-                {/* COLUMN 1: REGISTER */}
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2">
-                      <Sparkles size={18} className="text-accent" />
-                      New Client? Register
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">
-                      Create an account to book slots and message photographers.
-                    </p>
-                  </div>
-
-                  {/* Google OAuth (Sign Up) */}
-                  <button
-                    type="button"
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-zinc-800 text-sm font-bold bg-white dark:bg-zinc-900 text-foreground dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-900/80 transition-colors flex items-center justify-center gap-2.5"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" className="w-4 h-4">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.77c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.75-.63-1.3-1.39-1.3-2.09z" />
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                    </svg>
-                    <span>Register with Google</span>
-                  </button>
-
-                  <div className="flex items-center gap-3 py-1 text-[10px] text-gray-400 dark:text-zinc-600 uppercase tracking-widest">
-                    <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
-                    <span>or register with email</span>
-                    <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
-                  </div>
-
-                  <form onSubmit={handleInlineSignUp} className="space-y-3">
-                    <div className="relative">
-                      <UserIcon size={16} className="absolute left-4 top-3 text-gray-400 dark:text-zinc-500" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="Full Name"
-                        value={signUpFullName}
-                        onChange={(e) => setSignUpFullName(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white"
-                      />
-                    </div>
-                    <div className="relative">
-                      <Mail size={16} className="absolute left-4 top-3 text-gray-400 dark:text-zinc-500" />
-                      <input
-                        type="email"
-                        required
-                        placeholder="Email Address"
-                        value={signUpEmail}
-                        onChange={(e) => setSignUpEmail(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white"
-                      />
-                    </div>
-                    <div className="relative">
-                      <Lock size={16} className="absolute left-4 top-3 text-gray-400 dark:text-zinc-500" />
-                      <input
-                        type="password"
-                        required
-                        placeholder="Password"
-                        value={signUpPassword}
-                        onChange={(e) => setSignUpPassword(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white"
-                      />
+              <div className="max-w-md mx-auto bg-gray-50/50 dark:bg-zinc-900/30 border border-gray-100 dark:border-zinc-900 p-6 rounded-2xl space-y-6">
+                {authView === "register" ? (
+                  /* REGISTER VIEW */
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <h3 className="text-lg font-black text-foreground dark:text-white flex items-center justify-center gap-2">
+                        <Sparkles size={18} className="text-accent" />
+                        Create Account / Register
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
+                        Register to save your booking schedule.
+                      </p>
                     </div>
 
+                    {/* Google OAuth (Sign Up) */}
                     <button
-                      type="submit"
-                      disabled={actionLoading}
-                      className="w-full py-3 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-2"
+                      type="button"
+                      onClick={handleGoogleAuth}
+                      className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-zinc-800 text-sm font-bold bg-white dark:bg-zinc-900 text-foreground dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-900/80 transition-colors flex items-center justify-center gap-2.5"
                     >
-                      {actionLoading ? (
-                        <span className="w-4 h-4 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        "Create Account & Continue"
-                      )}
+                      <svg width="18" height="18" viewBox="0 0 24 24" className="w-4 h-4">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.77c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.75-.63-1.3-1.39-1.3-2.09z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      <span>Register with Google</span>
                     </button>
-                  </form>
-                </div>
 
-                {/* COLUMN 2: SIGN IN */}
-                <div className="space-y-4 md:pl-8">
-                  <div>
-                    <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2">
-                      <UserIcon size={18} className="text-accent" />
-                      Have an Account? Sign In
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">
-                      Log into your existing SPHOT account to check out.
-                    </p>
-                  </div>
-
-                  {/* Google OAuth (Sign In) */}
-                  <button
-                    type="button"
-                    onClick={handleGoogleAuth}
-                    className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-zinc-800 text-sm font-bold bg-white dark:bg-zinc-900 text-foreground dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-900/80 transition-colors flex items-center justify-center gap-2.5"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" className="w-4 h-4">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.77c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.75-.63-1.3-1.39-1.3-2.09z" />
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                    </svg>
-                    <span>Sign In with Google</span>
-                  </button>
-
-                  <div className="flex items-center gap-3 py-1 text-[10px] text-gray-400 dark:text-zinc-600 uppercase tracking-widest">
-                    <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
-                    <span>or sign in with email</span>
-                    <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
-                  </div>
-
-                  <form onSubmit={handleInlineSignIn} className="space-y-3">
-                    <div className="relative">
-                      <Mail size={16} className="absolute left-4 top-3 text-gray-400 dark:text-zinc-500" />
-                      <input
-                        type="email"
-                        required
-                        placeholder="Email Address"
-                        value={signInEmail}
-                        onChange={(e) => setSignInEmail(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white"
-                      />
-                    </div>
-                    <div className="relative">
-                      <Lock size={16} className="absolute left-4 top-3 text-gray-400 dark:text-zinc-500" />
-                      <input
-                        type="password"
-                        required
-                        placeholder="Password"
-                        value={signInPassword}
-                        onChange={(e) => setSignInPassword(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white"
-                      />
+                    <div className="flex items-center gap-3 py-1 text-[10px] text-gray-400 dark:text-zinc-600 uppercase tracking-widest">
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
+                      <span>or register with email</span>
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
                     </div>
 
+                    <form onSubmit={handleInlineSignUp} className="space-y-3">
+                      <div className="relative">
+                        <UserIcon size={16} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="Full Name"
+                          value={signUpFullName}
+                          onChange={(e) => setSignUpFullName(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                        <input
+                          type="email"
+                          required
+                          placeholder="Email Address"
+                          value={signUpEmail}
+                          onChange={(e) => setSignUpEmail(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                        <input
+                          type="password"
+                          required
+                          placeholder="Password"
+                          value={signUpPassword}
+                          onChange={(e) => setSignUpPassword(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={actionLoading}
+                        className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-2"
+                      >
+                        {actionLoading ? (
+                          <span className="w-4 h-4 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          "Create Account & Continue"
+                        )}
+                      </button>
+                    </form>
+
+                    <div className="flex justify-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setAuthView("signin")}
+                        className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 px-4 py-2.5 rounded-2xl border border-blue-100 dark:border-blue-900/40 transition-all hover:scale-[1.02]"
+                      >
+                        Already have an account? Sign-in
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* SIGN IN VIEW */
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <h3 className="text-lg font-black text-foreground dark:text-white flex items-center justify-center gap-2">
+                        <UserIcon size={18} className="text-accent" />
+                        Sign In to Your Account
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-zinc-500 mt-1">
+                        Log into your existing SPHOT account to check out.
+                      </p>
+                    </div>
+
+                    {/* Google OAuth (Sign In) */}
                     <button
-                      type="submit"
-                      disabled={actionLoading}
-                      className="w-full py-3 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-2"
+                      type="button"
+                      onClick={handleGoogleAuth}
+                      className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-zinc-800 text-sm font-bold bg-white dark:bg-zinc-900 text-foreground dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-900/80 transition-colors flex items-center justify-center gap-2.5"
                     >
-                      {actionLoading ? (
-                        <span className="w-4 h-4 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        "Sign In & Continue"
-                      )}
+                      <svg width="18" height="18" viewBox="0 0 24 24" className="w-4 h-4">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.77c-.98.66-2.23 1.06-3.72 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.75-.63-1.3-1.39-1.3-2.09z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                      </svg>
+                      <span>Sign In with Google</span>
                     </button>
-                  </form>
-                </div>
+
+                    <div className="flex items-center gap-3 py-1 text-[10px] text-gray-400 dark:text-zinc-600 uppercase tracking-widest">
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
+                      <span>or sign in with email</span>
+                      <div className="flex-1 h-px bg-gray-100 dark:bg-zinc-800" />
+                    </div>
+
+                    <form onSubmit={handleInlineSignIn} className="space-y-3">
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                        <input
+                          type="email"
+                          required
+                          placeholder="Email Address"
+                          value={signInEmail}
+                          onChange={(e) => setSignInEmail(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />
+                        <input
+                          type="password"
+                          required
+                          placeholder="Password"
+                          value={signInPassword}
+                          onChange={(e) => setSignInPassword(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 pl-10 pr-4 text-xs outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={actionLoading}
+                        className="w-full py-3.5 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl text-xs hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-2"
+                      >
+                        {actionLoading ? (
+                          <span className="w-4 h-4 border-2 border-white dark:border-black border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          "Sign In & Continue"
+                        )}
+                      </button>
+                    </form>
+
+                    <div className="flex justify-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setAuthView("register")}
+                        className="text-xs font-extrabold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950/30 px-4 py-2.5 rounded-2xl border border-blue-100 dark:border-blue-900/40 transition-all hover:scale-[1.02]"
+                      >
+                        Don&apos;t have an account? Register
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -876,7 +948,7 @@ ${customDetails}`;
                 </p>
               </div>
 
-              {photographer && selectedSlot && (
+              {photographer && selectedSlots.length > 0 && (
                 <div className="space-y-4">
                   {/* Summary grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-zinc-900/40 p-5 rounded-2xl border border-gray-100/50 dark:border-zinc-800/50">
@@ -885,7 +957,7 @@ ${customDetails}`;
                       <div>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide font-black">Date</p>
                         <p className="text-sm font-bold text-foreground dark:text-white">
-                          {new Date(selectedSlot.start_time).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                          {new Date(selectedSlots[0].start_time).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                         </p>
                       </div>
                     </div>
@@ -894,7 +966,7 @@ ${customDetails}`;
                       <div>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide font-black">Time Slot</p>
                         <p className="text-sm font-bold text-foreground dark:text-white">
-                          {new Date(selectedSlot.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(selectedSlot.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatSelectedSlotsTime(selectedSlots)}
                         </p>
                       </div>
                     </div>
@@ -1048,7 +1120,7 @@ ${customDetails}`;
               <button
                 type="button"
                 onClick={handleNextStep}
-                disabled={step === 1 && !selectedSlot}
+                disabled={step === 1 && selectedSlots.length === 0}
                 className="w-full py-4 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
               >
                 <span>Continue Booking</span>

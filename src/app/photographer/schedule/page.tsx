@@ -81,25 +81,45 @@ export default function ScheduleManager() {
       });
 
       if (isOverlapping) {
-        throw new Error("This slot overlaps with an existing availability slot.");
+        throw new Error("This slot range overlaps with an existing availability slot.");
+      }
+
+      const slotsToInsert = [];
+      let currentStart = new Date(startDateTime);
+      while (currentStart < endDateTime) {
+        const currentEnd = new Date(currentStart);
+        currentEnd.setHours(currentEnd.getHours() + 1);
+
+        if (currentEnd > endDateTime) {
+          break; // only create full hour-by-hour slots
+        }
+
+        slotsToInsert.push({
+          photographer_id: user.id,
+          start_time: currentStart.toISOString(),
+          end_time: currentEnd.toISOString(),
+          status: "available",
+        });
+
+        currentStart = currentEnd;
+      }
+
+      if (slotsToInsert.length === 0) {
+        throw new Error("Availability range must be at least 1 hour.");
       }
 
       const { data, error: insertError } = await supabase
         .from("availability_slots")
-        .insert({
-          photographer_id: user.id,
-          start_time: startDateTime.toISOString(),
-          end_time: endDateTime.toISOString(),
-          status: "available",
-        })
-        .select()
-        .single();
+        .insert(slotsToInsert)
+        .select();
 
       if (insertError) throw insertError;
 
+      const insertedSlots = (data || []) as AvailabilitySlot[];
+
       // Add to list and sort
       setSlots(prev => 
-        [...prev, data as AvailabilitySlot].sort(
+        [...prev, ...insertedSlots].sort(
           (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
         )
       );
