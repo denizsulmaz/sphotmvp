@@ -288,6 +288,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   }, [user, step]);
 
   const handleToggleSlot = (slotItem: SlotDetails) => {
+    setError(null);
     setSelectedSlots(prev => {
       const exists = prev.some(s => s.id === slotItem.id);
       if (exists) {
@@ -543,6 +544,12 @@ ${customDetails}`;
         
         {/* ─── LEFT COLUMN: CURRENT STEP VIEW ─── */}
         <div className="lg:col-span-8 space-y-6">
+          {error && (
+            <div className="bg-red-500/10 border-l-4 border-red-500 p-4 rounded-xl text-xs text-red-600 dark:text-red-400 flex items-center gap-2 font-bold animate-fadeIn">
+              <AlertCircle size={16} className="text-red-500 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
           
           {/* STEP 1: CHOOSE SCHEDULE (CALENDLY-STYLE 21 DAYS) */}
           {step === 1 && (
@@ -574,6 +581,7 @@ ${customDetails}`;
                           onClick={() => {
                             setSelectedDate(day);
                             setSelectedSlots([]);
+                            setError(null);
                           }}
                           className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                             isSelected
@@ -679,9 +687,23 @@ ${customDetails}`;
                     required
                     placeholder="e.g. Gyeongbokgung Palace, Bukchon Hanok"
                     value={shootLocation}
-                    onChange={(e) => setShootLocation(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
+                    onChange={(e) => {
+                      setShootLocation(e.target.value);
+                      if (e.target.value.trim() && error?.includes("location")) {
+                        setError(null);
+                      }
+                    }}
+                    className={`w-full bg-gray-50 dark:bg-zinc-900 border rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white transition-all ${
+                      error && !shootLocation.trim()
+                        ? "border-red-500 focus:border-red-500 ring-1 ring-red-500/20"
+                        : "border-gray-200 dark:border-zinc-800 focus:border-black dark:focus:border-white"
+                    }`}
                   />
+                  {error && !shootLocation.trim() && (
+                    <span className="text-[10px] text-red-500 font-bold mt-1.5 block">
+                      Desired venue or spot name is required.
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -746,9 +768,23 @@ ${customDetails}`;
                   rows={4}
                   placeholder="Share details about the outfits you plan to wear, reference photo styles, or specific expectations..."
                   value={customDetails}
-                  onChange={(e) => setCustomDetails(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-4 text-sm outline-none text-foreground dark:text-white resize-none focus:border-black dark:focus:border-white transition-all"
+                  onChange={(e) => {
+                    setCustomDetails(e.target.value);
+                    if (e.target.value.trim() && error?.includes("requirements")) {
+                      setError(null);
+                    }
+                  }}
+                  className={`w-full bg-gray-50 dark:bg-zinc-900 border rounded-xl p-4 text-sm outline-none text-foreground dark:text-white resize-none transition-all ${
+                    error && !customDetails.trim()
+                      ? "border-red-500 focus:border-red-500 ring-1 ring-red-500/20"
+                      : "border-gray-200 dark:border-zinc-800 focus:border-black dark:focus:border-white"
+                  }`}
                 />
+                {error && !customDetails.trim() && (
+                  <span className="text-[10px] text-red-500 font-bold mt-1.5 block">
+                    Shoot details, concept, or instructions are required.
+                  </span>
+                )}
               </div>
             </div>
           )}
