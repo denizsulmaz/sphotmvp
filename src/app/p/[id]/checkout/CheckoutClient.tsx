@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import CustomDropdown from "@/components/CustomDropdown";
+import photographersData from "@/data/photographers.json";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -187,6 +188,14 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             id: dbPhoto.id,
             name: dbPhoto.profiles?.full_name || "Unknown Photographer",
             avatar_url: dbPhoto.profiles?.avatar_url || "/media/default-profile.webp",
+          });
+        } else {
+          // Fallback to local JSON data in local/test mode
+          const localPhoto = photographersData.find((p) => p.ID === id);
+          setPhotographer({
+            id: id,
+            name: localPhoto?.Name || `Photographer ${id}`,
+            avatar_url: "/media/default-profile.webp",
           });
         }
 
@@ -500,45 +509,53 @@ ${customDetails}`;
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-12">
       
       {/* ─── STAGE PROGRESS BAR ─── */}
-      <div className="w-full max-w-2xl mx-auto mb-12">
-        <div className="flex items-center justify-between relative">
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-100 dark:bg-zinc-800 -translate-y-1/2 -z-10" />
-          
-          {/* Progress fill */}
-          <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-accent -translate-y-1/2 -z-10 transition-all duration-300"
-            style={{ width: `${((step - 1) / (user ? 2 : 3)) * 100}%` }}
-          />
+      {(() => {
+        const stepsList = [
+          { stepNum: 1, label: "Schedule" },
+          { stepNum: 2, label: "Shoot Details" },
+          ...(!user ? [{ stepNum: 3, label: "Account" }] : []),
+          { stepNum: 4, label: "Reserve" }
+        ];
+        const currentStepIndex = stepsList.findIndex(s => s.stepNum === step);
+        const progressPercent = stepsList.length > 1 ? (currentStepIndex / (stepsList.length - 1)) * 100 : 0;
 
-          {[
-            { stepNum: 1, label: "Schedule" },
-            { stepNum: 2, label: "Shoot Details" },
-            ...(!user ? [{ stepNum: 3, label: "Account" }] : []),
-            { stepNum: 4, label: "Reserve" }
-          ].map((barStep) => {
-            const isActive = step >= barStep.stepNum;
-            const isCurrent = step === barStep.stepNum;
-            return (
-              <div key={barStep.stepNum} className="flex flex-col items-center">
-                <div 
-                  className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all border ${
-                    isCurrent
-                      ? "bg-accent border-accent text-black font-black scale-110 shadow-sm"
-                      : isActive
-                      ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black font-bold"
-                      : "bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-400 dark:text-zinc-500"
-                  }`}
-                >
-                  {barStep.stepNum}
-                </div>
-                <span className={`text-[11px] font-bold mt-2 tracking-wide ${isActive ? "text-foreground dark:text-white" : "text-gray-400 dark:text-zinc-500"}`}>
-                  {barStep.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+        return (
+          <div className="w-full max-w-2xl mx-auto mb-12">
+            <div className="flex items-center justify-between relative">
+              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-100 dark:bg-zinc-800 -translate-y-1/2 -z-10" />
+              
+              {/* Progress fill */}
+              <div 
+                className="absolute top-1/2 left-0 h-0.5 bg-accent -translate-y-1/2 -z-10 transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+
+              {stepsList.map((barStep, idx) => {
+                const isActive = step >= barStep.stepNum;
+                const isCurrent = step === barStep.stepNum;
+                return (
+                  <div key={barStep.stepNum} className="flex flex-col items-center">
+                    <div 
+                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all border ${
+                        isCurrent
+                          ? "bg-accent border-accent text-black font-black scale-110 shadow-sm"
+                          : isActive
+                          ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black font-bold"
+                          : "bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-400 dark:text-zinc-500"
+                      }`}
+                    >
+                      {idx + 1}
+                    </div>
+                    <span className={`text-[11px] font-bold mt-2 tracking-wide ${isActive ? "text-foreground dark:text-white" : "text-gray-400 dark:text-zinc-500"}`}>
+                      {barStep.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
@@ -555,8 +572,10 @@ ${customDetails}`;
           {step === 1 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm">
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-2">
-                  <CalendarIcon className="text-accent" size={24} />
+                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                    <CalendarIcon size={20} />
+                  </div>
                   Choose Shoot Date &amp; Time
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
@@ -657,8 +676,10 @@ ${customDetails}`;
           {step === 2 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
               <div>
-                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-2">
-                  <Sparkles className="text-accent" size={24} />
+                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                    <Sparkles size={20} />
+                  </div>
                   Photoshoot Pre-Information
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
@@ -984,8 +1005,10 @@ ${customDetails}`;
           {step === 4 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
               <div>
-                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-2">
-                  <CreditCard className="text-accent" size={24} />
+                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                    <CreditCard size={20} />
+                  </div>
                   Confirm Reservation Details
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
