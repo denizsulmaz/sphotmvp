@@ -256,7 +256,7 @@ export default function ScheduleManager() {
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">
             <Calendar size={40} className="mx-auto text-gray-300 dark:text-zinc-700 mb-4" />
             <h3 className="text-lg font-black text-foreground dark:text-white">No Slots Created</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Add slots on the left to allow clients to reserve your hours.</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Add slots on the left to allow users to reserve your hours.</p>
           </div>
         ) : (
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar">

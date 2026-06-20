@@ -152,7 +152,7 @@ export default function AuthPage() {
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
             {isSignUp
-              ? "Create your client account to get started with booking."
+              ? "Create your account to get started with booking."
               : "Sign in to access your dashboard and bookings."}
           </p>
         </div>

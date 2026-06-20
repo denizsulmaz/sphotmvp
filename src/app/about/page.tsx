@@ -19,7 +19,7 @@ export default function AboutPage() {
 
           <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
             {t("aboutTitle").split("SPHOT")[0]}
-            <span className="text-accent">SPHOT</span>
+            <span className="text-foreground dark:text-accent">SPHOT</span>
             {t("aboutTitle").split("SPHOT")[1]}
           </h1>
           <p className="text-gray-400 text-lg md:text-xl mb-16">{t("aboutSubtitle")}</p>

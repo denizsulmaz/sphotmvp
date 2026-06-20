@@ -136,7 +136,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
           <Link
             href={`/p/${photographer.ID}/checkout`}
             onClick={(e) => e.stopPropagation()}
-            className="w-full px-4 py-2.5 rounded-xl bg-accent text-foreground text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2 text-center"
+            className="w-full px-4 py-2.5 rounded-xl bg-accent text-black text-sm font-black shadow-sm transition-transform active:scale-95 flex items-center justify-center gap-2 text-center"
           >
             {t("book")}
           </Link>

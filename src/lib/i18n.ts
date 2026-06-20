@@ -78,7 +78,7 @@ export const translations = {
     // Contact page
     contactTitle: 'Contact Us',
     contactSubtitle:
-      'We\'d love to hear from you — whether you\'re a prospective photographer, a client, or a partner.',
+      'We\'d love to hear from you, whether you\'re a prospective photographer, a user, or a partner.',
     emailLabel: 'Email',
     emailDesc: 'General inquiries, partnerships, photographer applications',
     instagramDesc: 'DMs open — fastest way to reach us',
@@ -167,7 +167,7 @@ export const translations = {
     // ── Review ──
     reviewRateShoot: 'Rate your shoot',
     reviewWith: 'with',
-    reviewPlaceholder: 'How was the experience? Share details to help other clients.',
+    reviewPlaceholder: 'How was the experience? Share details to help other users.',
     reviewSubmit: 'Submit Review',
     reviewCommentRequired: 'Please write a short comment about your experience.',
     reviewCta: 'Review',
@@ -409,7 +409,7 @@ export const translations = {
       'SPHOT\'u tam da bu sorunu çözmek için kurdum: güzel fotoğraflar isteyen insanları, bu anları zekice yakalayan yetenekli, onaylanmış fotoğrafçılarla buluşturan kolay ve şeffaf bir yol.',
     whatIsSphot: 'SPHOT Nedir?',
     whatIsSphotText:
-      'SPHOT, yetenekli ve doğrulanmış Seul fotoğrafçılarını müşterilerle buluşturan küratörlü bir pazar yeridir. İster portre seansına, gün batımında çift çekimine, kurumsal kimlik çekimine veya etkinlik fotoğrafçısına ihtiyacınız olsun; anınızı yakalayacak mükemmel fotoğrafçıyı bulmayı ve rezerve etmeyi kolaylaştırır.',
+      'SPHOT, yetenekli ve doğrulanmış Seul fotoğrafçılarını kullanıcılarla buluşturan küratörlü bir pazar yeridir. İster portre seansına, gün batımında çift çekimine, kurumsal kimlik çekimine veya etkinlik fotoğrafçısına ihtiyacınız olsun; anınızı yakalayacak mükemmel fotoğrafçıyı bulmayı ve rezerve etmeyi kolaylaştırır.',
     ourMission: 'Misyonumuz',
     ourMissionText:
       'Biz, her anın güzel bir şekilde yakalanmayı hak ettiğine inanıyoruz. Misyonumuz, Seoul\'de anılar biriktiren bir turist, bir aşk hikayesi arayan bir çift ya da görsel kimliğini geliştiren bir marka olsanız da profesyonel fotoğrafçılığı herkes için erişilebilir ve kolay hale getirmektir.',
@@ -427,7 +427,7 @@ export const translations = {
     at: 'adreslerinde',
 
     contactTitle: 'Bize Ulaşın',
-    contactSubtitle: 'Gelecekteki bir fotoğrafçı, müşteri veya iş ortağı olun — sizden haber almaktan harika hissederiz.',
+    contactSubtitle: 'Gelecekteki bir fotoğrafçı, kullanıcı veya iş ortağı olun, sizden haber almaktan harika hissederiz.',
     emailLabel: 'E-posta',
     emailDesc: 'Genel sorular, işbirlikleri, fotoğrafçı başvuruları',
     instagramDesc: 'DM\'ler açık — bize ulaşmanın en hızlı yolu',
@@ -515,7 +515,7 @@ export const translations = {
     // ── Review ──
     reviewRateShoot: 'Çekimini Değerlendir',
     reviewWith: 'fotoğrafçı:',
-    reviewPlaceholder: 'Deneyim nasıldı? Diğer müşterilere yardımcı olacak detaylar paylaşın.',
+    reviewPlaceholder: 'Deneyim nasıldı? Diğer kullanıcılara yardımcı olacak detaylar paylaşın.',
     reviewSubmit: 'Değerlendirmeyi Gönder',
     reviewCommentRequired: 'Lütfen deneyiminiz hakkında kısa bir yorum yazın.',
     reviewCta: 'Değerlendir',

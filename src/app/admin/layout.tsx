@@ -4,10 +4,11 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { ShieldCheck, Camera, BarChart3, Flag, MessageSquare, LogOut } from "lucide-react";
+import { ShieldCheck, Camera, BarChart3, Flag, MessageSquare, LogOut, Users } from "lucide-react";
 
 const TABS = [
   { href: "/admin", label: "Approvals", icon: Camera, exact: true },
+  { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/operations", label: "Operations", icon: BarChart3 },
   { href: "/admin/conversations", label: "Conversations", icon: MessageSquare },
   { href: "/admin/reports", label: "Reports", icon: Flag },

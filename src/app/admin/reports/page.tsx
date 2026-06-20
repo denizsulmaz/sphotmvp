@@ -154,7 +154,7 @@ export default function AdminReports() {
               <div className="p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-black text-foreground dark:text-white">
-                    {parties.client || "Client"} ↔ {parties.photographer || "Photographer"}
+                    {parties.client || "User"} ↔ {parties.photographer || "Photographer"}
                   </p>
                   <p className="text-[11px] text-gray-400">Read-only transcript</p>
                 </div>
@@ -183,7 +183,7 @@ export default function AdminReports() {
                         </div>
                       );
                     }
-                    const senderName = m.sender_id === clientId ? (parties.client || "Client") : (parties.photographer || "Photographer");
+                    const senderName = m.sender_id === clientId ? (parties.client || "User") : (parties.photographer || "Photographer");
                     return (
                       <div key={m.id} className="flex justify-start">
                         <div className="max-w-[80%] bg-gray-100 dark:bg-zinc-900 rounded-2xl px-3 py-2">

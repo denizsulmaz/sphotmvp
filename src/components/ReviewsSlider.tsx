@@ -83,7 +83,7 @@ export default function ReviewsSlider() {
     <section className="py-16 md:py-24 overflow-hidden border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-black">
       <div className="max-w-7xl mx-auto px-4 md:px-8 mb-8 flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight dark:text-white">Client Love</h2>
+          <h2 className="text-3xl font-extrabold tracking-tight dark:text-white">User Love</h2>
           <p className="text-gray-500 dark:text-zinc-500 mt-2 font-medium">Real stories from shoots in Seoul</p>
         </div>
         <div className="hidden md:flex gap-2">

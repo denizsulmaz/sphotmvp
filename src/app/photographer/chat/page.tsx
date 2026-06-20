@@ -90,7 +90,7 @@ export default function PhotographerChatPortal() {
             <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
               <MessageSquare size={16} />
             </span>
-            Client Chats
+            User Chats
           </h3>
           <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Paid reservations messaging.</p>
         </div>
@@ -122,13 +122,13 @@ export default function PhotographerChatPortal() {
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 shrink-0">
                     <img
                       src={booking.profiles?.avatar_url || "/media/default-profile.webp"}
-                      alt={booking.profiles?.full_name || "Client"}
+                      alt={booking.profiles?.full_name || "User"}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="overflow-hidden flex-1 space-y-0.5">
                     <p className="text-sm font-bold text-foreground dark:text-white truncate">
-                      {booking.profiles?.full_name || "Unknown Client"}
+                      {booking.profiles?.full_name || "Unknown User"}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1">
                       <Calendar size={12} />
@@ -148,14 +148,14 @@ export default function PhotographerChatPortal() {
           <ChatWindow
             bookingId={selectedBooking.id}
             currentUserId={user.id}
-            otherPartyName={selectedBooking.profiles?.full_name || "Client"}
+            otherPartyName={selectedBooking.profiles?.full_name || "User"}
             otherPartyAvatar={selectedBooking.profiles?.avatar_url || "/media/default-profile.webp"}
           />
         ) : (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm h-full flex flex-col items-center justify-center">
             <MessageSquare size={48} className="text-gray-300 dark:text-zinc-700 mb-4" />
             <h3 className="text-lg font-black text-foreground dark:text-white">Select a Conversation</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Choose a client from the left pane to send messages.</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Choose a user from the left pane to send messages.</p>
           </div>
         )}
       </div>

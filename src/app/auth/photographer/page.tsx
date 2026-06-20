@@ -436,7 +436,7 @@ export default function PhotographerAuthPage() {
                 </div>
 
                 <div className="mt-4">
-                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Short Bio (Introduction to Clients)</label>
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5">Short Bio (Introduction to Users)</label>
                   <textarea
                     rows={3}
                     placeholder="Introduce yourself, your photo style, and what you enjoy capturing..."

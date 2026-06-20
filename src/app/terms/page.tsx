@@ -20,7 +20,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">2. What SPHOT Is</h2>
-          <p>SPHOT is a booking marketplace that connects clients with independent photographers in Seoul. We let clients browse photographers, securely reserve a session with a platform reservation fee, and communicate in-platform after a reservation is confirmed. SPHOT is not the photographer and does not itself provide photography services; photographers are independent service providers.</p>
+          <p>SPHOT is a booking marketplace that connects users with independent photographers in Seoul. We let users browse photographers, securely reserve a session with a platform reservation fee, and communicate in-platform after a reservation is confirmed. SPHOT is not the photographer and does not itself provide photography services; photographers are independent service providers.</p>
         </section>
 
         <section>
@@ -31,8 +31,8 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">4. Reservation Fee &amp; Payments</h2>
-          <p className="mb-3">To secure a booking, the client pays a flat <strong>reservation fee of 25,000 KRW</strong> to SPHOT through our payment processor (Lemon Squeezy). This fee reserves the selected time slot and unlocks direct in-platform chat with the photographer.</p>
-          <p className="mb-3">The reservation fee is a <strong>deposit that counts toward the total cost of the shoot</strong>. The remaining balance and the final scope and price of the session are agreed <strong>directly between the client and the photographer</strong> and settled between them. SPHOT is not a party to that settlement and does not process the balance.</p>
+          <p className="mb-3">To secure a booking, the user pays a flat <strong>reservation fee of 25,000 KRW</strong> to SPHOT through our payment processor (Lemon Squeezy). This fee reserves the selected time slot and unlocks direct in-platform chat with the photographer.</p>
+          <p className="mb-3">The reservation fee is a <strong>deposit that counts toward the total cost of the shoot</strong>. The remaining balance and the final scope and price of the session are agreed <strong>directly between the user and the photographer</strong> and settled between them. SPHOT is not a party to that settlement and does not process the balance.</p>
           <p>The reservation fee is fully refundable if the booking is cancelled at least <strong>48 hours before</strong> the scheduled session. Cancellations within 48 hours of the session may not be refundable. Refunds are issued to the original payment method.</p>
         </section>
 
@@ -44,7 +44,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">6. Reviews</h2>
-          <p>After a completed session, clients may leave a rating and written review. Reviews must be honest, relevant, and respectful. We may remove reviews that violate our guidelines, contain personal data, or are fraudulent.</p>
+          <p>After a completed session, users may leave a rating and written review. Reviews must be honest, relevant, and respectful. We may remove reviews that violate our guidelines, contain personal data, or are fraudulent.</p>
         </section>
 
         <section>
@@ -60,8 +60,8 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">9. Disclaimers &amp; Limitation of Liability</h2>
-          <p className="mb-3">Photographer listings and portfolios are presented in good faith but we cannot guarantee their accuracy, quality, or the outcome of any session. Clients and photographers contract directly with one another for the shoot itself.</p>
-          <p>To the maximum extent permitted by law, SPHOT is not liable for disputes, damages, or losses arising from sessions, agreements, or interactions between clients and photographers, beyond the reservation fee paid to us for the relevant booking.</p>
+          <p className="mb-3">Photographer listings and portfolios are presented in good faith but we cannot guarantee their accuracy, quality, or the outcome of any session. Users and photographers contract directly with one another for the shoot itself.</p>
+          <p>To the maximum extent permitted by law, SPHOT is not liable for disputes, damages, or losses arising from sessions, agreements, or interactions between users and photographers, beyond the reservation fee paid to us for the relevant booking.</p>
         </section>
 
         <section>

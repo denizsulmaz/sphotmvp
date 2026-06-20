@@ -139,7 +139,7 @@ export default function PhotographerDashboard() {
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">
             <Calendar size={48} className="mx-auto text-gray-300 dark:text-zinc-700 mb-4" />
             <h3 className="text-lg font-black text-foreground dark:text-white">No Bookings Yet</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">When clients book slots, they will appear here.</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">When users book slots, they will appear here.</p>
           </div>
         ) : (
           bookings.map((booking) => (
@@ -153,14 +153,14 @@ export default function PhotographerDashboard() {
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 shrink-0">
                   <img
                     src={booking.profiles?.avatar_url || "/media/default-profile.webp"}
-                    alt={booking.profiles?.full_name || "Client"}
+                    alt={booking.profiles?.full_name || "User"}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="space-y-1">
                   <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 flex items-center gap-1">
                     <User size={12} />
-                    {booking.profiles?.full_name || "Unknown Client"}
+                    {booking.profiles?.full_name || "Unknown User"}
                   </span>
                   
                   {booking.availability_slots ? (

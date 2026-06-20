@@ -27,7 +27,7 @@ export default function PrivacyPage() {
             <li><strong>Email Verification:</strong> A temporary one-time code is generated and emailed to confirm your address during sign-up; it is stored hashed and expires after a short period.</li>
             <li><strong>Photographer Application Data:</strong> Location, service categories, portfolio images, social media links, pricing, bio, and languages.</li>
             <li><strong>Booking Data:</strong> Selected time slots, shoot details you provide (location, group size, style, language, notes), booking status, and payment references.</li>
-            <li><strong>Chat Messages:</strong> Messages exchanged between clients and photographers within our platform.</li>
+            <li><strong>Chat Messages:</strong> Messages exchanged between users and photographers within our platform.</li>
             <li><strong>Reviews:</strong> Ratings and written reviews you submit after a completed session.</li>
             <li><strong>Reports &amp; Moderation Data:</strong> If you report a conversation, the report and the related booking/messages so our team can review it.</li>
             <li><strong>Usage Data:</strong> Page views, device type, and browsing behavior via Google Analytics (with IP anonymization, and only if you consent to cookies).</li>
@@ -63,7 +63,7 @@ export default function PrivacyPage() {
             <li><strong>Account Data:</strong> Retained for the duration of your account plus 30 days after deletion.</li>
             <li><strong>Booking Records:</strong> Retained for 3 years for financial/legal compliance.</li>
             <li><strong>Chat Messages:</strong> Retained for 1 year after the associated booking is completed or cancelled.</li>
-            <li><strong>Reviews:</strong> Retained while the photographer profile is active, so other clients can see them.</li>
+            <li><strong>Reviews:</strong> Retained while the photographer profile is active, so other users can see them.</li>
             <li><strong>Reports:</strong> Retained for up to 2 years for safety, audit, and abuse-prevention purposes.</li>
             <li><strong>Verification Codes:</strong> Deleted shortly after they expire or are used.</li>
             <li><strong>Analytics Data:</strong> Google Analytics data retention is set to 14 months.</li>

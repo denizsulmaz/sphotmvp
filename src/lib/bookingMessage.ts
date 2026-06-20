@@ -45,7 +45,7 @@ export async function insertBookingSystemMessage(
   }
 
   const lines = [
-    "📸 Booking confirmed — here are the shoot details the client shared:",
+    "📸 Booking confirmed. Here are the shoot details the user shared:",
     b.shoot_location ? `📍 Location: ${b.shoot_location}${b.location_type ? ` (${b.location_type})` : ""}` : "",
     b.group_size ? `👥 Group size: ${b.group_size}` : "",
     b.shoot_style ? `✨ Style/Theme: ${b.shoot_style}` : "",

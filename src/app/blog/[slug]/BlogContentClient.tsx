@@ -88,7 +88,7 @@ export default function BlogContentClient({ post }: Props) {
       </div>
 
       <div 
-        className="prose prose-lg max-w-none dark:prose-invert prose-headings:text-foreground dark:prose-headings:text-white prose-a:text-accent pb-16"
+        className="prose prose-lg max-w-none dark:prose-invert prose-headings:text-foreground dark:prose-headings:text-white prose-a:text-foreground prose-a:underline dark:prose-a:text-accent pb-16"
         dangerouslySetInnerHTML={renderMarkdown(translated.content)}
       />
 

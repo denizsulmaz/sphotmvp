@@ -327,7 +327,7 @@ export default function ChatWindow({
         <button
           type="submit"
           disabled={!inputText.trim() || sending}
-          className="p-3 bg-accent text-foreground rounded-xl font-bold shadow-md hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:pointer-events-none transition-all"
+          className="p-3 bg-accent text-black rounded-xl font-bold shadow-md hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:pointer-events-none transition-all"
         >
           <Send size={16} />
         </button>
