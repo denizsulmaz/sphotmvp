@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import { insertBookingSystemMessage } from "@/lib/bookingMessage";
 
 /**
  * Mock-payment endpoint — simulates a successful Lemon Squeezy webhook so the
@@ -61,6 +62,11 @@ export async function POST(req: NextRequest) {
   if (idsToLock.length > 0) {
     await supabase.from("availability_slots").update({ status: "booked" }).in("id", idsToLock);
   }
+
+  // Post the SPHOT system pre-info message that opens the chat.
+  await insertBookingSystemMessage(supabase, bookingId).catch((e) =>
+    console.error("[mock-pay] system message:", e?.message)
+  );
 
   return NextResponse.json({ ok: true, booking_id: bookingId, status: "paid" });
 }

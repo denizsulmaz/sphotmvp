@@ -510,26 +510,11 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
       if (bookingError) throw bookingError;
 
-      // 2. Insert shoot pre-information as the opening chat message.
-      const formattedTimes = formatSelectedSlotsTime(selectedSlots);
-      const start = new Date(selectedSlots[0].start_time);
-      const dateStr = start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+      // The SPHOT system "pre-information" message is created server-side the moment
+      // payment succeeds (in /api/mock-pay or the LS webhook), from the booking's
+      // stored shoot details — so it appears centered as a SPHOT message, not the client's.
 
-      const preInfoMessage = `📸 **Shoot Pre-Information**
-📍 **Shoot Location/Venue:** ${shootLocation} (${locationType})
-👥 **Group Size:** ${groupSize}
-✨ **Preferred Style/Theme:** ${shootStyle}
-⏰ **Schedule Window:** ${dateStr} at ${formattedTimes} (${durationHours})
-🌐 **Preferred Language:** ${preferredLanguage}
-📝 **Shoot Concept & Requests:**
-${customDetails}`;
-
-      const { error: msgError } = await supabase
-        .from("messages")
-        .insert({ booking_id: booking.id, sender_id: user.id, content: preInfoMessage });
-      if (msgError) console.error("Failed to insert pre-information message:", msgError);
-
-      // 3. Process payment — mock mode auto-succeeds (mirrors the LS webhook);
+      // 2. Process payment — mock mode auto-succeeds (mirrors the LS webhook);
       //    live mode redirects to the Lemon Squeezy hosted checkout.
       const paymentsMode =
         process.env.NEXT_PUBLIC_PAYMENTS_MODE ||

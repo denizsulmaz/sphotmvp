@@ -13,12 +13,9 @@ interface DBBooking {
   fee_krw: number;
   created_at: string;
   photographer_id: string;
-  photographer_profile: {
-    instagram: string;
-    profiles: {
-      full_name: string;
-      avatar_url: string;
-    } | null;
+  photographer: {
+    full_name: string;
+    avatar_url: string;
   } | null;
   availability_slots: {
     start_time: string;
@@ -47,12 +44,9 @@ export default function ClientDashboard() {
           fee_krw,
           created_at,
           photographer_id,
-          photographer_profile:photographer_id (
-            instagram,
-            profiles:id (
-              full_name,
-              avatar_url
-            )
+          photographer:profiles!bookings_photographer_id_fkey (
+            full_name,
+            avatar_url
           ),
           availability_slots:slot_id (
             start_time,
@@ -140,8 +134,9 @@ export default function ClientDashboard() {
           </div>
         ) : (
           bookings.map((booking) => {
-            const photoName = booking.photographer_profile?.profiles?.full_name || "Unknown Photographer";
-            const photoAvatar = booking.photographer_profile?.profiles?.avatar_url || "/media/default-profile.webp";
+            const ph = Array.isArray(booking.photographer) ? booking.photographer[0] : booking.photographer;
+            const photoName = ph?.full_name || "Unknown Photographer";
+            const photoAvatar = ph?.avatar_url || "/media/default-profile.webp";
 
             return (
               <div
@@ -241,7 +236,7 @@ export default function ClientDashboard() {
         <ReviewModal
           bookingId={reviewTarget.id}
           photographerId={reviewTarget.photographer_id}
-          photographerName={reviewTarget.photographer_profile?.profiles?.full_name || "Photographer"}
+          photographerName={(Array.isArray(reviewTarget.photographer) ? reviewTarget.photographer[0] : reviewTarget.photographer)?.full_name || "Photographer"}
           reviewerId={user.id}
           reviewerName={profile?.full_name || "Anonymous"}
           onClose={() => setReviewTarget(null)}

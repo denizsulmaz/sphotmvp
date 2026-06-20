@@ -93,6 +93,28 @@ async function main() {
   const { data: lockedSlot } = await svc.from("availability_slots").select("status").eq("id", slot.id).single();
   ok(lockedSlot.status === "booked", "slot locked to booked");
 
+  console.log("\n[6b] Dashboard + chat embed queries resolve (no PostgREST ambiguity)");
+  const { error: dashErr } = await cClient
+    .from("bookings")
+    .select(`id, status, photographer:profiles!bookings_photographer_id_fkey ( full_name, avatar_url ), availability_slots:slot_id ( start_time, end_time )`)
+    .eq("client_id", clientId);
+  ok(!dashErr, `client dashboard query resolves ${dashErr ? "("+dashErr.message+")" : ""}`);
+
+  console.log("\n[6c] SPHOT system pre-info message (kind=system, no sender)");
+  // Mirrors lib/bookingMessage.ts: insert a system message with null sender.
+  const insertSys = async () => {
+    const { data: ex } = await svc.from("messages").select("id").eq("booking_id", booking.id).eq("kind", "system").limit(1).maybeSingle();
+    if (ex) return;
+    await svc.from("messages").insert({ booking_id: booking.id, sender_id: null, kind: "system", content: "📸 Booking confirmed — shoot details…" });
+  };
+  await insertSys();
+  const { data: sysMsgs } = await svc.from("messages").select("id, kind, sender_id").eq("booking_id", booking.id).eq("kind", "system");
+  ok((sysMsgs || []).length === 1, "exactly one system message exists");
+  ok(sysMsgs?.[0]?.sender_id === null, "system message has no human sender (renders centered)");
+  await insertSys();
+  const { data: sysMsgs2 } = await svc.from("messages").select("id").eq("booking_id", booking.id).eq("kind", "system");
+  ok((sysMsgs2 || []).length === 1, "system message is idempotent (no duplicate)");
+
   console.log("\n[7] Photographer approve + complete (as photographer)");
   // Sign in as the seeded photographer.
   const phEmail = `seed.${seeded.public_code.toLowerCase()}@photographers.sphot.internal`;

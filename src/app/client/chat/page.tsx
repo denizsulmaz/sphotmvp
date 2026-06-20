@@ -10,18 +10,19 @@ interface ChatBooking {
   id: string;
   status: "paid" | "completed";
   photographer_id: string;
-  photographer_profile: {
-    public_code: string | null;
-    profiles: {
-      full_name: string;
-      avatar_url: string;
-    } | null;
+  photographer: {
+    full_name: string;
+    avatar_url: string;
   } | null;
+  public_code?: string | null;
   availability_slots: {
     start_time: string;
     end_time: string;
   } | null;
 }
+
+const oneToOne = <T,>(v: T | T[] | null | undefined): T | null =>
+  Array.isArray(v) ? v[0] ?? null : v ?? null;
 
 export default function ClientChatPortal() {
   const { user } = useAuth();
@@ -41,12 +42,9 @@ export default function ClientChatPortal() {
             id,
             status,
             photographer_id,
-            photographer_profile:photographer_id (
-              public_code,
-              profiles:id (
-                full_name,
-                avatar_url
-              )
+            photographer:profiles!bookings_photographer_id_fkey (
+              full_name,
+              avatar_url
             ),
             availability_slots:slot_id (
               start_time,
@@ -58,9 +56,22 @@ export default function ClientChatPortal() {
           .order("created_at", { ascending: false });
 
         if (dbError) throw dbError;
-        setChatBookings((data || []) as any[]);
-        if (data && data.length > 0) {
-          setSelectedBooking(data[0] as any);
+
+        // Fetch photographer public codes separately (no FK from bookings→photographer_profiles).
+        const rows = (data || []).map((b: any) => ({ ...b, photographer: oneToOne(b.photographer) }));
+        const photographerIds = Array.from(new Set(rows.map((b) => b.photographer_id)));
+        if (photographerIds.length) {
+          const { data: codes } = await supabase
+            .from("photographer_profiles")
+            .select("id, public_code")
+            .in("id", photographerIds);
+          const codeMap = new Map((codes || []).map((c: any) => [c.id, c.public_code]));
+          for (const b of rows) b.public_code = codeMap.get(b.photographer_id) || null;
+        }
+
+        setChatBookings(rows as ChatBooking[]);
+        if (rows.length > 0) {
+          setSelectedBooking(rows[0] as ChatBooking);
         }
       } catch (err: any) {
         console.error("Error loading chat conversations:", err);
@@ -111,8 +122,8 @@ export default function ClientChatPortal() {
           <div className="flex-1 overflow-y-auto space-y-1 pr-1 hide-scrollbar">
             {chatBookings.map((booking) => {
               const isActive = selectedBooking?.id === booking.id;
-              const photoName = booking.photographer_profile?.profiles?.full_name || "Unknown Photographer";
-              const photoAvatar = booking.photographer_profile?.profiles?.avatar_url || "/media/default-profile.webp";
+              const photoName = booking.photographer?.full_name || "Unknown Photographer";
+              const photoAvatar = booking.photographer?.avatar_url || "/media/default-profile.webp";
               const dateStr = booking.availability_slots 
                 ? formatSlotDate(booking.availability_slots.start_time)
                 : "Deleted Slot";
@@ -131,13 +142,8 @@ export default function ClientChatPortal() {
                     <img src={photoAvatar} alt={photoName} className="w-full h-full object-cover" />
                   </div>
                   <div className="overflow-hidden flex-1 space-y-0.5">
-                    <p className="text-sm font-bold text-foreground dark:text-white truncate flex items-center gap-1.5">
-                      <span className="truncate">{photoName}</span>
-                      {booking.photographer_profile?.public_code && (
-                        <span className="text-[10px] font-mono font-bold text-gray-400 dark:text-zinc-500 shrink-0">
-                          #{booking.photographer_profile.public_code}
-                        </span>
-                      )}
+                    <p className="text-sm font-bold text-foreground dark:text-white truncate">
+                      {photoName}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1">
                       <Calendar size={12} />
@@ -157,9 +163,9 @@ export default function ClientChatPortal() {
           <ChatWindow
             bookingId={selectedBooking.id}
             currentUserId={user.id}
-            otherPartyName={selectedBooking.photographer_profile?.profiles?.full_name || "Photographer"}
-            otherPartyAvatar={selectedBooking.photographer_profile?.profiles?.avatar_url || "/media/default-profile.webp"}
-            otherPartyCode={selectedBooking.photographer_profile?.public_code || undefined}
+            otherPartyName={selectedBooking.photographer?.full_name || "Photographer"}
+            otherPartyAvatar={selectedBooking.photographer?.avatar_url || "/media/default-profile.webp"}
+            otherPartyCode={selectedBooking.public_code || undefined}
           />
         ) : (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm h-full flex flex-col items-center justify-center">

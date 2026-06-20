@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import { insertBookingSystemMessage } from "@/lib/bookingMessage";
 
 /**
  * Lemon Squeezy webhook handler.
@@ -105,6 +106,11 @@ export async function POST(req: NextRequest) {
           );
         }
       }
+
+      // Post the SPHOT system pre-info message that opens the chat.
+      await insertBookingSystemMessage(supabase, bookingId).catch((e) =>
+        console.error("[Webhook] system message:", e?.message)
+      );
 
       console.log(
         `[Webhook] Successfully processed reservation for booking: ${bookingId}`

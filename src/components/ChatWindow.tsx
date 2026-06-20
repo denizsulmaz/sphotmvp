@@ -9,7 +9,8 @@ import { useLanguage } from "@/context/LanguageContext";
 interface Message {
   id: string;
   booking_id: string;
-  sender_id: string;
+  sender_id: string | null;
+  kind?: "user" | "system";
   content: string;
   created_at: string;
 }
@@ -222,6 +223,24 @@ export default function ChatWindow({
               </div>
             )}
             {messages.map((message) => {
+              // SPHOT system message (e.g. booking pre-info) — centered, not a chat bubble.
+              if (message.kind === "system") {
+                return (
+                  <div key={message.id} className="flex flex-col items-center my-2">
+                    <div className="max-w-[85%] w-full bg-accent/10 border border-accent/30 rounded-2xl px-4 py-3 text-xs text-foreground dark:text-zinc-100">
+                      <div className="flex items-center justify-center gap-1.5 mb-1.5 font-black uppercase tracking-wider text-[10px] text-gray-500 dark:text-zinc-400">
+                        <span className="w-4 h-4 rounded bg-black dark:bg-white text-accent dark:text-black flex items-center justify-center text-[8px] font-black">S</span>
+                        SPHOT
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-center leading-relaxed">{message.content}</p>
+                    </div>
+                    <span className="text-[9px] text-gray-400 dark:text-zinc-600 mt-1 flex items-center gap-0.5">
+                      <Clock size={10} />
+                      {formatMessageTime(message.created_at)}
+                    </span>
+                  </div>
+                );
+              }
               const isMe = message.sender_id === currentUserId;
               return (
                 <div key={message.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
