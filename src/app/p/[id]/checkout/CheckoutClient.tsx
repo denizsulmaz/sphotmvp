@@ -178,28 +178,34 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       try {
         if (!supabase) return;
 
-        // 1. Fetch Photographer basic profile
-        const { data: dbPhoto } = await supabase
+        // 1. Resolve photographer — the slug may be a public_code (S01023) or a UUID.
+        const isUuidParam = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        const sel = `id, public_code, profiles:id ( full_name, avatar_url )`;
+        let dbPhoto: any = null;
+        const byCode = await supabase
           .from("photographer_profiles")
-          .select(`
-            id,
-            profiles:id (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq("id", id)
-          .single();
+          .select(sel)
+          .eq("public_code", id)
+          .maybeSingle();
+        dbPhoto = byCode.data;
+        if (!dbPhoto && isUuidParam) {
+          const byId = await supabase.from("photographer_profiles").select(sel).eq("id", id).maybeSingle();
+          dbPhoto = byId.data;
+        }
 
         const isMockId = id.startsWith("S01") || id.startsWith("S02");
+        // The real photographer UUID — used for all downstream DB queries / FKs.
+        let photographerUuid = id;
         if (dbPhoto) {
           const photoData = dbPhoto as any;
+          photographerUuid = photoData.id;
           const profileInfo = Array.isArray(photoData.profiles) ? photoData.profiles[0] : photoData.profiles;
+          const code = photoData.public_code || id;
           setPhotographer({
             id: photoData.id,
             name: profileInfo?.full_name || "Unknown Photographer",
-            avatar_url: profileInfo?.avatar_url || (isMockId 
-              ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${id}/${id}.webp`
+            avatar_url: profileInfo?.avatar_url || (isMockId
+              ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${code}/${code}.webp`
               : "/media/default-profile.webp"),
           });
         } else {
@@ -208,17 +214,17 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           setPhotographer({
             id: id,
             name: localPhoto?.Name || `Photographer ${id}`,
-            avatar_url: isMockId 
+            avatar_url: isMockId
               ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${id}/${id}.webp`
               : "/media/default-profile.webp",
           });
         }
 
-        // 2. Fetch all future availability slots
+        // 2. Fetch all future availability slots (by the resolved UUID)
         const { data: slotsData } = await supabase
           .from("availability_slots")
           .select("id, start_time, end_time")
-          .eq("photographer_id", id)
+          .eq("photographer_id", photographerUuid)
           .eq("status", "available")
           .gt("start_time", new Date().toISOString())
           .order("start_time", { ascending: true });
@@ -349,17 +355,20 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: signUpEmail,
-        password: signUpPassword,
-        options: {
-          data: {
-            full_name: signUpFullName,
-            role: "client",
-          },
-        },
+      // Issue our own 6-digit code (15-min expiry) via /api/otp/send (Resend).
+      const res = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signUpEmail.trim() }),
       });
-      if (signUpError) throw signUpError;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not send verification code.");
+      // Dev fallback: when no email provider is configured, the API returns the
+      // code so the flow is testable. Surface it as a hint (never in production).
+      if (data.devCode) {
+        console.info(`[OTP dev] Your code: ${data.devCode}`);
+        setError(`Dev mode: your code is ${data.devCode}`);
+      }
       setShowVerification(true);
       setActionLoading(false);
     } catch (err: any) {
@@ -380,13 +389,27 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
 
     try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: signUpEmail,
-        token: verificationCode.trim(),
-        type: "signup",
+      // Verify the code + create the confirmed user server-side.
+      const res = await fetch("/api/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signUpEmail.trim(),
+          code: verificationCode.trim(),
+          password: signUpPassword,
+          full_name: signUpFullName,
+        }),
       });
-      if (verifyError) throw verifyError;
-      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verification failed.");
+
+      // Sign the now-confirmed user in.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: signUpEmail.trim(),
+        password: signUpPassword,
+      });
+      if (signInError) throw signInError;
+
       setStep(4);
       setActionLoading(false);
     } catch (err: any) {
@@ -398,20 +421,16 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const handleResendOtp = async () => {
     setError(null);
     setActionLoading(true);
-
-    if (!supabase) {
-      setError("Database is not configured.");
-      setActionLoading(false);
-      return;
-    }
-
     try {
-      const { error: resendError } = await supabase.auth.resend({
-        type: "signup",
-        email: signUpEmail,
+      const res = await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signUpEmail.trim() }),
       });
-      if (resendError) throw resendError;
-      alert("Verification code has been resent to your email.");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Resend failed.");
+      if (data.devCode) setError(`Dev mode: your code is ${data.devCode}`);
+      else setError(null);
       setActionLoading(false);
     } catch (err: any) {
       setError(err.message || "Resend failed.");

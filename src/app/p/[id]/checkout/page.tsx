@@ -4,14 +4,21 @@ import photographersData from "@/data/photographers.json";
 import { getServerSupabase } from "@/lib/supabaseServer";
 
 export async function generateStaticParams() {
-  const params: { id: string }[] = photographersData.map((p) => ({ id: p.ID }));
+  const seen = new Set<string>();
+  const params: { id: string }[] = [];
+  for (const p of photographersData) {
+    if (!seen.has(p.ID)) { seen.add(p.ID); params.push({ id: p.ID }); }
+  }
   try {
     const supabase = getServerSupabase();
     const { data } = await supabase
       .from("photographer_profiles")
-      .select("id")
+      .select("id, public_code")
       .eq("is_approved", true);
-    for (const row of data || []) params.push({ id: row.id });
+    for (const row of data || []) {
+      const slug = row.public_code || row.id;
+      if (!seen.has(slug)) { seen.add(slug); params.push({ id: slug }); }
+    }
   } catch {
     // DB unreachable at build — fall back to static IDs only.
   }

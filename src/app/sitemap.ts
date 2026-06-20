@@ -17,10 +17,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = getServerSupabase();
     const { data } = await supabase
       .from("photographer_profiles")
-      .select("id")
+      .select("id, public_code")
       .eq("is_approved", true);
     photographerRoutes = (data || []).map((row) => ({
-      url: `${siteUrl}/p/${row.id}`,
+      url: `${siteUrl}/p/${row.public_code || row.id}`,
       changeFrequency: "weekly" as const,
       priority: 0.8,
     }));

@@ -109,13 +109,8 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
 
         {/* Name & Price */}
         <div className="mt-1 pr-16">
-          <h2 className="text-xl font-bold text-foreground dark:text-white flex items-center gap-1.5">
-            <span>{photographer.Name}</span>
-            {photographer.publicCode && (
-              <span className="text-[10px] font-mono font-bold text-gray-400 dark:text-zinc-500">
-                #{photographer.publicCode}
-              </span>
-            )}
+          <h2 className="text-xl font-bold text-foreground dark:text-white">
+            {photographer.Name}
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-0.5">
             From <span className="text-foreground dark:text-zinc-200 font-bold">{photographer["Min Price KRW(per hour & starting from)"]}</span>

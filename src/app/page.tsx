@@ -95,7 +95,9 @@ export default function Home() {
           staticFallback();
         } else {
           const mapped: Photographer[] = data.map((row: any) => ({
-            ID: row.id,
+            // Prefer the human-readable public code (e.g. S01023) as the URL slug;
+            // fall back to the UUID if a photographer has no code yet.
+            ID: row.public_code || row.id,
             Name: row.profiles?.full_name || "Unknown Photographer",
             "Delivery Time": row.delivery_time || "1 week",
             "Global Categories": row.categories ? row.categories.join(", ") : "",

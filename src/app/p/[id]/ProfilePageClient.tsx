@@ -25,23 +25,38 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
         let matchedPhoto: Photographer | null = null;
         let pUrls: string[] = [];
 
-        // 1. Fetch photographer from Supabase if possible
+        // 1. Fetch photographer from Supabase if possible.
+        // The slug may be a public_code (e.g. S01023) or a raw UUID.
         if (supabase) {
-          const { data: dbPhoto, error: dbError } = await supabase
-            .from("photographer_profiles")
-            .select(`
+          const isUuidParam = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+          const baseSelect = `
               *,
               profiles:id (
                 full_name,
                 avatar_url
               )
-            `)
-            .eq("id", id)
+            `;
+          let dbPhoto: any = null;
+          // Try public_code first.
+          const byCode = await supabase
+            .from("photographer_profiles")
+            .select(baseSelect)
+            .eq("public_code", id)
             .maybeSingle();
+          dbPhoto = byCode.data;
+          // Fall back to UUID lookup if the slug is a UUID and no code matched.
+          if (!dbPhoto && isUuidParam) {
+            const byId = await supabase
+              .from("photographer_profiles")
+              .select(baseSelect)
+              .eq("id", id)
+              .maybeSingle();
+            dbPhoto = byId.data;
+          }
 
           if (dbPhoto) {
             matchedPhoto = {
-              ID: dbPhoto.id,
+              ID: dbPhoto.public_code || dbPhoto.id,
               Name: dbPhoto.profiles?.full_name || "Unknown Photographer",
               "Delivery Time": dbPhoto.delivery_time || "1 week",
               "Global Categories": dbPhoto.categories ? dbPhoto.categories.join(", ") : "",

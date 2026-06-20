@@ -247,6 +247,26 @@ CREATE POLICY "clients_insert_review" ON public.reviews
 DROP POLICY IF EXISTS "admins_manage_reviews" ON public.reviews;
 CREATE POLICY "admins_manage_reviews" ON public.reviews FOR ALL USING (public.is_admin());
 
+-- ─── 7b. Email OTP store (custom 6-digit codes, 15-min expiry) ──
+CREATE TABLE IF NOT EXISTS public.email_otps (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  email       TEXT NOT NULL,
+  code_hash   TEXT NOT NULL,
+  purpose     TEXT NOT NULL DEFAULT 'signup',
+  attempts    INTEGER NOT NULL DEFAULT 0,
+  consumed    BOOLEAN NOT NULL DEFAULT false,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_email_otps_email ON public.email_otps (email, created_at DESC);
+-- RLS on, no policies → only the service-role key (API routes) can touch it.
+ALTER TABLE public.email_otps ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.purge_expired_otps()
+RETURNS void LANGUAGE sql AS $$
+  DELETE FROM public.email_otps WHERE expires_at < NOW() - INTERVAL '1 day';
+$$;
+
 -- ─── 8. Auth Trigger: auto-create profile on signup ─────────
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
