@@ -84,22 +84,22 @@ export default function AuthPage() {
           setError(signInError.message);
         } else if (data.user) {
           setSuccess("Welcome back!");
-          // Fetch user profile to route properly
-          const { data: profile } = await supabase
+          // Fetch role to route — but never block the redirect on it.
+          // If the profile query is slow, fall back to the client dashboard.
+          const roleQuery = supabase
             .from("profiles")
             .select("role")
             .eq("id", data.user.id)
-            .single();
+            .single()
+            .then(({ data: p }) => p?.role as string | undefined);
+          const role = await Promise.race([
+            roleQuery,
+            new Promise<undefined>((r) => setTimeout(() => r(undefined), 2500)),
+          ]);
 
-          setTimeout(() => {
-            if (profile?.role === "admin") {
-              router.push("/admin/dashboard");
-            } else if (profile?.role === "photographer") {
-              router.push("/photographer/dashboard");
-            } else {
-              router.push("/client/dashboard");
-            }
-          }, 1000);
+          if (role === "admin") router.replace("/admin/dashboard");
+          else if (role === "photographer") router.replace("/photographer/dashboard");
+          else router.replace("/client/dashboard");
         }
       }
     } catch (err: any) {
