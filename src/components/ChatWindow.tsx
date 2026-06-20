@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Send, Clock, User, ShieldAlert } from "lucide-react";
+import { Send, Clock, ShieldAlert } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface Message {
   id: string;
@@ -18,6 +19,7 @@ interface ChatWindowProps {
   currentUserId: string;
   otherPartyName: string;
   otherPartyAvatar: string;
+  otherPartyCode?: string;
 }
 
 export default function ChatWindow({
@@ -25,6 +27,7 @@ export default function ChatWindow({
   currentUserId,
   otherPartyName,
   otherPartyAvatar,
+  otherPartyCode,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -36,6 +39,7 @@ export default function ChatWindow({
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const initialScrollDone = useRef(false);
   const { showToast } = useToast();
+  const { t } = useLanguage();
 
   const PAGE_SIZE = 30;
 
@@ -176,10 +180,17 @@ export default function ChatWindow({
           <img src={otherPartyAvatar} alt={otherPartyName} className="w-full h-full object-cover" />
         </div>
         <div>
-          <h4 className="text-sm font-black text-foreground dark:text-white">{otherPartyName}</h4>
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-black text-foreground dark:text-white">{otherPartyName}</h4>
+            {otherPartyCode && (
+              <span className="px-1.5 py-0.5 bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded text-[10px] font-mono font-bold tracking-wider">
+                #{otherPartyCode}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            Active Booking Chat
+            {t("chatActiveBooking")}
           </span>
         </div>
       </div>
@@ -206,7 +217,7 @@ export default function ChatWindow({
                   disabled={loadingOlder}
                   className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 text-[10px] font-extrabold rounded-full text-gray-600 dark:text-zinc-400 transition-colors disabled:opacity-50"
                 >
-                  {loadingOlder ? "Loading older messages..." : "Load older messages"}
+                  {loadingOlder ? `${t("chatLoadOlder")}…` : t("chatLoadOlder")}
                 </button>
               </div>
             )}
@@ -241,7 +252,7 @@ export default function ChatWindow({
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder="Type your message..."
+          placeholder={t("chatTypeMessage")}
           className="flex-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none focus:border-black dark:focus:border-white transition-all text-foreground dark:text-white"
         />
         <button

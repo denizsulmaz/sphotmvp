@@ -1,11 +1,21 @@
 import { Suspense } from "react";
 import CheckoutClient from "./CheckoutClient";
 import photographersData from "@/data/photographers.json";
+import { getServerSupabase } from "@/lib/supabaseServer";
 
-export function generateStaticParams() {
-  return photographersData.map((p) => ({
-    id: p.ID,
-  }));
+export async function generateStaticParams() {
+  const params: { id: string }[] = photographersData.map((p) => ({ id: p.ID }));
+  try {
+    const supabase = getServerSupabase();
+    const { data } = await supabase
+      .from("photographer_profiles")
+      .select("id")
+      .eq("is_approved", true);
+    for (const row of data || []) params.push({ id: row.id });
+  } catch {
+    // DB unreachable at build — fall back to static IDs only.
+  }
+  return params;
 }
 
 export default function CheckoutPage({ params }: { params: { id: string } }) {

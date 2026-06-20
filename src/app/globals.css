@@ -3,22 +3,30 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * ── BRAND COLORS — single source of truth ──
+   * Values are RGB channels (space-separated) so Tailwind can apply opacity
+   * via rgb(var(--x) / <alpha-value>). To rebrand, change these numbers only.
+   *   #fffa6c → 255 250 108   |   #ffffff → 255 255 255   |   #000000 → 0 0 0
+   * Mirror any change in src/lib/brand.ts (for JS-side usage).
+   */
   :root {
-    --background: #ffffff;
-    --foreground: #000000;
-    --accent: #fffa6c;
-    --border: #e5e7eb;
+    --background: 255 255 255;
+    --foreground: 0 0 0;
+    --accent: 255 250 108;        /* cream / yellow #fffa6c */
+    --accent-foreground: 0 0 0;   /* text on accent */
+    --border: 229 231 235;        /* #e5e7eb */
   }
 
   .dark {
-    --background: #000000;
-    --foreground: #f4f4f5;
-    --border: #27272a;
+    --background: 0 0 0;
+    --foreground: 244 244 245;    /* #f4f4f5 */
+    --border: 39 39 42;           /* #27272a */
   }
 
   body {
-    background-color: var(--background);
-    color: var(--foreground);
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
     touch-action: pan-x pan-y;
     transition: background-color 0.3s ease, color 0.3s ease;
   }

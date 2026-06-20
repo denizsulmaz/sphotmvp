@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Photographer } from "@/lib/types";
-import { MessageCircle } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import ViewCounter from "./ViewCounter";
 
@@ -31,7 +30,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
 
   const images = isUuid ? dbImages : localImages;
   const profilePic = isUuid
-    ? "/media/default-profile.webp"
+    ? photographer.avatarUrl || "/media/default-profile.webp"
     : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
   const topCategories = photographer["Global Categories"]
@@ -110,8 +109,13 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
 
         {/* Name & Price */}
         <div className="mt-1 pr-16">
-          <h2 className="text-xl font-bold text-foreground dark:text-white">
-            {photographer.Name}
+          <h2 className="text-xl font-bold text-foreground dark:text-white flex items-center gap-1.5">
+            <span>{photographer.Name}</span>
+            {photographer.publicCode && (
+              <span className="text-[10px] font-mono font-bold text-gray-400 dark:text-zinc-500">
+                #{photographer.publicCode}
+              </span>
+            )}
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-0.5">
             From <span className="text-foreground dark:text-zinc-200 font-bold">{photographer["Min Price KRW(per hour & starting from)"]}</span>

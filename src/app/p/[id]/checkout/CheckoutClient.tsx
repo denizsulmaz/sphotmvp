@@ -22,7 +22,6 @@ import {
   Timer, 
   ChevronRight, 
   ChevronLeft,
-  CheckCircle2
 } from "lucide-react";
 
 interface PhotographerProfile {
@@ -116,7 +115,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const searchParams = useSearchParams();
   const initialSlotId = searchParams.get("slot");
 
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useLanguage();
 
   const [photographer, setPhotographer] = useState<PhotographerProfile | null>(null);
@@ -166,6 +165,11 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     day.setDate(day.getDate() + idx);
     return day;
   });
+
+  // Days (as toDateString keys) that actually have available slots.
+  const daysWithSlots = new Set(
+    dbSlots.map((s) => new Date(s.start_time).toDateString())
+  );
 
   // Fetch Photographer Profile and Database Slots
   useEffect(() => {
@@ -250,44 +254,12 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
 
     const dateStr = selectedDate.toDateString();
-    
-    // Filter database slots for the selected date
+
+    // Show only the photographer's real, available slots for the selected date.
     const matchedSlots = dbSlots.filter(
       (slot) => new Date(slot.start_time).toDateString() === dateStr
     );
-
-    if (matchedSlots.length > 0) {
-      setAvailableTimeSlots(matchedSlots);
-    } else {
-      // Test Mode fallback: Auto-generate mock slots for the selected day
-      const mockSlotsForDay: SlotDetails[] = [];
-      const baseDate = new Date(selectedDate);
-
-      // Slot 1: 10:00 AM - 11:00 AM (1 hour)
-      const t1Start = new Date(baseDate); t1Start.setHours(10, 0, 0, 0);
-      const t1End = new Date(baseDate); t1End.setHours(11, 0, 0, 0);
-      
-      // Slot 2: 2:00 PM - 3:00 PM (1 hour)
-      const t2Start = new Date(baseDate); t2Start.setHours(14, 0, 0, 0);
-      const t2End = new Date(baseDate); t2End.setHours(15, 0, 0, 0);
-
-      // Slot 3: 3:00 PM - 4:00 PM (1 hour)
-      const t3Start = new Date(baseDate); t3Start.setHours(15, 0, 0, 0);
-      const t3End = new Date(baseDate); t3End.setHours(16, 0, 0, 0);
-
-      // Slot 4: 5:00 PM - 6:00 PM (1 hour)
-      const t4Start = new Date(baseDate); t4Start.setHours(17, 0, 0, 0);
-      const t4End = new Date(baseDate); t4End.setHours(18, 0, 0, 0);
-
-      mockSlotsForDay.push(
-        { id: `mock-slot-${dateStr}-1`, start_time: t1Start.toISOString(), end_time: t1End.toISOString() },
-        { id: `mock-slot-${dateStr}-2`, start_time: t2Start.toISOString(), end_time: t2End.toISOString() },
-        { id: `mock-slot-${dateStr}-3`, start_time: t3Start.toISOString(), end_time: t3End.toISOString() },
-        { id: `mock-slot-${dateStr}-4`, start_time: t4Start.toISOString(), end_time: t4End.toISOString() }
-      );
-
-      setAvailableTimeSlots(mockSlotsForDay);
-    }
+    setAvailableTimeSlots(matchedSlots);
   }, [selectedDate, dbSlots]);
 
   // Automatically update shoot duration based on selected slots
@@ -324,7 +296,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const handleNextStep = () => {
     if (step === 1) {
       if (selectedSlots.length === 0) {
-        setError("Please choose a date and time slot first.");
+        setError(t("coChooseSlotFirst"));
         return;
       }
       setError(null);
@@ -377,7 +349,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: signUpEmail,
         password: signUpPassword,
         options: {
@@ -495,24 +467,31 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     try {
       if (!supabase) return;
 
-      const isMockSlot = selectedSlots[0].id.startsWith("mock-slot-");
+      const slotIds = selectedSlots.map((s) => s.id);
 
-      // 1. Create pending booking record
+      // 1. Create pending booking record with structured shoot details.
       const { data: booking, error: bookingError } = await supabase
         .from("bookings")
         .insert({
           client_id: user.id,
           photographer_id: photographer.id,
-          slot_id: isMockSlot ? null : selectedSlots[0].id,
+          slot_id: selectedSlots[0].id,
           status: "pending",
           fee_krw: 25000,
+          shoot_location: shootLocation,
+          location_type: locationType,
+          shoot_style: shootStyle,
+          group_size: groupSize,
+          preferred_language: preferredLanguage,
+          duration_label: durationHours,
+          details: customDetails,
         })
         .select()
         .single();
 
       if (bookingError) throw bookingError;
 
-      // 2. Insert shoot pre-information as a message
+      // 2. Insert shoot pre-information as the opening chat message.
       const formattedTimes = formatSelectedSlotsTime(selectedSlots);
       const start = new Date(selectedSlots[0].start_time);
       const dateStr = start.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
@@ -528,27 +507,38 @@ ${customDetails}`;
 
       const { error: msgError } = await supabase
         .from("messages")
-        .insert({
-          booking_id: booking.id,
-          sender_id: user.id,
-          content: preInfoMessage,
-        });
+        .insert({ booking_id: booking.id, sender_id: user.id, content: preInfoMessage });
+      if (msgError) console.error("Failed to insert pre-information message:", msgError);
 
-      if (msgError) {
-        console.error("Failed to insert pre-information message:", msgError);
+      // 3. Process payment — mock mode auto-succeeds (mirrors the LS webhook);
+      //    live mode redirects to the Lemon Squeezy hosted checkout.
+      const paymentsMode =
+        process.env.NEXT_PUBLIC_PAYMENTS_MODE ||
+        (process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_ID ? "live" : "mock");
+
+      if (paymentsMode === "live") {
+        const storeId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_STORE_ID || "sphot";
+        const productId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_ID || "";
+        const baseCheckoutUrl = `https://${storeId}.lemonsqueezy.com/checkout/buy/${productId}`;
+        const emailParam = encodeURIComponent(user.email || "");
+        const nameParam = encodeURIComponent(profile?.full_name || "");
+        const slotIdsParam = slotIds.join(",");
+        const checkoutUrl = `${baseCheckoutUrl}?checkout[custom][booking_id]=${booking.id}&checkout[custom][slot_ids]=${slotIdsParam}&checkout[email]=${emailParam}&checkout[name]=${nameParam}`;
+        window.location.href = checkoutUrl;
+        return;
       }
 
-      // 3. Build Lemon Squeezy Custom Checkout Redirect
-      const storeId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_STORE_ID || "sphot";
-      const productId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_ID || "";
-      const baseCheckoutUrl = `https://${storeId}.lemonsqueezy.com/checkout/buy/${productId}`;
-      
-      const emailParam = encodeURIComponent(user.email || "");
-      const nameParam = encodeURIComponent(profile?.full_name || "");
-      const slotIdsParam = isMockSlot ? "" : selectedSlots.map(s => s.id).join(",");
-      const checkoutUrl = `${baseCheckoutUrl}?checkout[custom][booking_id]=${booking.id}&checkout[custom][slot_ids]=${slotIdsParam}&checkout[email]=${emailParam}&checkout[name]=${nameParam}`;
-
-      router.push(checkoutUrl);
+      // Mock mode: simulate a successful payment server-side, then go to chat.
+      const res = await fetch("/api/mock-pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: booking.id, slot_ids: slotIds }),
+      });
+      if (!res.ok) {
+        const { error: payErr } = await res.json().catch(() => ({ error: "Payment failed." }));
+        throw new Error(payErr || "Payment failed.");
+      }
+      router.push(`/client/chat?booking=${booking.id}`);
     } catch (err: any) {
       setError(err.message || "Failed to initialize booking payment.");
       setActionLoading(false);
@@ -581,10 +571,10 @@ ${customDetails}`;
       {/* ─── STAGE PROGRESS BAR ─── */}
       {(() => {
         const stepsList = [
-          { stepNum: 1, label: "Schedule" },
-          { stepNum: 2, label: "Shoot Details" },
-          ...(!user ? [{ stepNum: 3, label: "Account" }] : []),
-          { stepNum: 4, label: "Reserve" }
+          { stepNum: 1, label: t("coStepSchedule") },
+          { stepNum: 2, label: t("coStepDetails") },
+          ...(!user ? [{ stepNum: 3, label: t("coStepAccount") }] : []),
+          { stepNum: 4, label: t("coStepReserve") }
         ];
         const currentStepIndex = stepsList.findIndex(s => s.stepNum === step);
         const progressPercent = stepsList.length > 1 ? (currentStepIndex / (stepsList.length - 1)) * 100 : 0;
@@ -646,10 +636,10 @@ ${customDetails}`;
                   <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
                     <CalendarIcon size={20} />
                   </div>
-                  Choose Shoot Date &amp; Time
+                  {t("coChooseDateTime")}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-                  Select your shoot day from the next 21 days, then choose a time window.
+                  {t("coChooseDateTimeSub")}
                 </p>
               </div>
 
@@ -658,15 +648,18 @@ ${customDetails}`;
                 {/* Calendly-like Left Side: 21 Days list */}
                 <div className="md:col-span-7 space-y-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2">
-                    Select Shoot Date
+                    {t("coSelectDate")}
                   </h3>
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
                     {next21Days.map((day, idx) => {
                       const isSelected = selectedDate?.toDateString() === day.toDateString();
+                      const hasSlots = daysWithSlots.has(day.toDateString());
                       return (
                         <button
                           key={idx}
                           type="button"
+                          disabled={!hasSlots}
+                          aria-label={`${getDayName(day)} ${getMonthName(day)} ${getDayNumber(day)}${hasSlots ? "" : " (no availability)"}`}
                           onClick={() => {
                             setSelectedDate(day);
                             setSelectedSlots([]);
@@ -675,7 +668,9 @@ ${customDetails}`;
                           className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                             isSelected
                               ? "border-black bg-black text-accent font-black shadow-sm dark:border-zinc-800"
-                              : "border-gray-100 dark:border-zinc-900 bg-gray-50/50 dark:bg-zinc-900/20 text-gray-700 dark:text-zinc-300 hover:border-gray-200 dark:hover:border-zinc-800"
+                              : hasSlots
+                              ? "border-gray-100 dark:border-zinc-900 bg-gray-50/50 dark:bg-zinc-900/20 text-gray-700 dark:text-zinc-300 hover:border-gray-200 dark:hover:border-zinc-800"
+                              : "border-transparent bg-transparent text-gray-300 dark:text-zinc-700 cursor-not-allowed opacity-40"
                           }`}
                         >
                           <span className="text-[10px] uppercase font-bold tracking-wider opacity-60">
@@ -696,19 +691,19 @@ ${customDetails}`;
                 {/* Calendly-like Right Side: Available hours list */}
                 <div className="md:col-span-5 border-t md:border-t-0 md:border-l border-gray-100 dark:border-zinc-800 pt-6 md:pt-0 md:pl-6 space-y-3">
                   <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2">
-                    Available Time Slots
+                    {t("coAvailableSlots")}
                   </h3>
-                  
+
                   {!selectedDate ? (
                     <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-gray-100 dark:border-zinc-900 rounded-2xl">
                       <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">
-                        Select a date on the left to see hours.
+                        {t("coSelectDatePrompt")}
                       </p>
                     </div>
                   ) : availableTimeSlots.length === 0 ? (
                     <div className="h-[200px] flex items-center justify-center border border-transparent rounded-2xl">
                       <p className="text-xs text-gray-400 dark:text-zinc-500 text-center">
-                        No availability slots on this day.
+                        {t("coNoAvailabilityDay")}
                       </p>
                     </div>
                   ) : (
@@ -750,10 +745,10 @@ ${customDetails}`;
                   <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
                     <Sparkles size={20} />
                   </div>
-                  Photoshoot Pre-Information
+                  {t("coPreInfoTitle")}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-                  Help the photographer prepare by specifying location, style preferences, and session size.
+                  {t("coPreInfoSub")}
                 </p>
               </div>
 
@@ -761,7 +756,7 @@ ${customDetails}`;
                 {/* Location Type */}
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <MapPin size={13} /> Location Type
+                    <MapPin size={13} /> {t("coLocationType")}
                   </label>
                   <CustomDropdown
                     options={locationTypeOptions}
@@ -772,11 +767,11 @@ ${customDetails}`;
 
                 {/* Specific shoot spot address */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Desired Venue / Spot Name</label>
+                  <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">{t("coVenue")}</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Gyeongbokgung Palace, Bukchon Hanok"
+                    placeholder={t("coVenuePlaceholder")}
                     value={shootLocation}
                     onChange={(e) => {
                       setShootLocation(e.target.value);
@@ -792,7 +787,7 @@ ${customDetails}`;
                   />
                   {error && !shootLocation.trim() && (
                     <span className="text-[10px] text-red-500 font-bold mt-1.5 block">
-                      Desired venue or spot name is required.
+                      {t("coVenueRequired")}
                     </span>
                   )}
                 </div>
@@ -802,7 +797,7 @@ ${customDetails}`;
                 {/* Session Hours Duration (Pulled from selected slot) */}
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Timer size={13} /> Amount of Time (derived from slot)
+                    <Timer size={13} /> {t("coAmountTime")}
                   </label>
                   <input
                     type="text"
@@ -815,7 +810,7 @@ ${customDetails}`;
                 {/* Group size */}
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Users size={13} /> Group Size / Number of People
+                    <Users size={13} /> {t("coGroupSize")}
                   </label>
                   <CustomDropdown
                     options={groupSizeOptions}
@@ -829,7 +824,7 @@ ${customDetails}`;
                 {/* Preferred Style/Theme */}
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Sparkles size={13} /> Preferred Style / Theme
+                    <Sparkles size={13} /> {t("coPreferredStyle")}
                   </label>
                   <CustomDropdown
                     options={shootStyleOptions}
@@ -841,7 +836,7 @@ ${customDetails}`;
                 {/* Language Preference */}
                 <div>
                   <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                    <Languages size={13} /> Preferred Communication Language
+                    <Languages size={13} /> {t("coCommLanguage")}
                   </label>
                   <CustomDropdown
                     options={preferredLanguageOptions}
@@ -853,11 +848,11 @@ ${customDetails}`;
 
               {/* Expected Shoot concept notes */}
               <div>
-                <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">Shoot details, concept &amp; requests</label>
+                <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">{t("coShootDetails")}</label>
                 <textarea
                   required
                   rows={4}
-                  placeholder="Share details about the outfits you plan to wear, reference photo styles, or specific expectations..."
+                  placeholder={t("coShootDetailsPlaceholder")}
                   value={customDetails}
                   onChange={(e) => {
                     setCustomDetails(e.target.value);
@@ -873,7 +868,7 @@ ${customDetails}`;
                 />
                 {error && !customDetails.trim() && (
                   <span className="text-[10px] text-red-500 font-bold mt-1.5 block">
-                    Shoot details, concept, or instructions are required.
+                    {t("coShootDetailsRequired")}
                   </span>
                 )}
               </div>
@@ -885,10 +880,10 @@ ${customDetails}`;
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
               <div className="max-w-md mx-auto text-center space-y-2">
                 <h2 className="text-2xl font-black text-foreground dark:text-white">
-                  Secure Your Reservation
+                  {t("coSecureReservation")}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
-                  Authenticate your profile to secure your booking details and access real-time photographer chat.
+                  {t("coSecureReservationSub")}
                 </p>
               </div>
 
@@ -1169,10 +1164,10 @@ ${customDetails}`;
                   <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
                     <CreditCard size={20} />
                   </div>
-                  Confirm Reservation Details
+                  {t("coConfirmTitle")}
                 </h2>
                 <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
-                  Double check your shoot details. The reservation booking fee is processed securely via Lemon Squeezy.
+                  {t("coConfirmSub")}
                 </p>
               </div>
 
@@ -1272,7 +1267,7 @@ ${customDetails}`;
                 className="flex items-center gap-1.5 px-5 py-3 rounded-xl border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors text-sm font-bold text-gray-500 dark:text-zinc-400 disabled:opacity-50"
               >
                 <ChevronLeft size={16} />
-                Back
+                {t("coBack")}
               </button>
             ) : (
               <div />
@@ -1284,7 +1279,7 @@ ${customDetails}`;
                 onClick={handleNextStep}
                 className="flex items-center gap-1 bg-black dark:bg-white text-white dark:text-black font-black px-6 py-3.5 rounded-xl text-sm hover:opacity-90 transition-all shadow-sm"
               >
-                <span>Continue</span>
+                <span>{t("coContinue")}</span>
                 <ChevronRight size={16} />
               </button>
             ) : null}
@@ -1310,7 +1305,7 @@ ${customDetails}`;
                   />
                 )}
               </div>
-              <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Booking Request For</p>
+              <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">{t("coBookingFor")}</p>
               <h3 className="text-lg font-black text-foreground dark:text-white mt-0.5">{photographer.name}</h3>
             </div>
           )}
@@ -1318,22 +1313,22 @@ ${customDetails}`;
           {/* Pricing Box & Final Payment (Active in Step 4) */}
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="text-base font-black text-foreground dark:text-white border-b border-gray-100 dark:border-zinc-800 pb-3">
-              Payment Summary
+              {t("coPaymentSummary")}
             </h3>
-            
+
             <div className="space-y-3 text-xs">
               <div className="flex justify-between text-gray-500">
-                <span>Reservation booking fee</span>
+                <span>{t("coReservationFee")}</span>
                 <span className="font-bold text-foreground dark:text-white">25,000 KRW</span>
               </div>
               <div className="flex justify-between text-gray-500">
-                <span>Shoot Price (Photographer)</span>
-                <span className="font-bold text-foreground dark:text-white italic">Direct Offline Settlement</span>
+                <span>{t("coShootPrice")}</span>
+                <span className="font-bold text-foreground dark:text-white italic">{t("coDirectSettlement")}</span>
               </div>
             </div>
 
             <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 flex justify-between items-center text-sm font-black">
-              <span className="text-gray-600 dark:text-zinc-400">Total Charged Now</span>
+              <span className="text-gray-600 dark:text-zinc-400">{t("coTotalNow")}</span>
               <span className="text-lg text-black dark:text-white font-black">25,000 KRW</span>
             </div>
 
@@ -1349,7 +1344,7 @@ ${customDetails}`;
                 ) : (
                   <>
                     <CreditCard size={16} />
-                    <span>Pay Reservation Fee</span>
+                    <span>{t("coPayFee")}</span>
                   </>
                 )}
               </button>
@@ -1360,13 +1355,13 @@ ${customDetails}`;
                 disabled={step === 1 && selectedSlots.length === 0}
                 className="w-full py-4 rounded-xl bg-black dark:bg-white text-white dark:text-black font-extrabold text-sm hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
               >
-                <span>Continue Booking</span>
+                <span>{t("coContinueBooking")}</span>
                 <ChevronRight size={14} />
               </button>
             )}
 
             <p className="text-center text-[10px] text-gray-400 dark:text-zinc-500">
-              Payments processed securely. 100% refundable up to 48 hours prior to shoot schedule.
+              {t("coRefundNote")}
             </p>
           </div>
         </div>

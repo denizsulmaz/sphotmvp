@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import PhotographerCard from "@/components/PhotographerCard";
 import FilterDrawer from "@/components/FilterDrawer";
 import CategoryScroll from "@/components/CategoryScroll";
 import HomeBanner from "@/components/HomeBanner";
-import ReviewsSlider from "@/components/ReviewsSlider";
 import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
 import { SlidersHorizontal } from "lucide-react";
@@ -27,9 +25,9 @@ function shuffleArray<T>(arr: T[]): T[] {
 export default function Home() {
   const { t, tCategory } = useLanguage();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  // null = "All" (no category filter)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(true);
   const hasShuffled = useRef(false);
 
   const [filters, setFilters] = useState<{
@@ -53,6 +51,18 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true;
 
+    const staticFallback = () => {
+      if (!isMounted) return;
+      const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
+      if (!hasShuffled.current) {
+        hasShuffled.current = true;
+        setPhotographers(shuffleArray(visible));
+      } else {
+        setPhotographers(visible);
+      }
+      setFetchLoading(false);
+    };
+
     const fetchPhotographers = async () => {
       try {
         if (!isSupabaseReady(supabase)) {
@@ -60,8 +70,8 @@ export default function Home() {
           return;
         }
 
-        // Race against a 4-second timeout so static fallback always fires
-        // if Supabase is unresponsive (e.g. slow network or invalid key)
+        // Race against a 4-second timeout — guarantees static fallback fires
+        // if Supabase is unresponsive (slow network, unrecognised key format, etc.)
         const timeoutResult = { data: null as any, error: new Error("timeout") };
         const timeoutPromise = new Promise<typeof timeoutResult>((resolve) =>
           setTimeout(() => resolve(timeoutResult), 4000)
@@ -102,29 +112,22 @@ export default function Home() {
             IsStudio: false,
             hidden: false,
             portfolioUrls: row.portfolio_urls || [],
+            avatarUrl: row.profiles?.avatar_url || "",
+            publicCode: row.public_code || "",
           }));
-          
-          if (isMounted && !hasShuffled.current) {
+
+          if (!isMounted) return;
+          if (!hasShuffled.current) {
             hasShuffled.current = true;
             setPhotographers(shuffleArray(mapped));
-          } else if (isMounted) {
+          } else {
             setPhotographers(mapped);
           }
+          setFetchLoading(false);
         }
       } catch (err) {
         console.error("Error fetching photographers, using static fallback:", err);
         staticFallback();
-      }
-    };
-
-    const staticFallback = () => {
-      if (!isMounted) return;
-      const visible = (photographersData as Photographer[]).filter(p => !p.hidden);
-      if (!hasShuffled.current) {
-        hasShuffled.current = true;
-        setPhotographers(shuffleArray(visible));
-      } else {
-        setPhotographers(visible);
       }
     };
 
@@ -177,6 +180,26 @@ export default function Home() {
 
   const filterSlot = mounted ? document.getElementById("nav-filter-slot") : null;
 
+  /** Loading skeleton cards */
+  const SkeletonCards = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {[...Array(8)].map((_, i) => (
+        <div key={i} className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl overflow-hidden animate-pulse">
+          <div className="h-60 bg-gray-100 dark:bg-zinc-800" />
+          <div className="p-4 space-y-3">
+            <div className="h-5 bg-gray-100 dark:bg-zinc-800 rounded w-1/2" />
+            <div className="h-4 bg-gray-100 dark:bg-zinc-800 rounded w-1/3" />
+            <div className="flex gap-1.5">
+              <div className="h-5 bg-gray-100 dark:bg-zinc-800 rounded w-16" />
+              <div className="h-5 bg-gray-100 dark:bg-zinc-800 rounded w-20" />
+            </div>
+            <div className="h-10 bg-gray-100 dark:bg-zinc-800 rounded-xl mt-2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="pb-20 bg-gray-50/50 dark:bg-transparent">
       {filterSlot && createPortal(filterButton, filterSlot)}
@@ -193,14 +216,26 @@ export default function Home() {
           selectedCategory={selectedCategory}
           onSelect={(cat) => {
             setSelectedCategory(cat);
-            // Reset drawer filters when changing category
             setFilters({ style: null, location: null, language: null, deliveryTime: null, responseSpeed: null });
           }}
         />
       </div>
 
       <main className="px-4 md:px-8 mt-10 md:mt-12">
-        {showGroupedView ? (
+        {fetchLoading ? (
+          /* Skeleton while data loads */
+          <div className="space-y-14 mt-2">
+            {["Hanbok", "Couple", "Family"].map((cat) => (
+              <section key={cat}>
+                <div className="flex justify-between items-end mb-4">
+                  <div className="h-7 bg-gray-200 dark:bg-zinc-800 rounded w-32 animate-pulse" />
+                  <div className="h-4 bg-gray-100 dark:bg-zinc-800 rounded w-20 animate-pulse" />
+                </div>
+                <SkeletonCards />
+              </section>
+            ))}
+          </div>
+        ) : showGroupedView ? (
           /* Default: Grouped by category */
           <div className="space-y-14 mt-2">
             {groupedPhotographers.map(([category, group]) => (
@@ -258,8 +293,6 @@ export default function Home() {
           </>
         )}
       </main>
-
-      {/* <ReviewsSlider /> */}
 
       <FilterDrawer
         isOpen={isFilterOpen}

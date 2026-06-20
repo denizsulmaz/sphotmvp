@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { Calendar, Clock, MessageSquare, AlertCircle, RefreshCw } from "lucide-react";
+import { Calendar, Clock, MessageSquare, AlertCircle, RefreshCw, Star } from "lucide-react";
+import ReviewModal from "@/components/ReviewModal";
 
 interface DBBooking {
   id: string;
@@ -26,8 +27,10 @@ interface DBBooking {
 }
 
 export default function ClientDashboard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [bookings, setBookings] = useState<DBBooking[]>([]);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
+  const [reviewTarget, setReviewTarget] = useState<DBBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +64,13 @@ export default function ClientDashboard() {
 
       if (dbError) throw dbError;
       setBookings((data || []) as any[]);
+
+      // Track which bookings the client has already reviewed.
+      const { data: myReviews } = await supabase
+        .from("reviews")
+        .select("booking_id")
+        .eq("reviewer_id", user.id);
+      setReviewedBookingIds(new Set((myReviews || []).map((r: any) => r.booking_id).filter(Boolean)));
     } catch (err: any) {
       console.error("Error loading client bookings:", err);
       setError("Failed to fetch reservations.");
@@ -201,6 +211,23 @@ export default function ClientDashboard() {
                         <span>Chat</span>
                       </Link>
                     )}
+
+                    {/* Review CTA - completed bookings not yet reviewed */}
+                    {booking.status === "completed" && !reviewedBookingIds.has(booking.id) && (
+                      <button
+                        onClick={() => setReviewTarget(booking)}
+                        className="flex items-center gap-1.5 text-xs font-black bg-accent text-black px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
+                      >
+                        <Star size={13} />
+                        <span>Review</span>
+                      </button>
+                    )}
+                    {booking.status === "completed" && reviewedBookingIds.has(booking.id) && (
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <Star size={13} className="fill-current" />
+                        Reviewed
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -209,6 +236,21 @@ export default function ClientDashboard() {
           })
         )}
       </div>
+
+      {reviewTarget && user && (
+        <ReviewModal
+          bookingId={reviewTarget.id}
+          photographerId={reviewTarget.photographer_id}
+          photographerName={reviewTarget.photographer_profile?.profiles?.full_name || "Photographer"}
+          reviewerId={user.id}
+          reviewerName={profile?.full_name || "Anonymous"}
+          onClose={() => setReviewTarget(null)}
+          onSubmitted={() => {
+            setReviewedBookingIds((prev) => new Set(prev).add(reviewTarget.id));
+            setReviewTarget(null);
+          }}
+        />
+      )}
 
     </div>
   );

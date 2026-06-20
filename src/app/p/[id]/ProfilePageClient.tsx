@@ -55,7 +55,9 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
               "Response Speed": dbPhoto.response_speed || "1–3 hours",
               Style: dbPhoto.styles ? dbPhoto.styles.join(", ") : "",
               "Style (Other)": "",
-              hidden: !dbPhoto.is_approved
+              hidden: !dbPhoto.is_approved,
+              avatarUrl: dbPhoto.profiles?.avatar_url || "",
+              publicCode: dbPhoto.public_code || "",
             };
             pUrls = dbPhoto.portfolio_urls || [];
           }
@@ -112,8 +114,8 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
 
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
-  const profilePic = isUuid 
-    ? "/media/default-profile.webp"
+  const profilePic = isUuid
+    ? photographer.avatarUrl || "/media/default-profile.webp"
     : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
   return (
@@ -128,6 +130,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
             <ProfileLabels
               id={photographer.ID}
               name={photographer.Name}
+              publicCode={photographer.publicCode}
               profilePic={profilePic}
               minPrice={photographer["Min Price KRW(per hour & starting from)"]}
               isStudio={!!photographer.IsStudio}

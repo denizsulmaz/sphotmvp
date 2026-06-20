@@ -25,6 +25,10 @@ export interface Photographer {
   hidden?: boolean;
   /** DB-backed portfolio image URLs for Supabase photographers (UUID IDs). */
   portfolioUrls?: string[];
+  /** DB-backed avatar URL for Supabase photographers (UUID IDs). */
+  avatarUrl?: string;
+  /** Public human-readable photographer code, e.g. "S01019". */
+  publicCode?: string;
 }
 
 // ── Supabase row types ──────────────────────────────────────────

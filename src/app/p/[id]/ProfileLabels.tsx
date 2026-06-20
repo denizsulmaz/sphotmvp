@@ -9,6 +9,7 @@ import ViewCounter from "@/components/ViewCounter";
 interface Props {
   id: string;
   name: string;
+  publicCode?: string;
   profilePic: string;
   minPrice: string;
   isStudio: boolean;
@@ -25,6 +26,7 @@ interface Props {
 export default function ProfileLabels({
   id,
   name,
+  publicCode,
   profilePic,
   minPrice,
   isStudio,
@@ -86,7 +88,14 @@ export default function ProfileLabels({
           )}
         </div>
         <div>
-          <h1 className="text-3xl font-black text-foreground dark:text-white">{name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-3xl font-black text-foreground dark:text-white">{name}</h1>
+            {publicCode && (
+              <span className="px-2 py-0.5 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-md text-xs font-mono font-bold tracking-wider">
+                #{publicCode}
+              </span>
+            )}
+          </div>
           <p className="text-gray-500 dark:text-zinc-400 font-medium mt-1">
             {t("from")} <span className="text-foreground dark:text-zinc-200 font-bold">{minPrice}</span>
           </p>

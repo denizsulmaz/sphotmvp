@@ -25,6 +25,7 @@ export default function ProfileBuilder() {
   const [deliveryTime, setDeliveryTime] = useState("1 week");
   const [styles, setStyles] = useState<string[]>([]);
   const [isApproved, setIsApproved] = useState(false);
+  const [publicCode, setPublicCode] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,7 @@ export default function ProfileBuilder() {
           setDeliveryTime(data.delivery_time || "1 week");
           setStyles(data.styles || []);
           setIsApproved(data.is_approved || false);
+          setPublicCode(data.public_code || "");
         }
       } catch (err: any) {
         console.error("Error fetching photographer profile:", err);
@@ -200,7 +202,14 @@ export default function ProfileBuilder() {
       {/* Header card */}
       <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-foreground dark:text-white">Studio Profile</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-foreground dark:text-white">Studio Profile</h1>
+            {publicCode && (
+              <span className="px-2 py-0.5 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-md text-xs font-mono font-bold tracking-wider">
+                #{publicCode}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Configure your bio, pricing, portfolio, and location tags.</p>
         </div>
         <div className="flex items-center gap-2">

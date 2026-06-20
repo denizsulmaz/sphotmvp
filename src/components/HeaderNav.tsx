@@ -52,6 +52,7 @@ export default function HeaderNav() {
                   <button
                     onClick={signOut}
                     title="Sign Out"
+                    aria-label="Sign Out"
                     className="p-2 text-gray-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors"
                   >
                     <LogOut size={16} />

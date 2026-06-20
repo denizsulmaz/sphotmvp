@@ -11,6 +11,7 @@ interface ChatBooking {
   status: "paid" | "completed";
   photographer_id: string;
   photographer_profile: {
+    public_code: string | null;
     profiles: {
       full_name: string;
       avatar_url: string;
@@ -41,6 +42,7 @@ export default function ClientChatPortal() {
             status,
             photographer_id,
             photographer_profile:photographer_id (
+              public_code,
               profiles:id (
                 full_name,
                 avatar_url
@@ -129,8 +131,13 @@ export default function ClientChatPortal() {
                     <img src={photoAvatar} alt={photoName} className="w-full h-full object-cover" />
                   </div>
                   <div className="overflow-hidden flex-1 space-y-0.5">
-                    <p className="text-sm font-bold text-foreground dark:text-white truncate">
-                      {photoName}
+                    <p className="text-sm font-bold text-foreground dark:text-white truncate flex items-center gap-1.5">
+                      <span className="truncate">{photoName}</span>
+                      {booking.photographer_profile?.public_code && (
+                        <span className="text-[10px] font-mono font-bold text-gray-400 dark:text-zinc-500 shrink-0">
+                          #{booking.photographer_profile.public_code}
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1">
                       <Calendar size={12} />
@@ -152,6 +159,7 @@ export default function ClientChatPortal() {
             currentUserId={user.id}
             otherPartyName={selectedBooking.photographer_profile?.profiles?.full_name || "Photographer"}
             otherPartyAvatar={selectedBooking.photographer_profile?.profiles?.avatar_url || "/media/default-profile.webp"}
+            otherPartyCode={selectedBooking.photographer_profile?.public_code || undefined}
           />
         ) : (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm h-full flex flex-col items-center justify-center">
