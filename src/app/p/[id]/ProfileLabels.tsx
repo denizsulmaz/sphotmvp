@@ -166,7 +166,7 @@ export default function ProfileLabels({
           href={`/p/${id}/checkout`}
           className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-accent text-black text-lg font-black shadow-xl hover:-translate-y-1 active:scale-95 transition-all text-center block"
         >
-          {t("bookPhotographer") || "Book Photographer"}
+          {t("bookPhotographer") || "Book Sphoter"}
         </Link>
       </div>
     </>

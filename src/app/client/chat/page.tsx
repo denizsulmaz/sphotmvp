@@ -116,13 +116,13 @@ export default function ClientChatPortal() {
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-gray-400 dark:text-zinc-500 space-y-2">
             <MessageSquare size={28} className="mx-auto text-gray-300 dark:text-zinc-700" />
             <h4 className="text-sm font-bold text-foreground dark:text-white">No active chats</h4>
-            <p className="text-xs">Pay a reservation fee to unlock direct chat with the photographer.</p>
+            <p className="text-xs">Pay a reservation fee to unlock direct chat with the Sphoter.</p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-1 pr-1 hide-scrollbar">
             {chatBookings.map((booking) => {
               const isActive = selectedBooking?.id === booking.id;
-              const photoName = booking.photographer?.full_name || "Unknown Photographer";
+              const photoName = booking.photographer?.full_name || "Unknown Sphoter";
               const photoAvatar = booking.photographer?.avatar_url || "/media/default-profile.webp";
               const dateStr = booking.availability_slots 
                 ? formatSlotDate(booking.availability_slots.start_time)
@@ -163,7 +163,7 @@ export default function ClientChatPortal() {
           <ChatWindow
             bookingId={selectedBooking.id}
             currentUserId={user.id}
-            otherPartyName={selectedBooking.photographer?.full_name || "Photographer"}
+            otherPartyName={selectedBooking.photographer?.full_name || "Sphoter"}
             otherPartyAvatar={selectedBooking.photographer?.avatar_url || "/media/default-profile.webp"}
             otherPartyCode={selectedBooking.public_code || undefined}
           />
@@ -171,7 +171,7 @@ export default function ClientChatPortal() {
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm h-full flex flex-col items-center justify-center">
             <MessageSquare size={48} className="text-gray-300 dark:text-zinc-700 mb-4" />
             <h3 className="text-lg font-black text-foreground dark:text-white">Select a Chat</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Choose a photographer from the list to message them.</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Choose a Sphoter from the list to message them.</p>
           </div>
         )}
       </div>

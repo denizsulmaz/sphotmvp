@@ -100,7 +100,7 @@ export default function ClientDashboard() {
       <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-foreground dark:text-white">My Reservations</h1>
-          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Track payments and manage photographer bookings.</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Track payments and manage Sphoter bookings.</p>
         </div>
         <button
           onClick={fetchBookings}
@@ -124,7 +124,7 @@ export default function ClientDashboard() {
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">
             <Calendar size={48} className="mx-auto text-gray-300 dark:text-zinc-700 mb-4" />
             <h3 className="text-lg font-black text-foreground dark:text-white">No Reservations</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Go to photographer profiles to book availability slots.</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Go to Sphoter profiles to book availability slots.</p>
             <Link
               href="/"
               className="inline-block mt-5 px-6 py-3 bg-black dark:bg-white text-white dark:text-black font-black text-sm rounded-full hover:opacity-90 transition-opacity"
@@ -135,7 +135,7 @@ export default function ClientDashboard() {
         ) : (
           bookings.map((booking) => {
             const ph = Array.isArray(booking.photographer) ? booking.photographer[0] : booking.photographer;
-            const photoName = ph?.full_name || "Unknown Photographer";
+            const photoName = ph?.full_name || "Unknown Sphoter";
             const photoAvatar = ph?.avatar_url || "/media/default-profile.webp";
 
             return (
@@ -236,7 +236,7 @@ export default function ClientDashboard() {
         <ReviewModal
           bookingId={reviewTarget.id}
           photographerId={reviewTarget.photographer_id}
-          photographerName={(Array.isArray(reviewTarget.photographer) ? reviewTarget.photographer[0] : reviewTarget.photographer)?.full_name || "Photographer"}
+          photographerName={(Array.isArray(reviewTarget.photographer) ? reviewTarget.photographer[0] : reviewTarget.photographer)?.full_name || "Sphoter"}
           reviewerId={user.id}
           reviewerName={profile?.full_name || "Anonymous"}
           onClose={() => setReviewTarget(null)}

@@ -203,7 +203,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           const code = photoData.public_code || id;
           setPhotographer({
             id: photoData.id,
-            name: profileInfo?.full_name || "Unknown Photographer",
+            name: profileInfo?.full_name || "Unknown Sphoter",
             avatar_url: profileInfo?.avatar_url || (isMockId
               ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${code}/${code}.webp`
               : "/media/default-profile.webp"),
@@ -213,7 +213,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           const localPhoto = photographersData.find((p) => p.ID === id);
           setPhotographer({
             id: id,
-            name: localPhoto?.Name || `Photographer ${id}`,
+            name: localPhoto?.Name || `Sphoter ${id}`,
             avatar_url: isMockId
               ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${id}/${id}.webp`
               : "/media/default-profile.webp",

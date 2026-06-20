@@ -80,7 +80,7 @@ export default function ProfileBuilder() {
         }
       } catch (err: any) {
         console.error("Error fetching photographer profile:", err);
-        setError("Failed to load profile. Please make sure you are registered as a photographer.");
+        setError("Failed to load profile. Please make sure you are registered as a Sphoter.");
       } finally {
         setLoading(false);
       }

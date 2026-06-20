@@ -153,7 +153,7 @@ export default function PhotographerAuthPage() {
 
           if (profile.role !== "photographer" && profile.role !== "admin") {
             await supabase.auth.signOut();
-            setError("Access denied. This portal is for photographers only.");
+            setError("Access denied. This portal is for Sphoters only.");
             setLoading(false);
             return;
           }
@@ -219,16 +219,16 @@ export default function PhotographerAuthPage() {
                 <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
                   <Award size={18} />
                 </span>
-                <span>SPHOT Photographer Application</span>
+                <span>SPHOT Sphoter Application</span>
               </>
             ) : (
-              "Photographer Portal"
+              "Sphoter Portal"
             )}
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 max-w-lg mx-auto">
             {isSignUp
-              ? "Complete the details below to apply as a photographer. Admin approval is completed within 3 business days."
-              : "Sign in to access your photographer dashboard, schedule, and portfolio settings."}
+              ? "Complete the details below to apply as a Sphoter. Admin approval is completed within 3 business days."
+              : "Sign in to access your Sphoter dashboard, schedule, and portfolio settings."}
           </p>
         </div>
 

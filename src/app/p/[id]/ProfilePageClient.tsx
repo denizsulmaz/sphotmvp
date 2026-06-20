@@ -57,7 +57,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
           if (dbPhoto) {
             matchedPhoto = {
               ID: dbPhoto.public_code || dbPhoto.id,
-              Name: dbPhoto.profiles?.full_name || "Unknown Photographer",
+              Name: dbPhoto.profiles?.full_name || "Unknown Sphoter",
               "Delivery Time": dbPhoto.delivery_time || "1 week",
               "Global Categories": dbPhoto.categories ? dbPhoto.categories.join(", ") : "",
               Instagram: dbPhoto.instagram || "",
@@ -118,7 +118,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
         <p className="text-5xl mb-4">📷</p>
-        <h2 className="text-2xl font-black text-foreground dark:text-white mb-2">Photographer Not Found</h2>
+        <h2 className="text-2xl font-black text-foreground dark:text-white mb-2">Sphoter Not Found</h2>
         <p className="text-gray-500 dark:text-zinc-400 mb-6">This profile doesn&apos;t exist or may have been removed.</p>
         <Link href="/" className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-sm hover:opacity-90 transition-all">
           Back to Browse
@@ -174,7 +174,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
           href={`/p/${photographer.ID}/checkout`}
           className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-accent text-black text-lg font-black shadow-xl hover:scale-[1.02] active:scale-95 transition-all text-center block"
         >
-          Book Photographer
+          Book Sphoter
         </Link>
       </div>
     </div>
