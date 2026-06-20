@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Send, Clock, ShieldAlert } from "lucide-react";
+import { Send, Clock, ShieldAlert, Flag } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -36,11 +36,32 @@ export default function ChatWindow({
   const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reporting, setReporting] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const initialScrollDone = useRef(false);
   const { showToast } = useToast();
   const { t } = useLanguage();
+
+  const submitReport = async () => {
+    if (!supabase) return;
+    setReporting(true);
+    const { error } = await supabase.from("reports").insert({
+      booking_id: bookingId,
+      reporter_id: currentUserId,
+      reason: reportReason.trim() || "No reason provided",
+    });
+    setReporting(false);
+    if (error) {
+      showToast("Could not submit report.", "error");
+    } else {
+      showToast("Report submitted. Our team will review it.", "success");
+      setShowReport(false);
+      setReportReason("");
+    }
+  };
 
   const PAGE_SIZE = 30;
 
@@ -194,7 +215,36 @@ export default function ChatWindow({
             {t("chatActiveBooking")}
           </span>
         </div>
+        <button
+          onClick={() => setShowReport(true)}
+          aria-label="Report this conversation"
+          title="Report conversation"
+          className="ml-auto p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+        >
+          <Flag size={16} />
+        </button>
       </div>
+
+      {/* Report modal */}
+      {showReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowReport(false)}>
+          <div className="w-full max-w-sm bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-base font-black text-foreground dark:text-white flex items-center gap-2"><Flag size={16} className="text-red-500" /> Report conversation</h4>
+            <p className="text-xs text-gray-500 dark:text-zinc-400">Tell us what&apos;s wrong. Our team will review this chat.</p>
+            <textarea
+              rows={3} value={reportReason} onChange={(e) => setReportReason(e.target.value)}
+              placeholder="Describe the issue (e.g. inappropriate behavior, spam, off-platform payment request)…"
+              className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl p-3 text-xs outline-none text-foreground dark:text-white resize-none focus:border-black dark:focus:border-white"
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowReport(false)} className="px-3 py-2 text-xs font-bold text-gray-500 dark:text-zinc-400 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800">Cancel</button>
+              <button onClick={submitReport} disabled={reporting} className="px-4 py-2 bg-red-500 text-white text-xs font-black rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5">
+                {reporting ? <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Submit report"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages stream */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
