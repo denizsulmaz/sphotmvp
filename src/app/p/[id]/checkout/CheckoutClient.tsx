@@ -1262,13 +1262,17 @@ ${customDetails}`;
                   <div className="bg-amber-500/10 border-l-4 border-accent p-4 rounded-xl space-y-2 text-xs text-amber-800 dark:text-amber-300">
                     <p className="font-extrabold uppercase tracking-wide flex items-center gap-1.5 text-black dark:text-white">
                       <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                      Platform Booking Fee Only
+                      {t("coFeeOnly")}
                     </p>
                     <p className="leading-relaxed font-medium">
-                      The **25,000 KRW** payment is a flat platform reservation fee to secure your booking. This fee is paid to SPHOT and is fully refundable up to 48 hours prior to the shoot.
+                      {t("coFeeLine1Pre")}
+                      <span className="font-extrabold text-black dark:text-white">{t("coFeeLine1Bold")}</span>
+                      {t("coFeeLine1Post")}
                     </p>
                     <p className="leading-relaxed font-medium">
-                      The photographer&apos;s actual rates (starting from {photographer && dbSlots ? "their hourly base rate" : "their profile price"}) are separate. **You will finalize and settle the final shoot pricing with your photographer directly** through the in-platform chat, which will be available immediately after your signup and payment.
+                      {t("coFeeLine2Pre")}
+                      <span className="font-extrabold text-black dark:text-white">{t("coFeeLine2Bold")}</span>
+                      {t("coFeeLine2Post")}
                     </p>
                   </div>
                 </div>
