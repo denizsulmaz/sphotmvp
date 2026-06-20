@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  Check, X, ShieldAlert, Sparkles, TrendingUp, Users, Calendar, Mail, Search,
+  Check, X, ShieldAlert, Sparkles, TrendingUp, Users, Calendar, Mail, Search, Camera,
 } from "lucide-react";
 
 interface PhotographerRow {
@@ -17,15 +17,24 @@ interface PhotographerRow {
   profiles: { full_name: string; avatar_url: string } | null;
 }
 
+interface ClientRow {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
 const firstOf = <T,>(v: T | T[] | null | undefined): T | null =>
   Array.isArray(v) ? v[0] ?? null : v ?? null;
 
 export default function AdminApprovals() {
   const [photographers, setPhotographers] = useState<PhotographerRow[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
   const [stats, setStats] = useState({ totalBookings: 0, totalRevenue: 0, activeUsers: 0 });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [clientQuery, setClientQuery] = useState("");
   const [inviteFor, setInviteFor] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
@@ -42,6 +51,13 @@ export default function AdminApprovals() {
       setPhotographers(
         (rows || []).map((r: any) => ({ ...r, profiles: firstOf(r.profiles) })) as PhotographerRow[]
       );
+
+      const { data: clientRows } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url, created_at")
+        .eq("role", "client")
+        .order("created_at", { ascending: false });
+      setClients((clientRows || []) as ClientRow[]);
 
       const [{ count: bookingsCount }, { count: paidCount }, { count: usersCount }] = await Promise.all([
         supabase.from("bookings").select("*", { count: "exact", head: true }),
@@ -118,6 +134,11 @@ export default function AdminApprovals() {
       p.profiles?.full_name?.toLowerCase().includes(q) ||
       p.public_code?.toLowerCase().includes(q)
     );
+  });
+  const filteredClients = clients.filter((c) => {
+    if (!clientQuery) return true;
+    const q = clientQuery.toLowerCase();
+    return c.full_name?.toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
   });
 
   if (loading) {
@@ -210,9 +231,10 @@ export default function AdminApprovals() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard icon={TrendingUp} label="Platform Revenue" value={`${stats.totalRevenue.toLocaleString()} KRW`} />
-        <StatCard icon={Users} label="Registered Users" value={stats.activeUsers} />
+        <StatCard icon={Camera} label="Photographers" value={photographers.length} />
+        <StatCard icon={Users} label="Registered Users" value={clients.length} />
         <StatCard icon={Calendar} label="Total Bookings" value={stats.totalBookings} />
       </div>
 
@@ -252,6 +274,47 @@ export default function AdminApprovals() {
         <div className="space-y-4">
           {filtered.map((p) => <PhotographerCardRow key={p.id} photo={p} pendingMode={false} />)}
         </div>
+      </div>
+
+      {/* Registered users (clients) */}
+      <div className="space-y-4">
+        <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black text-foreground dark:text-white flex items-center gap-2.5">
+              Registered Users {clients.length > 0 && <span className="text-sm text-gray-400">({clients.length})</span>}
+            </h2>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Clients who signed up to book photographers.</p>
+          </div>
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
+            <input value={clientQuery} onChange={(e) => setClientQuery(e.target.value)} placeholder="Search name"
+              className="bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 pl-9 pr-3 text-xs outline-none text-foreground dark:text-white w-full sm:w-56" />
+          </div>
+        </div>
+        {filteredClients.length === 0 ? (
+          <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">
+            <Users size={40} className="mx-auto text-gray-300 dark:text-zinc-700 mb-4" />
+            <h3 className="text-lg font-black text-foreground dark:text-white">No users</h3>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">No registered client accounts yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filteredClients.map((c) => (
+              <div key={c.id} className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-5 shadow-sm flex items-center gap-4">
+                <div className="w-11 h-11 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.avatar_url || "/media/default-profile.webp"} alt={c.full_name || "User"} className="w-full h-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-black text-foreground dark:text-white truncate">{c.full_name || "Unnamed user"}</h3>
+                  <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold mt-0.5">
+                    Joined {new Date(c.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

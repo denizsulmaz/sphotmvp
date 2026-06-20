@@ -5,7 +5,7 @@ import { BLOG_POSTS } from "@/data/blog";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://booksphot.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticRoutes = ["", "/about", "/contact", "/blog", "/privacy", "/terms"].map((p) => ({
+  const staticRoutes = ["", "/about", "/contact", "/blog", "/privacy", "/terms", "/community-guidelines"].map((p) => ({
     url: `${siteUrl}${p}`,
     changeFrequency: "weekly" as const,
     priority: p === "" ? 1 : 0.6,

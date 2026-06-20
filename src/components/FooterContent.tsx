@@ -77,6 +77,7 @@ export default function FooterContent() {
               <ul className="space-y-3 text-gray-400">
                 <li><Link href="/terms" className="hover:text-white transition-colors">{t("footerTerms")}</Link></li>
                 <li><Link href="/privacy" className="hover:text-white transition-colors">{t("footerPrivacy")}</Link></li>
+                <li><Link href="/community-guidelines" className="hover:text-white transition-colors">{t("footerGuidelines")}</Link></li>
               </ul>
             </div>
             <div>

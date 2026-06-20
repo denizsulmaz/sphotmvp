@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       </Link>
 
       <h1 className="text-4xl font-black tracking-tight mb-2">Privacy Policy</h1>
-      <p className="text-gray-500 text-sm mb-12">Last updated: June 2026</p>
+      <p className="text-gray-500 text-sm mb-12">Last updated: June 2026 (v2)</p>
 
       <div className="space-y-8 text-gray-600 dark:text-zinc-400 leading-relaxed">
 
@@ -24,9 +24,12 @@ export default function PrivacyPage() {
           <p className="mb-3">We collect the following personal data when you use our platform:</p>
           <ul className="list-disc pl-6 space-y-1.5">
             <li><strong>Account Information:</strong> Email address, full name, and password (hashed) when you register.</li>
-            <li><strong>Photographer Application Data:</strong> Location, service categories, portfolio links, social media links, equipment, bio, and languages.</li>
-            <li><strong>Booking Data:</strong> Selected time slots, booking descriptions, and payment references.</li>
+            <li><strong>Email Verification:</strong> A temporary one-time code is generated and emailed to confirm your address during sign-up; it is stored hashed and expires after a short period.</li>
+            <li><strong>Photographer Application Data:</strong> Location, service categories, portfolio images, social media links, pricing, bio, and languages.</li>
+            <li><strong>Booking Data:</strong> Selected time slots, shoot details you provide (location, group size, style, language, notes), booking status, and payment references.</li>
             <li><strong>Chat Messages:</strong> Messages exchanged between clients and photographers within our platform.</li>
+            <li><strong>Reviews:</strong> Ratings and written reviews you submit after a completed session.</li>
+            <li><strong>Reports &amp; Moderation Data:</strong> If you report a conversation, the report and the related booking/messages so our team can review it.</li>
             <li><strong>Usage Data:</strong> Page views, device type, and browsing behavior via Google Analytics (with IP anonymization, and only if you consent to cookies).</li>
           </ul>
         </section>
@@ -47,8 +50,9 @@ export default function PrivacyPage() {
             <li>To create and manage your account.</li>
             <li>To process photographer applications and admin verifications.</li>
             <li>To facilitate bookings and in-platform messaging.</li>
-            <li>To process reservation payments through Lemon Squeezy.</li>
-            <li>To send service-related notifications.</li>
+            <li>To process the reservation fee through Lemon Squeezy.</li>
+            <li>To verify your email address and send service-related notifications (via Resend).</li>
+            <li>To display reviews and to investigate reports for safety and moderation.</li>
             <li>To analyze anonymized usage patterns (with consent) for platform improvements.</li>
           </ul>
         </section>
@@ -59,6 +63,9 @@ export default function PrivacyPage() {
             <li><strong>Account Data:</strong> Retained for the duration of your account plus 30 days after deletion.</li>
             <li><strong>Booking Records:</strong> Retained for 3 years for financial/legal compliance.</li>
             <li><strong>Chat Messages:</strong> Retained for 1 year after the associated booking is completed or cancelled.</li>
+            <li><strong>Reviews:</strong> Retained while the photographer profile is active, so other clients can see them.</li>
+            <li><strong>Reports:</strong> Retained for up to 2 years for safety, audit, and abuse-prevention purposes.</li>
+            <li><strong>Verification Codes:</strong> Deleted shortly after they expire or are used.</li>
             <li><strong>Analytics Data:</strong> Google Analytics data retention is set to 14 months.</li>
           </ul>
         </section>
@@ -88,6 +95,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-6 space-y-1.5">
             <li><strong>Supabase</strong> (Database & Authentication) — <a href="https://supabase.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
             <li><strong>Lemon Squeezy</strong> (Payment Processing) — <a href="https://www.lemonsqueezy.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
+            <li><strong>Resend</strong> (Transactional Email) — <a href="https://resend.com/legal/privacy-policy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
             <li><strong>Google Analytics</strong> (Usage Analytics, with IP anonymization) — <a href="https://policies.google.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
             <li><strong>Vercel</strong> (Hosting) — <a href="https://vercel.com/legal/privacy-policy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
           </ul>
