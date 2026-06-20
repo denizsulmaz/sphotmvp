@@ -13,8 +13,26 @@ interface Props {
 
 export default function PhotographerCard({ photographer, priority = false }: Props) {
   const { t, tCategory } = useLanguage();
-  const images = [1, 2, 3].map((n) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${n}.webp`);
-  const profilePic = `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
+
+  // For DB photographers (UUID IDs), use their Supabase portfolio_urls.
+  // For static JSON photographers, derive the local media path as before.
+  const localImages = [1, 2, 3].map(
+    (n) => `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${n}.webp`
+  );
+  const dbImages = photographer.portfolioUrls?.length
+    ? [
+        photographer.portfolioUrls[0] || "",
+        photographer.portfolioUrls[1] || "",
+        photographer.portfolioUrls[2] || "",
+      ]
+    : ["", "", ""];
+
+  const images = isUuid ? dbImages : localImages;
+  const profilePic = isUuid
+    ? "/media/default-profile.webp"
+    : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
   const topCategories = photographer["Global Categories"]
     ?.split(",")
@@ -22,7 +40,9 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
     .filter(Boolean)
     .slice(0, 3) || [];
 
-
+  const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.style.display = "none";
+  };
 
   return (
     // Entire card is a link to the profile
@@ -46,6 +66,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
             className="absolute inset-0 w-full h-full object-cover object-center"
             loading={priority ? "eager" : "lazy"}
             {...(priority ? { fetchPriority: "high" } : {})}
+            onError={handleImgError}
           />
         </div>
         {/* Right: two stacked images */}
@@ -57,6 +78,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
               alt="Portfolio 2"
               className="absolute inset-0 w-full h-full object-cover object-center"
               loading={priority ? "eager" : "lazy"}
+              onError={handleImgError}
             />
           </div>
           <div className="relative overflow-hidden bg-gray-100 dark:bg-zinc-800">
@@ -66,6 +88,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
               alt="Portfolio 3"
               className="absolute inset-0 w-full h-full object-cover object-center"
               loading={priority ? "eager" : "lazy"}
+              onError={handleImgError}
             />
           </div>
         </div>
@@ -81,6 +104,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
             alt={photographer.Name}
             className="absolute inset-0 w-full h-full object-cover object-center"
             loading={priority ? "eager" : "lazy"}
+            onError={handleImgError}
           />
         </div>
 

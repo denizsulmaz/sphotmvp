@@ -60,16 +60,26 @@ export default function Home() {
           return;
         }
 
-        const { data, error } = await supabase
-          .from("photographer_profiles")
-          .select(`
-            *,
-            profiles:id (
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq("is_approved", true);
+        // Race against a 4-second timeout so static fallback always fires
+        // if Supabase is unresponsive (e.g. slow network or invalid key)
+        const timeoutResult = { data: null as any, error: new Error("timeout") };
+        const timeoutPromise = new Promise<typeof timeoutResult>((resolve) =>
+          setTimeout(() => resolve(timeoutResult), 4000)
+        );
+
+        const { data, error } = await Promise.race([
+          supabase
+            .from("photographer_profiles")
+            .select(`
+              *,
+              profiles:id (
+                full_name,
+                avatar_url
+              )
+            `)
+            .eq("is_approved", true),
+          timeoutPromise,
+        ]);
 
         if (error || !data || data.length === 0) {
           staticFallback();
@@ -90,7 +100,8 @@ export default function Home() {
             Style: row.styles ? row.styles.join(", ") : "",
             "Style (Other)": "",
             IsStudio: false,
-            hidden: false
+            hidden: false,
+            portfolioUrls: row.portfolio_urls || [],
           }));
           
           if (isMounted && !hasShuffled.current) {

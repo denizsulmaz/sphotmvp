@@ -1,39 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import photographersData from "@/data/photographers.json";
 import { Photographer } from "@/lib/types";
 import ImageGrid from "./ImageGrid";
 import ProfileLabels from "./ProfileLabels";
 import { supabase } from "@/lib/supabase";
-import { useLanguage } from "@/context/LanguageContext";
-import { Calendar as CalendarIcon, Clock, ChevronRight, MessageCircle } from "lucide-react";
-
-interface DBAvailabilitySlot {
-  id: string;
-  photographer_id: string;
-  start_time: string;
-  end_time: string;
-  status: "available" | "booked";
-}
 
 interface ProfilePageClientProps {
   id: string;
 }
 
 export default function ProfilePageClient({ id }: ProfilePageClientProps) {
-  const router = useRouter();
-  const { t } = useLanguage();
   
   const [photographer, setPhotographer] = useState<Photographer | null>(null);
   const [portfolioUrls, setPortfolioUrls] = useState<string[]>([]);
-  const [slots, setSlots] = useState<DBAvailabilitySlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<DBAvailabilitySlot | null>(null);
-  
   const [loading, setLoading] = useState(true);
-  const [hasDBSlots, setHasDBSlots] = useState(false);
 
   useEffect(() => {
     const loadProfileData = async () => {
@@ -96,64 +79,6 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
 
         setPhotographer(matchedPhoto);
         setPortfolioUrls(pUrls);
-
-        // 3. Fetch hourly availability slots from Supabase
-        if (supabase) {
-          const { data: dbSlots } = await supabase
-            .from("availability_slots")
-            .select("*")
-            .eq("photographer_id", id)
-            .eq("status", "available")
-            .gt("start_time", new Date().toISOString())
-            .order("start_time", { ascending: true });
-
-          if (dbSlots && dbSlots.length > 0) {
-            setSlots(dbSlots as DBAvailabilitySlot[]);
-            setHasDBSlots(true);
-          } else {
-            // Test Mode: Auto-populate mock slots for testing/QA purposes if no active slots exist in DB
-            const mockSlots: DBAvailabilitySlot[] = [];
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-
-            // Slot 1: Tomorrow 10:00 AM - 11:00 AM
-            const t1Start = new Date(tomorrow);
-            t1Start.setHours(10, 0, 0, 0);
-            const t1End = new Date(tomorrow);
-            t1End.setHours(11, 0, 0, 0);
-
-            // Slot 2: Tomorrow 2:00 PM - 3:00 PM
-            const t2Start = new Date(tomorrow);
-            t2Start.setHours(14, 0, 0, 0);
-            const t2End = new Date(tomorrow);
-            t2End.setHours(15, 0, 0, 0);
-
-            const dayAfter = new Date();
-            dayAfter.setDate(dayAfter.getDate() + 2);
-
-            // Slot 3: Day after 11:00 AM - 12:00 PM
-            const d1Start = new Date(dayAfter);
-            d1Start.setHours(11, 0, 0, 0);
-            const d1End = new Date(dayAfter);
-            d1End.setHours(12, 0, 0, 0);
-
-            // Slot 4: Day after 4:00 PM - 5:00 PM
-            const d2Start = new Date(dayAfter);
-            d2Start.setHours(16, 0, 0, 0);
-            const d2End = new Date(dayAfter);
-            d2End.setHours(17, 0, 0, 0);
-
-            mockSlots.push(
-              { id: "mock-slot-1", photographer_id: id, start_time: t1Start.toISOString(), end_time: t1End.toISOString(), status: "available" },
-              { id: "mock-slot-2", photographer_id: id, start_time: t2Start.toISOString(), end_time: t2End.toISOString(), status: "available" },
-              { id: "mock-slot-3", photographer_id: id, start_time: d1Start.toISOString(), end_time: d1End.toISOString(), status: "available" },
-              { id: "mock-slot-4", photographer_id: id, start_time: d2Start.toISOString(), end_time: d2End.toISOString(), status: "available" }
-            );
-
-            setSlots(mockSlots);
-            setHasDBSlots(true);
-          }
-        }
       } catch (err) {
         console.error("Error loading photographer profile:", err);
       } finally {
@@ -173,38 +98,23 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
   }
 
   if (!photographer) {
-    notFound();
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <p className="text-5xl mb-4">📷</p>
+        <h2 className="text-2xl font-black text-foreground dark:text-white mb-2">Photographer Not Found</h2>
+        <p className="text-gray-500 dark:text-zinc-400 mb-6">This profile doesn&apos;t exist or may have been removed.</p>
+        <Link href="/" className="px-6 py-3 bg-black dark:bg-white text-white dark:text-black rounded-xl font-black text-sm hover:opacity-90 transition-all">
+          Back to Browse
+        </Link>
+      </div>
+    );
   }
 
 
-  
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
   const profilePic = isUuid 
     ? "/media/default-profile.webp"
     : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
-
-  const formatSlotDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  };
-
-  const formatSlotTime = (isoStringStart: string, isoStringEnd: string) => {
-    const start = new Date(isoStringStart);
-    const end = new Date(isoStringEnd);
-    return `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-  };
-
-  const groupedSlots = slots.reduce<Record<string, DBAvailabilitySlot[]>>((acc, slot) => {
-    const key = new Date(slot.start_time).toDateString();
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(slot);
-    return acc;
-  }, {});
-
-  const handleBookSlot = () => {
-    if (!selectedSlot) return;
-    router.push(`/p/${photographer.ID}/checkout?slot=${selectedSlot.id}`);
-  };
 
   return (
     <div className="pb-28 md:pb-12 pt-6">

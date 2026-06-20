@@ -23,6 +23,8 @@ export interface Photographer {
   "Style (Other)": string;
   IsStudio?: boolean;
   hidden?: boolean;
+  /** DB-backed portfolio image URLs for Supabase photographers (UUID IDs). */
+  portfolioUrls?: string[];
 }
 
 // ── Supabase row types ──────────────────────────────────────────

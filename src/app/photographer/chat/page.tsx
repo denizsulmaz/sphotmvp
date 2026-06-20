@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import ChatWindow from "@/components/ChatWindow";
-import { MessageSquare, Calendar, User, Search, AlertCircle } from "lucide-react";
+import { MessageSquare, Calendar } from "lucide-react";
 
 interface ChatBooking {
   id: string;

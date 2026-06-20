@@ -63,25 +63,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // 1. Check active session immediately
-    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
-      const session = data?.session;
-      if (session?.user) {
-        setUser(session.user);
-        fetchProfile(session.user.id).then(() => setLoading(false));
-      } else {
+    // Timeout sentinel: if Supabase hangs (e.g. invalid key format or slow network),
+    // force loading=false after 3s so the Sign In button always appears.
+    const timeoutPromise = new Promise<{ data: { session: Session | null } }>((resolve) =>
+      setTimeout(() => resolve({ data: { session: null } }), 3000)
+    );
+
+    // 1. Check active session immediately (race against timeout)
+    Promise.race([supabase.auth.getSession(), timeoutPromise])
+      .then(({ data }: { data: { session: Session | null } }) => {
+        const session = data?.session;
+        if (session?.user) {
+          setUser(session.user);
+          fetchProfile(session.user.id).then(() => setLoading(false));
+        } else {
+          setUser(null);
+          setProfile(null);
+          setRole(null);
+          setLoading(false);
+        }
+      }).catch(err => {
+        console.error("AuthContext: getSession failed:", err);
         setUser(null);
         setProfile(null);
         setRole(null);
         setLoading(false);
-      }
-    }).catch(err => {
-      console.error("AuthContext: getSession failed:", err);
-      setUser(null);
-      setProfile(null);
-      setRole(null);
-      setLoading(false);
-    });
+      });
 
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
