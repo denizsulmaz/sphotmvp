@@ -35,8 +35,8 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;"
         <!-- Header brand bar (compact) -->
         <tr>
           <td align="center" style="background:#000000;padding:18px 24px;">
-            <img src="${BRAND.emailLogoUrl}" alt="${BRAND.name}" width="56" height="56"
-                 style="display:block;width:56px;height:56px;border-radius:12px;object-fit:contain;" />
+            <img src="${BRAND.emailLogoUrl}" alt="${BRAND.name}" width="76" height="76"
+                 style="display:block;width:76px;height:76px;border-radius:14px;object-fit:contain;" />
           </td>
         </tr>
 
