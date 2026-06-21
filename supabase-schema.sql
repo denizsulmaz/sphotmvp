@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   photographer_id  UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   slot_id          UUID REFERENCES public.availability_slots(id) ON DELETE SET NULL,
   status           TEXT NOT NULL DEFAULT 'pending'
-                     CHECK (status IN ('pending', 'paid', 'confirmed', 'completed', 'cancelled')),
+                     CHECK (status IN ('pending', 'paid', 'confirmed', 'completed', 'cancellation_requested', 'cancelled', 'refunded')),
   fee_krw          INTEGER NOT NULL DEFAULT 25000,
   checkout_id      TEXT,
   -- structured shoot details (mirrors checkout wizard)
@@ -165,10 +165,21 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS preferred_language TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS duration_label TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS details TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
--- Widen status check to include 'confirmed'.
+-- Refund bookkeeping (mirrors the Lemon Squeezy refund response; null until refunded).
+-- refund_amount is stored in the order's own currency minor units (e.g. KRW=won, USD=cents),
+-- and refund_currency records which — so the value is correct regardless of store currency.
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS refund_amount INTEGER;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS refund_currency TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS refund_id TEXT;
+-- Who/why a cancellation was requested (set when a user requests cancellation).
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancel_requested_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
+-- Widen status check to include 'confirmed', 'cancellation_requested', and 'refunded'.
 ALTER TABLE public.bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
 ALTER TABLE public.bookings ADD CONSTRAINT bookings_status_check
-  CHECK (status IN ('pending', 'paid', 'confirmed', 'completed', 'cancelled'));
+  CHECK (status IN ('pending', 'paid', 'confirmed', 'completed', 'cancellation_requested', 'cancelled', 'refunded'));
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_bookings_client ON public.bookings (client_id, created_at DESC);
@@ -188,6 +199,37 @@ DROP POLICY IF EXISTS "Allow participants to update bookings" ON public.bookings
 CREATE POLICY "Allow participants to update bookings" ON public.bookings
   FOR UPDATE USING (auth.uid() = client_id OR auth.uid() = photographer_id OR public.is_admin());
 
+-- ─── 5b. Refunds (admin-issued, reason-required audit trail) ──
+-- One row per refund issued. The financial source of truth is Lemon Squeezy;
+-- this table records OUR internal context: which admin, why, how much, when.
+-- amount is stored in the order currency's minor units; currency records which.
+CREATE TABLE IF NOT EXISTS public.refunds (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id    UUID REFERENCES public.bookings(id) ON DELETE CASCADE NOT NULL,
+  issued_by     UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  reason        TEXT NOT NULL,
+  amount        INTEGER NOT NULL,
+  currency      TEXT NOT NULL DEFAULT 'KRW',
+  ls_refund_id  TEXT,            -- Lemon Squeezy refund/order id (null in mock mode)
+  is_live       BOOLEAN NOT NULL DEFAULT false,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_refunds_booking ON public.refunds (booking_id, created_at DESC);
+ALTER TABLE public.refunds ENABLE ROW LEVEL SECURITY;
+-- Participants can read refunds tied to their booking; admins can read all.
+DROP POLICY IF EXISTS "Read own or admin refunds" ON public.refunds;
+CREATE POLICY "Read own or admin refunds" ON public.refunds
+  FOR SELECT USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.bookings b
+      WHERE b.id = booking_id
+        AND (b.client_id = auth.uid() OR b.photographer_id = auth.uid())
+    )
+  );
+-- Writes happen only via the service-role API route, which bypasses RLS; no
+-- client-side insert policy is granted on purpose.
+
 -- ─── 6. Real-time Messages ──────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.messages (
   id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -196,6 +238,10 @@ CREATE TABLE IF NOT EXISTS public.messages (
   content     TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- System messages (booking confirmation, cancellation/refund notices) have no
+-- human sender and a 'kind' discriminator. Allow null sender + add 'kind'.
+ALTER TABLE public.messages ALTER COLUMN sender_id DROP NOT NULL;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'user';
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_messages_booking ON public.messages (booking_id, created_at);
 

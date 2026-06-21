@@ -69,24 +69,56 @@ export default function PhotographerDashboard() {
     fetchBookings();
   }, [fetchBookings]);
 
-  const updateBookingStatus = async (bookingId: string, status: "completed" | "cancelled") => {
+  const markCompleted = async (bookingId: string) => {
     if (!supabase) return;
     setActionLoading(bookingId);
     try {
       const { error: updateError } = await supabase
         .from("bookings")
-        .update({ status })
+        .update({ status: "completed" })
         .eq("id", bookingId);
-
       if (updateError) throw updateError;
-      
-      // Update local state
       setBookings(prev =>
-        prev.map(b => (b.id === bookingId ? { ...b, status } : b))
+        prev.map(b => (b.id === bookingId ? { ...b, status: "completed" } : b))
       );
     } catch (err: any) {
       console.error("Error updating booking status:", err);
       showToast("Failed to update booking status.", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Cancellation is a REQUEST — it never moves money. Any refund is reviewed and
+  // issued by an admin (see admin Refunds queue). We send it through the
+  // server route so the slot is released and the request is logged consistently.
+  const requestCancellation = async (bookingId: string) => {
+    if (!supabase) return;
+    const reason = window.prompt(
+      "Why are you cancelling this booking? Our team will review any refund.\n(This note is shared with our team.)"
+    );
+    if (reason === null) return; // user dismissed
+    setActionLoading(bookingId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/cancel-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: session?.access_token,
+          booking_id: bookingId,
+          reason: reason.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not request cancellation.");
+      setBookings(prev =>
+        prev.map(b => (b.id === bookingId ? { ...b, status: data.status } : b))
+      );
+      showToast("Cancellation requested. Our team will review any refund.", "success");
+    } catch (err: any) {
+      console.error("Error requesting cancellation:", err);
+      showToast(err.message || "Failed to request cancellation.", "error");
     } finally {
       setActionLoading(null);
     }
@@ -207,7 +239,7 @@ export default function PhotographerDashboard() {
                   {booking.status === "paid" && (
                     <div className="flex gap-1.5">
                       <button
-                        onClick={() => updateBookingStatus(booking.id, "completed")}
+                        onClick={() => markCompleted(booking.id)}
                         disabled={actionLoading === booking.id}
                         className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-xl transition-all"
                         title="Mark Session Completed"
@@ -215,10 +247,10 @@ export default function PhotographerDashboard() {
                         <CheckCircle2 size={18} />
                       </button>
                       <button
-                        onClick={() => updateBookingStatus(booking.id, "cancelled")}
+                        onClick={() => requestCancellation(booking.id)}
                         disabled={actionLoading === booking.id}
                         className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
-                        title="Cancel Booking"
+                        title="Request Cancellation"
                       >
                         <XCircle size={18} />
                       </button>

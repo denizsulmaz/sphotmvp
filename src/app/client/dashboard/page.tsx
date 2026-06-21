@@ -9,7 +9,7 @@ import ReviewModal from "@/components/ReviewModal";
 
 interface DBBooking {
   id: string;
-  status: "pending" | "paid" | "completed" | "cancelled";
+  status: "pending" | "paid" | "completed" | "cancellation_requested" | "cancelled" | "refunded";
   fee_krw: number;
   created_at: string;
   photographer_id: string;
@@ -76,6 +76,39 @@ export default function ClientDashboard() {
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
+
+  const [cancelLoading, setCancelLoading] = useState<string | null>(null);
+
+  // Request cancellation — never moves money directly. Any refund is reviewed and
+  // issued by an admin. The slot is released and the request is logged server-side.
+  const requestCancellation = async (bookingId: string) => {
+    if (!supabase) return;
+    const reason = window.prompt(
+      "Why would you like to cancel? Our team will review your refund.\n(Reservation fees are refundable up to 48 hours before the shoot.)"
+    );
+    if (reason === null) return;
+    setCancelLoading(bookingId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/cancel-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: session?.access_token,
+          booking_id: bookingId,
+          reason: reason.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not request cancellation.");
+      setBookings(prev => prev.map(b => (b.id === bookingId ? { ...b, status: data.status } : b)));
+    } catch (err: any) {
+      console.error("Error requesting cancellation:", err);
+      setError(err.message || "Failed to request cancellation.");
+    } finally {
+      setCancelLoading(null);
+    }
+  };
 
   const formatDateTime = (isoStart: string, isoEnd: string) => {
     const start = new Date(isoStart);
@@ -188,13 +221,28 @@ export default function ClientDashboard() {
                           ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
                           : booking.status === "completed"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : booking.status === "refunded"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                          : booking.status === "cancellation_requested"
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                           : booking.status === "cancelled"
                           ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
                           : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
                       }`}
                     >
-                      {booking.status}
+                      {booking.status === "cancellation_requested" ? "cancel pending" : booking.status}
                     </span>
+
+                    {/* Cancel — sends a request; admin reviews any refund. */}
+                    {booking.status === "paid" && (
+                      <button
+                        onClick={() => requestCancellation(booking.id)}
+                        disabled={cancelLoading === booking.id}
+                        className="text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-2 rounded-xl transition-all disabled:opacity-50"
+                      >
+                        {cancelLoading === booking.id ? "…" : "Cancel"}
+                      </button>
+                    )}
 
                     {/* Chat CTA - Enabled only for paid bookings */}
                     {(booking.status === "paid" || booking.status === "completed") && (
