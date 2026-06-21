@@ -36,9 +36,20 @@ export const BRAND = {
   /** Headquarters (shown in email footer). */
   hq: "Seoul, South Korea",
 
-  /** Absolute URL to the logo used in transactional emails (must be public). */
+  /** Public icon URLs for email footer (white glyphs on transparent). */
+  emailIcons: {
+    instagram: "https://jarhfsdjtosjpktypwcn.supabase.co/storage/v1/object/public/avatars/brand/instagram.png",
+    tiktok: "https://jarhfsdjtosjpktypwcn.supabase.co/storage/v1/object/public/avatars/brand/tiktok.png",
+  },
+
+  /**
+   * Absolute, always-public logo URL for transactional emails.
+   * Hosted on Supabase Storage (served regardless of the web deploy/domain),
+   * so email clients can always load it. Override via NEXT_PUBLIC_EMAIL_LOGO_URL.
+   */
   emailLogoUrl:
-    (process.env.NEXT_PUBLIC_SITE_URL || "https://booksphot.com") + "/media/sphot-logo.png",
+    process.env.NEXT_PUBLIC_EMAIL_LOGO_URL ||
+    "https://jarhfsdjtosjpktypwcn.supabase.co/storage/v1/object/public/avatars/brand/sphot-logo.png",
 
   /**
    * Brand colors. Keep in sync with the CSS variables in globals.css.

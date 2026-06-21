@@ -15,7 +15,6 @@ export function brandedEmail(opts: {
   preheader?: string;
 }): string {
   const { bodyHtml, preheader = "" } = opts;
-  const accent = BRAND.colors.accent; // #fffa6c
   const year = "2026";
 
   return `<!doctype html>
@@ -33,11 +32,11 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;"
     <td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
 
-        <!-- Header brand bar -->
+        <!-- Header brand bar (compact) -->
         <tr>
-          <td align="center" style="background:#000000;padding:28px 24px;">
-            <img src="${BRAND.emailLogoUrl}" alt="${BRAND.name}" width="120" height="120"
-                 style="display:block;width:120px;height:120px;border-radius:16px;object-fit:contain;" />
+          <td align="center" style="background:#000000;padding:18px 24px;">
+            <img src="${BRAND.emailLogoUrl}" alt="${BRAND.name}" width="56" height="56"
+                 style="display:block;width:56px;height:56px;border-radius:12px;object-fit:contain;" />
           </td>
         </tr>
 
@@ -48,16 +47,23 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;"
           </td>
         </tr>
 
-        <!-- Footer -->
+        <!-- Footer: social icons + HQ (no duplicate wordmark) -->
         <tr>
-          <td align="center" style="background:#000000;padding:28px 24px;text-align:center;">
-            <p style="margin:0 0 10px;color:#ffffff;font-size:14px;font-weight:800;letter-spacing:2px;">
-              ${BRAND.name}<span style="color:${accent};">.</span>
-            </p>
-            <p style="margin:0 0 14px;">
-              <a href="${BRAND.socials.instagram}" style="color:#a1a1aa;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">Instagram @booksphot</a>
-              <a href="${BRAND.socials.tiktok}" style="color:#a1a1aa;text-decoration:none;font-size:12px;font-weight:600;margin:0 8px;">TikTok @booksphot</a>
-            </p>
+          <td align="center" style="background:#000000;padding:24px;text-align:center;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 14px;">
+              <tr>
+                <td style="padding:0 8px;">
+                  <a href="${BRAND.socials.instagram}" style="text-decoration:none;">
+                    <img src="${BRAND.emailIcons.instagram}" alt="Instagram" width="22" height="22" style="display:block;width:22px;height:22px;" />
+                  </a>
+                </td>
+                <td style="padding:0 8px;">
+                  <a href="${BRAND.socials.tiktok}" style="text-decoration:none;">
+                    <img src="${BRAND.emailIcons.tiktok}" alt="TikTok" width="22" height="22" style="display:block;width:22px;height:22px;" />
+                  </a>
+                </td>
+              </tr>
+            </table>
             <p style="margin:0;color:#71717a;font-size:11px;line-height:1.6;">
               ${BRAND.hq}<br/>
               &copy; ${year} ${BRAND.name}. All rights reserved.
