@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { brandedEmail } from "@/lib/emailLayout";
 
 /** OTP settings. */
 export const OTP_TTL_MINUTES = 15;
@@ -44,13 +45,20 @@ export async function sendOtpEmail(
   }
 
   const subject = "Your SPHOT verification code";
-  const html = `
-    <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
-      <h2 style="margin:0 0 8px">Verify your email</h2>
-      <p style="color:#555;margin:0 0 16px">Enter this code to continue your SPHOT booking. It expires in ${OTP_TTL_MINUTES} minutes.</p>
-      <div style="font-size:32px;font-weight:800;letter-spacing:8px;background:#f4f4f5;border-radius:12px;padding:16px;text-align:center">${code}</div>
-      <p style="color:#999;font-size:12px;margin:16px 0 0">If you didn't request this, you can ignore this email.</p>
-    </div>`;
+  const html = brandedEmail({
+    preheader: `Your verification code is ${code}`,
+    bodyHtml: `
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#111111;">Verify your email</h1>
+      <p style="margin:0 auto 24px;max-width:340px;color:#555555;font-size:14px;line-height:1.6;">
+        Enter this code to continue your SPHOT booking. It expires in ${OTP_TTL_MINUTES} minutes.
+      </p>
+      <div style="display:inline-block;font-size:34px;font-weight:800;letter-spacing:10px;color:#111111;background:#f4f4f5;border-radius:14px;padding:18px 28px;">
+        ${code}
+      </div>
+      <p style="margin:24px auto 0;max-width:340px;color:#999999;font-size:12px;line-height:1.6;">
+        If you didn&rsquo;t request this, you can safely ignore this email.
+      </p>`,
+  });
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import { brandedEmail } from "@/lib/emailLayout";
 
 /**
  * Admin action: issue a profile-claim invite for a seed photographer.
@@ -83,13 +84,21 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         from,
         to: [email],
-        subject: "Claim your SPHOT photographer profile",
-        html: `<div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2>Claim your SPHOT profile${ph.public_code ? ` (${ph.public_code})` : ""}</h2>
-          <p style="color:#555">You've been invited to manage your photographer profile on SPHOT. Set your password to take ownership — your portfolio and bookings are already set up.</p>
-          <p><a href="${claimUrl}" style="display:inline-block;background:#000;color:#fffa6c;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:800">Claim my profile</a></p>
-          <p style="color:#999;font-size:12px">This link expires in ${CLAIM_TTL_DAYS} days.</p>
-        </div>`,
+        subject: "Claim your SPHOT Sphoter profile",
+        html: brandedEmail({
+          preheader: "You've been invited to manage your SPHOT profile.",
+          bodyHtml: `
+            <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#111111;">Claim your profile${ph.public_code ? ` <span style="color:#999;font-weight:600;">(${ph.public_code})</span>` : ""}</h1>
+            <p style="margin:0 auto 24px;max-width:360px;color:#555555;font-size:14px;line-height:1.6;">
+              You&rsquo;ve been invited to manage your Sphoter profile on SPHOT. Set your password to take ownership. Your portfolio and bookings are already set up.
+            </p>
+            <a href="${claimUrl}" style="display:inline-block;background:#000000;color:#fffa6c;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">
+              Claim my profile
+            </a>
+            <p style="margin:24px auto 0;max-width:360px;color:#999999;font-size:12px;line-height:1.6;">
+              This link expires in ${CLAIM_TTL_DAYS} days. If you weren&rsquo;t expecting this, you can ignore this email.
+            </p>`,
+        }),
         text: `Claim your SPHOT profile: ${claimUrl} (expires in ${CLAIM_TTL_DAYS} days)`,
       }),
     }).catch((e) => console.error("[claim-invite] resend:", e));

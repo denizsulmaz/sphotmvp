@@ -29,8 +29,16 @@ export const BRAND = {
   /** Social links (empty string hides the link where rendered). */
   socials: {
     instagram: "https://instagram.com/booksphot",
+    tiktok: "https://tiktok.com/@booksphot",
     // add more as needed: x, youtube, threads, ...
   },
+
+  /** Headquarters (shown in email footer). */
+  hq: "Seoul, South Korea",
+
+  /** Absolute URL to the logo used in transactional emails (must be public). */
+  emailLogoUrl:
+    (process.env.NEXT_PUBLIC_SITE_URL || "https://booksphot.com") + "/media/sphot-logo.png",
 
   /**
    * Brand colors. Keep in sync with the CSS variables in globals.css.
