@@ -48,7 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       if (error) {
-        console.error("Error fetching user profile:", error.message);
         setProfile(null);
         setRole(null);
       } else if (data) {
@@ -57,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRole(profileData.role);
       }
     } catch (err) {
-      console.error("Failed to load profile:", err);
+      // silent — profile unavailable is not fatal
     }
   }, []);
 
