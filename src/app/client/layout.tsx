@@ -15,7 +15,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     if (!loading) {
       if (!user) {
         router.push("/auth");
-      } else if (role !== "client") {
+      } else if (role !== null && role !== "client") {
         router.push("/");
       }
     }
@@ -29,7 +29,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  if (!user || role !== "client") {
+  if (!user || (role !== null && role !== "client")) {
     return null;
   }
 

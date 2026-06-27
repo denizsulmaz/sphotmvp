@@ -25,7 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (isLoginPage) return;
     if (!loading) {
-      if (!user || role !== "admin") {
+      if (!user || (role !== null && role !== "admin")) {
         router.replace("/admin/login");
       }
     }
@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user || role !== "admin") return null;
+  if (!user || (role !== null && role !== "admin")) return null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 w-full">

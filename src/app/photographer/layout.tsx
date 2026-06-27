@@ -15,7 +15,7 @@ export default function PhotographerLayout({ children }: { children: React.React
     if (!loading) {
       if (!user) {
         router.push("/auth/photographer");
-      } else if (role !== "photographer") {
+      } else if (role !== null && role !== "photographer") {
         router.push("/");
       }
     }
@@ -29,7 +29,7 @@ export default function PhotographerLayout({ children }: { children: React.React
     );
   }
 
-  if (!user || role !== "photographer") {
+  if (!user || (role !== null && role !== "photographer")) {
     return null;
   }
 
