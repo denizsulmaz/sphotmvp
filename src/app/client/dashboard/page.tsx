@@ -128,7 +128,18 @@ export default function ClientDashboard() {
 
   return (
     <div className="space-y-6">
-      
+
+      {/* Account info */}
+      <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-5 rounded-3xl shadow-sm flex items-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xl font-black text-gray-500 dark:text-zinc-400 shrink-0">
+          {(profile?.full_name || user?.email || "?")[0].toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <p className="font-black text-foreground dark:text-white truncate">{profile?.full_name || "—"}</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400 truncate">{user?.email}</p>
+        </div>
+      </div>
+
       {/* Header bar */}
       <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex items-center justify-between">
         <div>

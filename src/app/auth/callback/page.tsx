@@ -14,39 +14,36 @@ function CallbackHandler() {
       return;
     }
 
+    const code = searchParams.get("code");
     const next = searchParams.get("next");
 
-    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
-        subscription.unsubscribe();
+    if (!code) {
+      router.replace("/auth?error=oauth_callback_failed");
+      return;
+    }
 
-        if (next) {
-          router.replace(next);
-          return;
-        }
-
-        const { data: profile } = await supabase!
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
-
-        const role = profile?.role;
-        if (role === "admin") router.replace("/admin/dashboard");
-        else if (role === "photographer") router.replace("/photographer/dashboard");
-        else router.replace("/client/dashboard");
+    supabase.auth.exchangeCodeForSession(code).then(async ({ data, error }) => {
+      if (error || !data.session?.user) {
+        router.replace("/auth?error=oauth_callback_failed");
+        return;
       }
-    });
 
-    // Fallback if already signed in
-    supabase!.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        subscription.unsubscribe();
-        router.replace(next ?? "/client/dashboard");
+      if (next) {
+        router.replace(next);
+        return;
       }
-    });
 
-    return () => subscription.unsubscribe();
+      const { data: profile } = await supabase!
+        .from("profiles")
+        .select("role")
+        .eq("id", data.session.user.id)
+        .single();
+
+      const role = profile?.role;
+      if (role === "admin") router.replace("/admin/dashboard");
+      else if (role === "photographer") router.replace("/photographer/dashboard");
+      else router.replace("/client/dashboard");
+    });
   }, [router, searchParams]);
 
   return (
