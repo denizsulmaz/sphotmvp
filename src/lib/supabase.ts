@@ -9,7 +9,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
  * Returns null if environment variables are not configured (CI/build).
  */
 export const supabase: SupabaseClient | null = supabaseUrl
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { flowType: "pkce" },
+    })
   : null;
 
 /**
