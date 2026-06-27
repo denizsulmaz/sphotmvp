@@ -36,9 +36,10 @@ export default function HeaderNav() {
             <div id="nav-filter-slot" />
           </div>
 
-          {!loading && (
-            <div className="border-l border-gray-200 dark:border-zinc-800 pl-3 flex items-center">
-              {user ? (
+          <div className="border-l border-gray-200 dark:border-zinc-800 pl-3 flex items-center">
+            {loading ? (
+              <span className="w-5 h-5 border-2 border-gray-300 dark:border-zinc-600 border-t-transparent rounded-full animate-spin" />
+            ) : user ? (
                 <div className="flex items-center gap-3">
                   <Link
                     href={getDashboardLink()}
@@ -67,8 +68,7 @@ export default function HeaderNav() {
                   <span>{t ? t("signIn") || "Sign In" : "Sign In"}</span>
                 </Link>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </header>
