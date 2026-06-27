@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Guard against a hung/slow profile query so auth never blocks the UI.
       const query = supabase.from("profiles").select("*").eq("id", userId).single();
       const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
-        setTimeout(() => resolve({ data: null, error: { message: "profile fetch timeout" } }), 4000)
+        setTimeout(() => resolve({ data: null, error: { message: "profile fetch timeout" } }), 1500)
       );
       const { data, error } = (await Promise.race([query, timeout])) as {
         data: Profile | null;
@@ -66,27 +66,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Timeout sentinel: if Supabase hangs (e.g. invalid key format or slow network),
-    // force loading=false after 3s so the Sign In button always appears.
-    const timeoutPromise = new Promise<{ data: { session: Session | null } }>((resolve) =>
-      setTimeout(() => resolve({ data: { session: null } }), 3000)
-    );
-
-    // 1. Check active session immediately (race against timeout)
-    Promise.race([supabase.auth.getSession(), timeoutPromise])
+    // 1. Check active session immediately — set loading=false as soon as we know
+    // whether a session exists; profile fetch runs in the background.
+    supabase.auth.getSession()
       .then(({ data }: { data: { session: Session | null } }) => {
         const session = data?.session;
         if (session?.user) {
           setUser(session.user);
-          fetchProfile(session.user.id).then(() => setLoading(false));
+          setLoading(false);
+          fetchProfile(session.user.id);
         } else {
           setUser(null);
           setProfile(null);
           setRole(null);
           setLoading(false);
         }
-      }).catch(err => {
-        console.error("AuthContext: getSession failed:", err);
+      }).catch(() => {
         setUser(null);
         setProfile(null);
         setRole(null);
@@ -96,16 +91,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, session: Session | null) => {
-        setLoading(true);
         if (session?.user) {
           setUser(session.user);
-          await fetchProfile(session.user.id);
+          fetchProfile(session.user.id);
         } else {
           setUser(null);
           setProfile(null);
           setRole(null);
         }
-        setLoading(false);
       }
     );
 
