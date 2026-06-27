@@ -465,10 +465,11 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     if (!supabase) return;
     setError(null);
     try {
+      const next = window.location.pathname + window.location.search;
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.href,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
       if (oauthError) throw oauthError;
