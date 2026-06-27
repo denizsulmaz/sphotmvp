@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function AuthCallbackPage() {
+function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -16,8 +16,7 @@ export default function AuthCallbackPage() {
 
     const next = searchParams.get("next");
 
-    // supabase-js automatically exchanges the code from the URL on the client
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase!.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
         subscription.unsubscribe();
 
@@ -26,8 +25,7 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // Route by role
-        const { data: profile } = await supabase
+        const { data: profile } = await supabase!
           .from("profiles")
           .select("role")
           .eq("id", session.user.id)
@@ -41,14 +39,10 @@ export default function AuthCallbackPage() {
     });
 
     // Fallback if already signed in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase!.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         subscription.unsubscribe();
-        if (next) {
-          router.replace(next);
-        } else {
-          router.replace("/client/dashboard");
-        }
+        router.replace(next ?? "/client/dashboard");
       }
     });
 
@@ -59,5 +53,17 @@ export default function AuthCallbackPage() {
     <div className="min-h-screen flex items-center justify-center">
       <span className="w-8 h-8 border-2 border-gray-300 dark:border-zinc-600 border-t-black dark:border-t-white rounded-full animate-spin" />
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="w-8 h-8 border-2 border-gray-300 dark:border-zinc-600 border-t-black dark:border-t-white rounded-full animate-spin" />
+      </div>
+    }>
+      <CallbackHandler />
+    </Suspense>
   );
 }
