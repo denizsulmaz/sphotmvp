@@ -14,36 +14,41 @@ function CallbackHandler() {
       return;
     }
 
-    const code = searchParams.get("code");
     const next = searchParams.get("next");
 
-    if (!code) {
-      router.replace("/auth?error=oauth_callback_failed");
-      return;
-    }
+    // supabase-js automatically exchanges the PKCE code on page load.
+    // Poll getSession until the session is ready (usually <500ms).
+    let attempts = 0;
+    const poll = async () => {
+      const { data: { session } } = await supabase!.auth.getSession();
 
-    supabase.auth.exchangeCodeForSession(code).then(async ({ data, error }) => {
-      if (error || !data.session?.user) {
+      if (session?.user) {
+        if (next) {
+          router.replace(next);
+          return;
+        }
+        const { data: profile } = await supabase!
+          .from("profiles")
+          .select("role")
+          .eq("id", session.user.id)
+          .single();
+
+        const role = profile?.role;
+        if (role === "admin") router.replace("/admin/dashboard");
+        else if (role === "photographer") router.replace("/photographer/dashboard");
+        else router.replace("/client/dashboard");
+        return;
+      }
+
+      attempts++;
+      if (attempts < 20) {
+        setTimeout(poll, 200);
+      } else {
         router.replace("/auth?error=oauth_callback_failed");
-        return;
       }
+    };
 
-      if (next) {
-        router.replace(next);
-        return;
-      }
-
-      const { data: profile } = await supabase!
-        .from("profiles")
-        .select("role")
-        .eq("id", data.session.user.id)
-        .single();
-
-      const role = profile?.role;
-      if (role === "admin") router.replace("/admin/dashboard");
-      else if (role === "photographer") router.replace("/photographer/dashboard");
-      else router.replace("/client/dashboard");
-    });
+    poll();
   }, [router, searchParams]);
 
   return (
