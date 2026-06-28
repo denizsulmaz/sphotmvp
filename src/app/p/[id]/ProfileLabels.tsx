@@ -13,7 +13,6 @@ interface Props {
   profilePic: string;
   minPrice: string;
   isStudio: boolean;
-  recommended?: boolean;
   categories: string;
   styles: string;
   locationTypes: string;
@@ -31,7 +30,6 @@ export default function ProfileLabels({
   profilePic,
   minPrice,
   isStudio,
-  recommended,
   categories,
   styles,
   locationTypes,
@@ -103,11 +101,6 @@ export default function ProfileLabels({
             {isStudio && (
               <span className="inline-block px-2 py-0.5 bg-black dark:bg-white text-white dark:text-black rounded text-[10px] font-bold uppercase tracking-widest">
                 {t("studio")}
-              </span>
-            )}
-            {recommended && (
-              <span className="inline-block px-2 py-0.5 bg-accent text-black rounded text-[10px] font-black uppercase tracking-widest">
-                ★ Recommended
               </span>
             )}
             <ViewCounter photographerId={id} increment={true} showText={true} />

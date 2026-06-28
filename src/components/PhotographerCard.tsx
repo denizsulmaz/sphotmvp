@@ -117,11 +117,6 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
 
         {/* Name & Price */}
         <div className="mt-1 pr-16">
-          {photographer.recommended && (
-            <span className="inline-block mb-1 px-2 py-0.5 bg-accent text-black text-[9px] font-black uppercase tracking-widest rounded-md">
-              ★ Recommended
-            </span>
-          )}
           <h2 className="text-xl font-bold text-foreground dark:text-white">
             {photographer.Name}
           </h2>
