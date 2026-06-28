@@ -32,7 +32,7 @@ export default function AdminSphoters() {
         .from("photographer_profiles")
         .select("id, is_approved, base_price, categories, instagram, public_code, created_at, profiles:id(full_name, avatar_url)")
         .order("created_at", { ascending: false });
-      setSphoters((data || []) as SphoterRow[]);
+      setSphoters((data || []) as unknown as SphoterRow[]);
     } catch (err) {
       console.error("admin sphoters load:", err);
     } finally {
