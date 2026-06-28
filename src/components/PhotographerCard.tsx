@@ -98,7 +98,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
       <div className="p-4 flex flex-col gap-3 relative">
         {/* Circular profile pic overlapping images */}
         <div className="absolute -top-10 right-4 z-10">
-          <div className="relative rounded-full border-4 border-white dark:border-zinc-900 overflow-hidden w-16 h-16 bg-gray-100 dark:bg-zinc-800 shadow-sm">
+          <div className={`relative rounded-full overflow-hidden w-16 h-16 bg-gray-100 dark:bg-zinc-800 shadow-sm ${photographer.recommended ? "border-4 border-accent" : "border-4 border-white dark:border-zinc-900"}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={profilePic}
@@ -109,8 +109,8 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
             />
           </div>
           {photographer.recommended && (
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-zinc-900">
-              <span className="text-black text-[11px] leading-none">★</span>
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
+              <span className="text-black text-[10px] leading-none">★</span>
             </div>
           )}
         </div>
