@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, RefreshCw } from "lucide-react";
@@ -24,11 +25,28 @@ interface DBBooking {
 
 export default function PhotographerDashboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [bookings, setBookings] = useState<DBBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
+
+  // Redirect to onboarding if profile not set up yet
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (!user || !supabase) return;
+      const { data } = await supabase
+        .from("photographer_profiles")
+        .select("categories")
+        .eq("id", user.id)
+        .single();
+      if (!data?.categories?.length) {
+        router.replace("/photographer/onboarding");
+      }
+    };
+    checkOnboarding();
+  }, [user, router]);
 
   const fetchBookings = useCallback(async () => {
     if (!user || !supabase) return;

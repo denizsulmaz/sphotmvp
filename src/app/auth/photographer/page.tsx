@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/context/LanguageContext";
 import { CATEGORIES } from "@/lib/types";
-import { Lock, Mail, User, AlertCircle, Eye, EyeOff, MapPin, DollarSign, ExternalLink, Instagram, Shield, Award } from "lucide-react";
+import { Lock, Mail, User, AlertCircle, Eye, EyeOff, MapPin, DollarSign, ExternalLink, Instagram, Shield, Award, Camera } from "lucide-react";
 import Link from "next/link";
 
 export default function PhotographerAuthPage() {
@@ -28,11 +28,21 @@ export default function PhotographerAuthPage() {
   const [equipment, setEquipment] = useState("");
   const [bio, setBio] = useState("");
 
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
 
   const availableLocations = ["Seoul", "Bangkok", "Tokyo", "Moscow"];
   const availableLanguages = ["English", "Korean", "Chinese", "Japanese", "Russian", "Spanish"];
@@ -97,10 +107,23 @@ export default function PhotographerAuthPage() {
         if (signUpError) {
           setError(signUpError.message);
         } else if (data.user) {
-          // Attempt client-side insert/update of photographer details
-          // Since trigger handle_new_user creates the photographer_profile row, we update it
+          // Upload avatar if provided
+          let avatarUrl: string | null = null;
+          if (avatarFile && supabase) {
+            const ext = avatarFile.name.split(".").pop();
+            const filePath = `${data.user.id}/avatar.${ext}`;
+            const { error: uploadErr } = await supabase.storage
+              .from("avatars")
+              .upload(filePath, avatarFile, { upsert: true });
+            if (!uploadErr) {
+              const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
+              avatarUrl = publicUrl;
+              await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", data.user.id);
+            }
+          }
+
           const parsedInstagramHandle = socialLink.split("instagram.com/").pop()?.replace(/\/$/, "") || socialLink;
-          
+
           const { error: profileError } = await supabase
             .from("photographer_profiles")
             .update({
@@ -108,12 +131,12 @@ export default function PhotographerAuthPage() {
               base_price: Number(basePrice) || 0,
               locations: [location],
               categories: selectedCats,
-              portfolio_urls: [portfolioLink], // We store the external portfolio URL as the first item
+              portfolio_urls: [portfolioLink],
               instagram: parsedInstagramHandle.startsWith("@") ? parsedInstagramHandle : `@${parsedInstagramHandle}`,
               instagram_url: socialLink,
               languages: selectedLangs,
               english_level: selectedLangs.includes("English") ? "Fluent" : "Basic",
-              is_approved: false // Must be verified by admin
+              is_approved: false
             })
             .eq("id", data.user.id);
 
@@ -254,6 +277,26 @@ export default function PhotographerAuthPage() {
               {/* SECTION 1: Credentials */}
               <div className="border-b border-gray-100 dark:border-zinc-800 pb-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-3">1. Account Details</h3>
+
+                {/* Profile picture */}
+                <div className="flex items-center gap-4 mb-4">
+                  <label className="relative cursor-pointer group">
+                    <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 border-2 border-dashed border-gray-300 dark:border-zinc-700 flex items-center justify-center transition-all group-hover:border-accent">
+                      {avatarPreview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <Camera size={22} className="text-gray-400 dark:text-zinc-500 group-hover:text-accent transition-colors" />
+                      )}
+                    </div>
+                    <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  </label>
+                  <div>
+                    <p className="text-xs font-black text-foreground dark:text-white">Profile Picture</p>
+                    <p className="text-[11px] text-gray-400 dark:text-zinc-500 mt-0.5">Click to upload — shown on your public profile</p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="relative">
                     <User size={18} className="absolute left-4 top-3.5 text-gray-400 dark:text-zinc-500" />

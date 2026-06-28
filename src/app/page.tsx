@@ -8,7 +8,7 @@ import CategoryScroll from "@/components/CategoryScroll";
 import HomeBanner from "@/components/HomeBanner";
 import photographersData from "@/data/photographers.json";
 import { Photographer, CATEGORIES } from "@/lib/types";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Search } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase, isSupabaseReady } from "@/lib/supabase";
 
@@ -45,6 +45,7 @@ export default function Home() {
   });
 
   const [photographers, setPhotographers] = useState<Photographer[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -143,6 +144,7 @@ export default function Home() {
   // filteredPhotographers: always respects BOTH active category AND all drawer filters
   const filteredPhotographers = useMemo(() => {
     return photographers.filter((p) => {
+      if (searchQuery && !p.Name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (selectedCategory && !p["Global Categories"]?.includes(selectedCategory)) return false;
       if (filters.style && !p.Style?.includes(filters.style)) return false;
       if (filters.location && !p["Location Types"]?.includes(filters.location)) return false;
@@ -151,12 +153,12 @@ export default function Home() {
       if (filters.responseSpeed && p["Response Speed"] !== filters.responseSpeed) return false;
       return true;
     });
-  }, [photographers, selectedCategory, filters]);
+  }, [photographers, selectedCategory, filters, searchQuery]);
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   // Grouped view only when NO category selected AND NO filters active
-  const showGroupedView = !selectedCategory && activeFilterCount === 0;
+  const showGroupedView = !selectedCategory && activeFilterCount === 0 && !searchQuery;
 
   const groupedPhotographers = useMemo(() => {
     const groups: Record<string, Photographer[]> = {};
@@ -208,8 +210,18 @@ export default function Home() {
 
       <HomeBanner />
 
-      <div className="px-4 md:px-8 mt-6 md:mt-10 mb-2">
-        <h2 className="text-3xl font-extrabold tracking-tight dark:text-white">{t("exploreHeading")}</h2>
+      <div className="px-4 md:px-8 mt-6 md:mt-10 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <h2 className="text-3xl font-extrabold tracking-tight dark:text-white shrink-0">{t("exploreHeading")}</h2>
+        <div className="relative w-full sm:max-w-xs">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search photographer..."
+            className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-full py-2 pl-9 pr-4 text-sm outline-none focus:border-gray-400 dark:focus:border-zinc-600 transition-all text-foreground dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-500"
+          />
+        </div>
       </div>
 
       {/* Category Scroll */}
