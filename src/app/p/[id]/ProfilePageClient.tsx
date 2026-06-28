@@ -149,6 +149,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
               profilePic={profilePic}
               minPrice={photographer["Min Price KRW(per hour & starting from)"]}
               isStudio={!!photographer.IsStudio}
+              recommended={!!photographer.recommended}
               categories={photographer["Global Categories"] ?? ""}
               styles={photographer.Style ?? ""}
               locationTypes={photographer["Location Types"] ?? ""}
