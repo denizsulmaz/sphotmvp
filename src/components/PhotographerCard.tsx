@@ -54,12 +54,6 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
         <ViewCounter photographerId={photographer.ID} />
       </div>
 
-      {/* Recommended Badge */}
-      {photographer.recommended && (
-        <div className="absolute top-3 right-3 z-10 px-2 py-1 bg-accent text-black text-[9px] font-black uppercase tracking-widest rounded-md shadow-sm">
-          ★ Recommended
-        </div>
-      )}
 
       {/* 3-image grid — all images absolutely positioned to fill containers */}
       <div className="grid grid-cols-2 gap-1 h-60 w-full overflow-hidden">
@@ -116,6 +110,11 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
 
         {/* Name & Price */}
         <div className="mt-1 pr-16">
+          {photographer.recommended && (
+            <span className="inline-block mb-1 px-2 py-0.5 bg-accent text-black text-[9px] font-black uppercase tracking-widest rounded-md">
+              ★ Recommended
+            </span>
+          )}
           <h2 className="text-xl font-bold text-foreground dark:text-white">
             {photographer.Name}
           </h2>
