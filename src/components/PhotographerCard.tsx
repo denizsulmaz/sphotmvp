@@ -97,15 +97,22 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
       {/* Card body */}
       <div className="p-4 flex flex-col gap-3 relative">
         {/* Circular profile pic overlapping images */}
-        <div className="absolute -top-10 right-4 rounded-full border-4 border-white dark:border-zinc-900 overflow-hidden w-16 h-16 bg-gray-100 dark:bg-zinc-800 shadow-sm z-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={profilePic}
-            alt={photographer.Name}
-            className="absolute inset-0 w-full h-full object-cover object-center"
-            loading={priority ? "eager" : "lazy"}
-            onError={handleImgError}
-          />
+        <div className="absolute -top-10 right-4 z-10">
+          <div className="relative rounded-full border-4 border-white dark:border-zinc-900 overflow-hidden w-16 h-16 bg-gray-100 dark:bg-zinc-800 shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={profilePic}
+              alt={photographer.Name}
+              className="absolute inset-0 w-full h-full object-cover object-center"
+              loading={priority ? "eager" : "lazy"}
+              onError={handleImgError}
+            />
+          </div>
+          {photographer.recommended && (
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-zinc-900">
+              <span className="text-black text-[11px] leading-none">★</span>
+            </div>
+          )}
         </div>
 
         {/* Name & Price */}
