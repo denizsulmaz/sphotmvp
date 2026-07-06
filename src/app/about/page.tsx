@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Linkedin } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+
+const IRINA_LINKEDIN = "https://www.linkedin.com/in/irina-chus";
+const DENIZ_LINKEDIN = "https://www.linkedin.com/in/denizsulmaz";
 
 export default function AboutPage() {
   const { t } = useLanguage();
@@ -28,13 +31,22 @@ export default function AboutPage() {
             {/* Member 1: Irina Chus */}
             <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
               <div className="w-full md:w-5/12 flex-shrink-0">
-                <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10">
+                <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10 group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/irina.png`}
                     alt="Irina Chus - Founder of SPHOT"
                     className="absolute inset-0 w-full h-full object-cover object-center"
                   />
+                  <a
+                    href={IRINA_LINKEDIN}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/90 backdrop-blur-sm p-2 rounded-full border border-white/15 text-white/80 hover:text-white transition-all z-10 shadow-lg"
+                    title="Connect on LinkedIn"
+                  >
+                    <Linkedin size={18} />
+                  </a>
                 </div>
               </div>
               <div className="w-full md:w-7/12 flex flex-col justify-center">
@@ -53,13 +65,22 @@ export default function AboutPage() {
             {/* Member 2: Deniz Sulmaz */}
             <div className="flex flex-col md:flex-row-reverse items-center gap-8 md:gap-16">
               <div className="w-full md:w-5/12 flex-shrink-0">
-                <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10">
+                <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10 group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/DenizSphot.png`}
                     alt="Deniz Sulmaz - SPHOT"
                     className="absolute inset-0 w-full h-full object-cover object-center"
                   />
+                  <a
+                    href={DENIZ_LINKEDIN}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/90 backdrop-blur-sm p-2 rounded-full border border-white/15 text-white/80 hover:text-white transition-all z-10 shadow-lg"
+                    title="Connect on LinkedIn"
+                  >
+                    <Linkedin size={18} />
+                  </a>
                 </div>
               </div>
               <div className="w-full md:w-7/12 flex flex-col justify-center">
@@ -70,7 +91,7 @@ export default function AboutPage() {
                   {"Hi, it's Deniz! I've always had a deep love for creativity and technology. I believe that photography is the perfect intersection where artistic expression meets technical precision."}
                 </p>
                 <p className="text-gray-300 leading-relaxed text-lg">
-                  {"Building SPHOT allowed me to connect passionate visual creators with people who want to preserve their most meaningful moments. Together with Irina, we combine our design and technical expertise to build a reliable, beautiful platform, driven by our shared passion for photography and connecting people."}
+                  {"Building SPHOT allowed us to connect passionate visual creators with people who want to preserve their most meaningful moments. Together, we combine our design and technical expertise to build a reliable, beautiful platform, driven by our shared passion for photography and connecting people."}
                 </p>
               </div>
             </div>
