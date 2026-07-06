@@ -203,7 +203,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
         // 1. Resolve photographer — the slug may be a public_code (S01023) or a UUID.
         const isUuidParam = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-        const sel = `id, public_code, timezone, profiles:id ( full_name, avatar_url )`;
+        const sel = `id, public_code, timezone, is_approved, profiles:id ( full_name, avatar_url )`;
         let dbPhoto: any = null;
         const byCode = await supabase
           .from("photographer_profiles")
@@ -221,6 +221,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         let photographerUuid = id;
         if (dbPhoto) {
           const photoData = dbPhoto as any;
+          if (!photoData.is_approved) {
+            throw new Error("This photographer profile is not active.");
+          }
           photographerUuid = photoData.id;
           const profileInfo = Array.isArray(photoData.profiles) ? photoData.profiles[0] : photoData.profiles;
           const code = photoData.public_code || id;

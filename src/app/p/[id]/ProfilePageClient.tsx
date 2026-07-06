@@ -88,7 +88,7 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
           }
         }
 
-        if (!matchedPhoto) {
+        if (!matchedPhoto || matchedPhoto.hidden) {
           setPhotographer(null);
           setLoading(false);
           return;
