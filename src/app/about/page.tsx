@@ -18,29 +18,59 @@ export default function AboutPage() {
           </Link>
 
           <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
-            {t("aboutTitle").split("SPHOT")[0]}
-            <span className="text-foreground dark:text-accent">SPHOT</span>
-            {t("aboutTitle").split("SPHOT")[1]}
+            Meet the Team
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl mb-16">{t("aboutSubtitle")}</p>
+          <p className="text-gray-400 text-lg md:text-xl mb-16">The story behind your favourite photographer discovery platform.</p>
 
-          {/* Founder Story */}
-          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
-            <div className="w-full md:w-5/12 flex-shrink-0">
-              <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/irina.png`}
-                  alt="Irina - Founder of SPHOT"
-                  className="absolute inset-0 w-full h-full object-cover object-center"
-                />
+          {/* Team Members List */}
+          <div className="space-y-16 md:space-y-24">
+            
+            {/* Member 1: Irina Chus */}
+            <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16">
+              <div className="w-full md:w-5/12 flex-shrink-0">
+                <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/irina.png`}
+                    alt="Irina Chus - Founder of SPHOT"
+                    className="absolute inset-0 w-full h-full object-cover object-center"
+                  />
+                </div>
+              </div>
+              <div className="w-full md:w-7/12 flex flex-col justify-center">
+                <h2 className="text-3xl font-bold mb-5 text-white">Irina Chus, Founder</h2>
+                <p className="text-gray-300 leading-relaxed text-lg mb-4">
+                  {"Hi, I'm Irina! When I moved to Seoul, I realized how incredibly hard it was to find the right photographer, whether for a personal portrait, a love story, or a professional branding shoot. Endlessly scrolling through social media, translating messages, and comparing prices felt overwhelming."}
+                </p>
+                <p className="text-gray-300 leading-relaxed text-lg">
+                  {"I created SPHOT to solve this exact problem: an easy, transparent way to connect people who want beautiful photos with the talented, vetted photographers who capture them brilliantly."}
+                </p>
               </div>
             </div>
-            <div className="w-full md:w-7/12 flex flex-col justify-center">
-              <h2 className="text-3xl font-bold mb-5 text-white">{t("meetFounder")}</h2>
-              <p className="text-gray-300 leading-relaxed text-lg mb-4">{t("founderStory1")}</p>
-              <p className="text-gray-300 leading-relaxed text-lg">{t("founderStory2")}</p>
+
+            {/* Member 2: Deniz Sulmaz */}
+            <div className="flex flex-col md:flex-row-reverse items-center gap-8 md:gap-16">
+              <div className="w-full md:w-5/12 flex-shrink-0">
+                <div className="relative aspect-square md:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-gray-900 border border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/DenizSphot.png`}
+                    alt="Deniz Sulmaz - SPHOT"
+                    className="absolute inset-0 w-full h-full object-cover object-center"
+                  />
+                </div>
+              </div>
+              <div className="w-full md:w-7/12 flex flex-col justify-center">
+                <h2 className="text-3xl font-bold mb-5 text-white">Deniz Sulmaz</h2>
+                <p className="text-gray-300 leading-relaxed text-lg mb-4">
+                  {"Hi, I'm Deniz! I've always had a deep love for creativity, science, and technology. I believe that photography is the perfect intersection where artistic expression meets technical precision."}
+                </p>
+                <p className="text-gray-300 leading-relaxed text-lg">
+                  {"Building SPHOT allowed me to leverage modern technology to connect passionate visual creators with people who want to preserve their most meaningful moments. When I'm not coding or designing systems, I'm exploring new technological frontiers and finding ways to bring ideas to life."}
+                </p>
+              </div>
             </div>
+
           </div>
         </div>
       </div>
