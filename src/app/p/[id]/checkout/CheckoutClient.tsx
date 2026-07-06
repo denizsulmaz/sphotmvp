@@ -28,6 +28,7 @@ interface PhotographerProfile {
   id: string;
   name: string;
   avatar_url: string;
+  timezone?: string;
 }
 
 interface SlotDetails {
@@ -40,13 +41,34 @@ interface CheckoutClientProps {
   id: string;
 }
 
-const formatTimeRange = (start: Date, end: Date) => {
-  const startStr = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const endStr = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  return `${startStr} - ${endStr}`;
+const formatInTz = (isoString: string, formatOptions: Intl.DateTimeFormatOptions, tz?: string) => {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      ...formatOptions,
+      timeZone: tz || "Asia/Seoul"
+    }).format(new Date(isoString));
+  } catch (e) {
+    console.error("Timezone formatting error, falling back to local:", e);
+    return new Intl.DateTimeFormat("en-US", formatOptions).format(new Date(isoString));
+  }
 };
 
-const formatSelectedSlotsTime = (slotsList: SlotDetails[]) => {
+const getTzDateString = (date: Date, tz?: string) => {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    timeZone: tz || "Asia/Seoul"
+  }).format(date);
+};
+
+const formatTimeRange = (startStr: string, endStr: string, tz?: string) => {
+  const sStr = formatInTz(startStr, { hour: "2-digit", minute: "2-digit", hour12: false }, tz);
+  const eStr = formatInTz(endStr, { hour: "2-digit", minute: "2-digit", hour12: false }, tz);
+  return `${sStr} - ${eStr}`;
+};
+
+const formatSelectedSlotsTime = (slotsList: SlotDetails[], tz?: string) => {
   if (slotsList.length === 0) return "";
   
   // Sort slots by start time
@@ -56,24 +78,25 @@ const formatSelectedSlotsTime = (slotsList: SlotDetails[]) => {
   
   // Find contiguous blocks
   const blocks: string[] = [];
-  let blockStart = new Date(sorted[0].start_time);
-  let blockEnd = new Date(sorted[0].end_time);
+  let blockStart = sorted[0].start_time;
+  let blockEnd = sorted[0].end_time;
   
   for (let i = 1; i < sorted.length; i++) {
-    const nextStart = new Date(sorted[i].start_time);
-    const nextEnd = new Date(sorted[i].end_time);
+    const nextStart = sorted[i].start_time;
+    const nextEnd = sorted[i].end_time;
     
     // Check if contiguous (allow up to 1 minute gap)
-    if (Math.abs(nextStart.getTime() - blockEnd.getTime()) <= 60000) {
+    const diff = Math.abs(new Date(nextStart).getTime() - new Date(blockEnd).getTime());
+    if (diff <= 60000) {
       blockEnd = nextEnd;
     } else {
-      blocks.push(formatTimeRange(blockStart, blockEnd));
+      blocks.push(formatTimeRange(blockStart, blockEnd, tz));
       blockStart = nextStart;
       blockEnd = nextEnd;
     }
   }
   
-  blocks.push(formatTimeRange(blockStart, blockEnd));
+  blocks.push(formatTimeRange(blockStart, blockEnd, tz));
   return blocks.join(", ");
 };
 
@@ -166,9 +189,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     return day;
   });
 
-  // Days (as toDateString keys) that actually have available slots.
+  // Days (as TZ date string keys) that actually have available slots.
   const daysWithSlots = new Set(
-    dbSlots.map((s) => new Date(s.start_time).toDateString())
+    dbSlots.map((s) => getTzDateString(new Date(s.start_time), photographer?.timezone))
   );
 
   // Fetch Photographer Profile and Database Slots
@@ -180,7 +203,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
         // 1. Resolve photographer — the slug may be a public_code (S01023) or a UUID.
         const isUuidParam = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-        const sel = `id, public_code, profiles:id ( full_name, avatar_url )`;
+        const sel = `id, public_code, timezone, profiles:id ( full_name, avatar_url )`;
         let dbPhoto: any = null;
         const byCode = await supabase
           .from("photographer_profiles")
@@ -207,6 +230,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             avatar_url: profileInfo?.avatar_url || (isMockId
               ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${code}/${code}.webp`
               : "/media/default-profile.webp"),
+            timezone: photoData.timezone || "Asia/Seoul",
           });
         } else {
           // Fallback to local JSON data in local/test mode
@@ -217,6 +241,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             avatar_url: isMockId
               ? `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${id}/${id}.webp`
               : "/media/default-profile.webp",
+            timezone: "Asia/Seoul",
           });
         }
 
@@ -259,14 +284,14 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       return;
     }
 
-    const dateStr = selectedDate.toDateString();
+    const dateStr = getTzDateString(selectedDate, photographer?.timezone);
 
     // Show only the photographer's real, available slots for the selected date.
     const matchedSlots = dbSlots.filter(
-      (slot) => new Date(slot.start_time).toDateString() === dateStr
+      (slot) => getTzDateString(new Date(slot.start_time), photographer?.timezone) === dateStr
     );
     setAvailableTimeSlots(matchedSlots);
-  }, [selectedDate, dbSlots]);
+  }, [selectedDate, dbSlots, photographer]);
 
   // Automatically update shoot duration based on selected slots
   useEffect(() => {
@@ -478,7 +503,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
   };
 
-  // Step 4 Final Booking & Payment trigger
+  // Step 4 Final Booking trigger
   const handleProceedToPayment = async () => {
     if (!user || !photographer || selectedSlots.length === 0) return;
     setError(null);
@@ -489,15 +514,14 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
       const slotIds = selectedSlots.map((s) => s.id);
 
-      // 1. Create pending booking record with structured shoot details.
-      const { data: booking, error: bookingError } = await supabase
-        .from("bookings")
-        .insert({
+      // Call server-side API to create booking and lock slot safely
+      const res = await fetch("/api/booking/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           client_id: user.id,
           photographer_id: photographer.id,
           slot_id: selectedSlots[0].id,
-          status: "pending",
-          fee_krw: 25000,
           shoot_location: shootLocation,
           location_type: locationType,
           shoot_style: shootStyle,
@@ -505,47 +529,18 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           preferred_language: preferredLanguage,
           duration_label: durationHours,
           details: customDetails,
-        })
-        .select()
-        .single();
-
-      if (bookingError) throw bookingError;
-
-      // The SPHOT system "pre-information" message is created server-side the moment
-      // payment succeeds (in /api/mock-pay or the LS webhook), from the booking's
-      // stored shoot details — so it appears centered as a SPHOT message, not the client's.
-
-      // 2. Process payment — mock mode auto-succeeds (mirrors the LS webhook);
-      //    live mode redirects to the Lemon Squeezy hosted checkout.
-      const paymentsMode =
-        process.env.NEXT_PUBLIC_PAYMENTS_MODE ||
-        (process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_ID ? "live" : "mock");
-
-      if (paymentsMode === "live") {
-        const storeId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_STORE_ID || "sphot";
-        const productId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRODUCT_ID || "";
-        const baseCheckoutUrl = `https://${storeId}.lemonsqueezy.com/checkout/buy/${productId}`;
-        const emailParam = encodeURIComponent(user.email || "");
-        const nameParam = encodeURIComponent(profile?.full_name || "");
-        const slotIdsParam = slotIds.join(",");
-        const checkoutUrl = `${baseCheckoutUrl}?checkout[custom][booking_id]=${booking.id}&checkout[custom][slot_ids]=${slotIdsParam}&checkout[email]=${emailParam}&checkout[name]=${nameParam}`;
-        window.location.href = checkoutUrl;
-        return;
-      }
-
-      // Mock mode: simulate a successful payment server-side, then go to chat.
-      const res = await fetch("/api/mock-pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: booking.id, slot_ids: slotIds }),
+        }),
       });
+
       if (!res.ok) {
-        const { error: payErr } = await res.json().catch(() => ({ error: "Payment failed." }));
-        throw new Error(payErr || "Payment failed.");
+        const { error: errData } = await res.json().catch(() => ({ error: "Booking failed." }));
+        throw new Error(errData || "Failed to create booking.");
       }
+
+      const { booking } = await res.json();
       router.push(`/client/chat?booking=${booking.id}`);
     } catch (err: any) {
-      setError(err.message || "Failed to initialize booking payment.");
+      setError(err.message || "Failed to complete booking.");
       setActionLoading(false);
     }
   };
@@ -714,10 +709,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                   ) : (
                     <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 hide-scrollbar">
                       {availableTimeSlots.map((slotItem) => {
-                        const start = new Date(slotItem.start_time);
                         const isSelected = selectedSlots.some(s => s.id === slotItem.id);
                         
-                        const startHourStr = start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+                        const startHourStr = formatInTz(slotItem.start_time, { hour: "2-digit", minute: "2-digit", hour12: false }, photographer?.timezone);
                         
                         return (
                           <button
@@ -1185,7 +1179,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                       <div>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide font-black">Date</p>
                         <p className="text-sm font-bold text-foreground dark:text-white">
-                          {new Date(selectedSlots[0].start_time).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                          {formatInTz(selectedSlots[0].start_time, { weekday: "short", month: "short", day: "numeric", year: "numeric" }, photographer?.timezone)}
                         </p>
                       </div>
                     </div>
@@ -1194,7 +1188,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                       <div>
                         <p className="text-[10px] text-gray-400 uppercase tracking-wide font-black">Time Slot</p>
                         <p className="text-sm font-bold text-foreground dark:text-white">
-                          {formatSelectedSlotsTime(selectedSlots)}
+                          {formatSelectedSlotsTime(selectedSlots, photographer?.timezone)}
                         </p>
                       </div>
                     </div>
@@ -1328,7 +1322,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             <div className="space-y-3 text-xs">
               <div className="flex justify-between text-gray-500">
                 <span>{t("coReservationFee")}</span>
-                <span className="font-bold text-foreground dark:text-white">25,000 KRW</span>
+                <span className="font-bold text-foreground dark:text-white">Free</span>
               </div>
               <div className="flex justify-between text-gray-500">
                 <span>{t("coShootPrice")}</span>
@@ -1338,7 +1332,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
             <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 flex justify-between items-center text-sm font-black">
               <span className="text-gray-600 dark:text-zinc-400">{t("coTotalNow")}</span>
-              <span className="text-lg text-black dark:text-white font-black">25,000 KRW</span>
+              <span className="text-lg text-black dark:text-white font-black">Free</span>
             </div>
 
             {step === 4 ? (

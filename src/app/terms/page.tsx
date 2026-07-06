@@ -20,7 +20,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">2. What SPHOT Is</h2>
-          <p>SPHOT is a booking marketplace that connects users with independent photographers in Seoul. We let users browse photographers, securely reserve a session with a platform reservation fee, and communicate in-platform after a reservation is confirmed. SPHOT is not the photographer and does not itself provide photography services; photographers are independent service providers.</p>
+          <p>SPHOT is a free connection directory and chat portal that connects users with independent photographers in Seoul. We let users browse photographers, confirm an availability slot, and communicate directly in-platform. SPHOT is not a photographer, does not itself provide photography services, and is not an agency; photographers are completely independent providers.</p>
         </section>
 
         <section>
@@ -30,10 +30,10 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">4. Reservation Fee &amp; Payments</h2>
-          <p className="mb-3">To secure a booking, the user pays a flat <strong>reservation fee of 25,000 KRW</strong> to SPHOT through our payment processor (Lemon Squeezy). This fee reserves the selected time slot and unlocks direct in-platform chat with the photographer.</p>
-          <p className="mb-3">The reservation fee is a <strong>deposit that counts toward the total cost of the shoot</strong>. The remaining balance and the final scope and price of the session are agreed <strong>directly between the user and the photographer</strong> and settled between them. SPHOT is not a party to that settlement and does not process the balance.</p>
-          <p>The reservation fee is fully refundable if the booking is cancelled at least <strong>48 hours before</strong> the scheduled session. Cancellations within 48 hours of the session may not be refundable. Refunds are issued to the original payment method.</p>
+          <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">4. Free Booking &amp; Payments</h2>
+          <p className="mb-3">Booking slots and connecting with photographers on SPHOT is entirely free of charge. SPHOT does not charge any platform fees, commission fees, or reservation deposits.</p>
+          <p className="mb-3">All financial arrangements, pricing, session deliverables, and final balances are agreed upon and settled <strong>directly between the user and the photographer</strong> off-platform. SPHOT is not a party to, nor is it responsible for, any financial transactions, payment collections, or pricing agreements made between users and photographers.</p>
+          <p>Any cancellation, rescheduling, or refund disputes must be resolved directly between the user and the photographer according to their individual agreements.</p>
         </section>
 
         <section>
@@ -60,8 +60,8 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-bold text-foreground dark:text-white mb-2">9. Disclaimers &amp; Limitation of Liability</h2>
-          <p className="mb-3">Photographer listings and portfolios are presented in good faith but we cannot guarantee their accuracy, quality, or the outcome of any session. Users and photographers contract directly with one another for the shoot itself.</p>
-          <p>To the maximum extent permitted by law, SPHOT is not liable for disputes, damages, or losses arising from sessions, agreements, or interactions between users and photographers, beyond the reservation fee paid to us for the relevant booking.</p>
+          <p className="mb-3">Photographer listings and portfolios are presented for informational purposes only. We do not verify, guarantee, or take responsibility for the quality, safety, legality, timing, or outcome of any session, nor the truth or accuracy of photographer portfolios.</p>
+          <p>To the maximum extent permitted by law, SPHOT holds zero liability and bears no responsibility for any disputes, service failures, financial transactions, cancellations, losses, personal injuries, or damages of any kind arising from sessions, scheduling, agreements, or interactions between users and photographers. Users and photographers connect and transact entirely at their own risk.</p>
         </section>
 
         <section>

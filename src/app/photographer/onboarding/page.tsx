@@ -36,6 +36,7 @@ export default function PhotographerOnboarding() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["English"]);
   const [responseSpeed, setResponseSpeed] = useState("1–3 hours");
   const [deliveryTime, setDeliveryTime] = useState("1 week");
+  const [timezone, setTimezone] = useState("Asia/Seoul");
 
   // Step 3 — Portfolio
   const [portfolioUrls, setPortfolioUrls] = useState<string[]>([]);
@@ -130,6 +131,7 @@ export default function PhotographerOnboarding() {
           response_speed: responseSpeed,
           delivery_time: deliveryTime,
           portfolio_urls: portfolioUrls,
+          timezone,
         })
         .eq("id", user.id);
 
@@ -299,6 +301,22 @@ export default function PhotographerOnboarding() {
                 {DELIVERY_TIMES.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Timezone */}
+          <div>
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Studio Timezone</label>
+            <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white">
+              <option value="Asia/Seoul">Seoul (GMT+9)</option>
+              <option value="Asia/Tokyo">Tokyo (GMT+9)</option>
+              <option value="Asia/Singapore">Singapore (GMT+8)</option>
+              <option value="Europe/London">London (GMT+0/+1)</option>
+              <option value="Europe/Paris">Paris (GMT+1/+2)</option>
+              <option value="Europe/Istanbul">Istanbul (GMT+3)</option>
+              <option value="America/New_York">New York (GMT-5/-4)</option>
+              <option value="Australia/Sydney">Sydney (GMT+10/+11)</option>
+            </select>
           </div>
         </div>
       )}

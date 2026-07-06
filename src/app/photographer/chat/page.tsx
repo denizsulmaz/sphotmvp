@@ -8,7 +8,7 @@ import { MessageSquare, Calendar } from "lucide-react";
 
 interface ChatBooking {
   id: string;
-  status: "paid" | "completed";
+  status: string;
   client_id: string;
   profiles: {
     full_name: string;
@@ -48,7 +48,7 @@ export default function PhotographerChatPortal() {
             )
           `)
           .eq("photographer_id", user.id)
-          .in("status", ["paid", "completed"]) // Chat is only unlocked after payment is confirmed
+          .in("status", ["booking", "shooted", "edited", "sent", "completed", "paid", "confirmed"]) // Open for any active booking status
           .order("created_at", { ascending: false });
 
         if (dbError) throw dbError;
@@ -99,7 +99,7 @@ export default function PhotographerChatPortal() {
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-gray-400 dark:text-zinc-500 space-y-2">
             <MessageSquare size={28} className="mx-auto text-gray-300 dark:text-zinc-700" />
             <h4 className="text-sm font-bold text-foreground dark:text-white">No active chats</h4>
-            <p className="text-xs">Chat will unlock as soon as a booking reservation fee is paid.</p>
+            <p className="text-xs">Chat will unlock as soon as a booking slot is confirmed.</p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-1 pr-1 hide-scrollbar">

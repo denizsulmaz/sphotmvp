@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
-import { Send, Clock, ShieldAlert, Flag } from "lucide-react";
+import { Send, Clock, ShieldAlert, Flag, CheckCircle } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { useLanguage } from "@/context/LanguageContext";
+import ReviewModal from "@/components/ReviewModal";
 
 interface Message {
   id: string;
@@ -40,65 +41,98 @@ export default function ChatWindow({
   const [reportReason, setReportReason] = useState("");
   const [reporting, setReporting] = useState(false);
 
+  // Status Workflow Stepper States
+  const [bookingStatus, setBookingStatus] = useState<string>("booking");
+  const [userRole, setUserRole] = useState<"client" | "photographer" | "admin" | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // Profile names for ReviewModal hydration
+  const [clientName, setClientName] = useState("Client");
+  const [photographerName, setPhotographerName] = useState("Photographer");
+  const [photographerId, setPhotographerId] = useState("");
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const initialScrollDone = useRef(false);
   const { showToast } = useToast();
   const { t } = useLanguage();
 
-  const submitReport = async () => {
-    if (!supabase) return;
-    setReporting(true);
-    const { error } = await supabase.from("reports").insert({
-      booking_id: bookingId,
-      reporter_id: currentUserId,
-      reason: reportReason.trim() || "No reason provided",
-    });
-    setReporting(false);
-    if (error) {
-      showToast("Could not submit report.", "error");
-    } else {
-      showToast("Report submitted. Our team will review it.", "success");
-      setShowReport(false);
-      setReportReason("");
-    }
-  };
-
   const PAGE_SIZE = 30;
 
-  // Fetch initial messages
+  // Stepper steps definition
+  const steps = [
+    { key: "booking", label: "Booked" },
+    { key: "shooted", label: "Shooted" },
+    { key: "edited", label: "Edited" },
+    { key: "sent", label: "Photos Sent" },
+    { key: "completed", label: "Completed" }
+  ];
+
+  const currentStepIdx = steps.findIndex(s => s.key === bookingStatus);
+
+  // Fetch initial messages and booking status info
   useEffect(() => {
-    const fetchMessages = async () => {
+    const fetchBookingDetailsAndMessages = async () => {
       if (!supabase) return;
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        // 1. Fetch booking details to determine roles & names
+        const { data: booking, error: bErr } = await supabase
+          .from("bookings")
+          .select(`
+            client_id,
+            photographer_id,
+            status,
+            client_profile:profiles!bookings_client_id_fkey ( full_name ),
+            photo_profile:profiles!bookings_photographer_id_fkey ( full_name )
+          `)
+          .eq("id", bookingId)
+          .single();
+
+        if (!bErr && booking) {
+          setBookingStatus(booking.status);
+          setPhotographerId(booking.photographer_id);
+          
+          const clientProf: any = Array.isArray(booking.client_profile) ? booking.client_profile[0] : booking.client_profile;
+          const photoProf: any = Array.isArray(booking.photo_profile) ? booking.photo_profile[0] : booking.photo_profile;
+          
+          setClientName(clientProf?.full_name || "Client");
+          setPhotographerName(photoProf?.full_name || "Photographer");
+
+          if (currentUserId === booking.photographer_id) {
+            setUserRole("photographer");
+          } else if (currentUserId === booking.client_id) {
+            setUserRole("client");
+          }
+        }
+
+        // 2. Fetch chat messages
+        const { data: messagesData, error: msgErr } = await supabase
           .from("messages")
           .select("*")
           .eq("booking_id", bookingId)
           .order("created_at", { ascending: false })
           .limit(PAGE_SIZE);
 
-        if (error) throw error;
-        const fetched = (data || []) as Message[];
-        // Reverse because we queried descending
+        if (msgErr) throw msgErr;
+        const fetched = (messagesData || []) as Message[];
         const reversed = [...fetched].reverse();
         setMessages(reversed);
         setHasMore(fetched.length === PAGE_SIZE);
 
-        // Scroll to bottom after layout paint
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
           initialScrollDone.current = true;
         }, 100);
       } catch (err) {
-        console.error("Error loading chat messages:", err);
+        console.error("Error loading chat messages / booking:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMessages();
-  }, [bookingId]);
+    fetchBookingDetailsAndMessages();
+  }, [bookingId, currentUserId]);
 
   // Load older messages on demand
   const loadOlderMessages = async () => {
@@ -129,12 +163,13 @@ export default function ChatWindow({
     }
   };
 
-  // Subscribe to real-time chat messages
+  // Subscribe to real-time chat messages and booking status updates
   useEffect(() => {
     const client = supabase;
     if (!client) return;
 
-    const channel = client
+    // Chat messages channel
+    const msgChannel = client
       .channel(`booking-chat:${bookingId}`)
       .on(
         "postgres_changes",
@@ -146,12 +181,10 @@ export default function ChatWindow({
         },
         (payload: any) => {
           const newMessage = payload.new as Message;
-          // Avoid duplicate appends (if insert resolves immediately locally)
           setMessages((prev) => {
             if (prev.some((m) => m.id === newMessage.id)) return prev;
             return [...prev, newMessage];
           });
-          // Scroll to bottom smoothly for new messages
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
           }, 100);
@@ -159,8 +192,28 @@ export default function ChatWindow({
       )
       .subscribe();
 
+    // Booking status channel
+    const statusChannel = client
+      .channel(`booking-status:${bookingId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "bookings",
+          filter: `id=eq.${bookingId}`,
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.status) {
+            setBookingStatus(payload.new.status);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      client.removeChannel(channel);
+      client.removeChannel(msgChannel);
+      client.removeChannel(statusChannel);
     };
   }, [bookingId]);
 
@@ -188,13 +241,53 @@ export default function ChatWindow({
     }
   };
 
+  const handleUpdateStatus = async (nextStatus: string) => {
+    setStatusLoading(true);
+    try {
+      const res = await fetch("/api/booking/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, nextStatus }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update progress.");
+      
+      setBookingStatus(nextStatus);
+      showToast(`Status successfully advanced to ${nextStatus}!`, "success");
+    } catch (err: any) {
+      console.error("Failed to update status:", err);
+      showToast(err.message || "Failed to update progress status.", "error");
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const submitReport = async () => {
+    if (!supabase) return;
+    setReporting(true);
+    const { error } = await supabase.from("reports").insert({
+      booking_id: bookingId,
+      reporter_id: currentUserId,
+      reason: reportReason.trim() || "No reason provided",
+    });
+    setReporting(false);
+    if (error) {
+      showToast("Could not submit report.", "error");
+    } else {
+      showToast("Report submitted. Our team will review it.", "success");
+      setShowReport(false);
+      setReportReason("");
+    }
+  };
+
   const formatMessageTime = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
-    <div className="flex flex-col h-[500px] bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+    <div className="flex flex-col h-[560px] bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
       
       {/* Header bar */}
       <div className="flex items-center gap-3 bg-gray-50 dark:bg-zinc-900/40 p-4 border-b border-gray-100 dark:border-zinc-800 shrink-0">
@@ -224,6 +317,97 @@ export default function ChatWindow({
           <Flag size={16} />
         </button>
       </div>
+
+      {/* Stepper progress bar */}
+      <div className="bg-gray-50/30 dark:bg-zinc-900/10 px-6 py-4 border-b border-gray-100 dark:border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between max-w-xl mx-auto relative">
+          {/* Progress Line */}
+          <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 dark:bg-zinc-800 -z-0" />
+          <div 
+            className="absolute top-4 left-0 h-0.5 bg-accent transition-all duration-300 -z-0"
+            style={{ width: `${(Math.max(0, currentStepIdx) / (steps.length - 1)) * 100}%` }}
+          />
+
+          {steps.map((stepItem, idx) => {
+            const isCompleted = idx < currentStepIdx;
+            const isCurrent = idx === currentStepIdx;
+            const isActive = isCompleted || isCurrent;
+
+            return (
+              <div key={stepItem.key} className="flex flex-col items-center relative z-10">
+                <div 
+                  className={`w-8.5 h-8.5 rounded-full flex items-center justify-center font-black text-[11px] transition-all border-2 ${
+                    isCurrent
+                      ? "bg-accent border-accent text-black scale-110 shadow-md font-black"
+                      : isCompleted
+                      ? "bg-black dark:bg-white border-black dark:border-white text-white dark:text-black"
+                      : "bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-400 dark:text-zinc-500"
+                  }`}
+                  style={{ width: '28px', height: '28px' }}
+                >
+                  {isCompleted ? "✓" : idx + 1}
+                </div>
+                <span className={`text-[10px] font-extrabold mt-1.5 tracking-wide ${isActive ? "text-foreground dark:text-white" : "text-gray-400 dark:text-zinc-500"}`}>
+                  {stepItem.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Photographer progression CTAs */}
+      {userRole === "photographer" && bookingStatus !== "completed" && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2.5 shrink-0 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300 font-bold">
+          <span>Manage Session Progression:</span>
+          {bookingStatus === "booking" && (
+            <button
+              onClick={() => handleUpdateStatus("shooted")}
+              disabled={statusLoading}
+              className="px-3 py-1.5 bg-black dark:bg-white text-white dark:text-black font-black rounded-lg hover:opacity-90 transition-all flex items-center gap-1 shrink-0"
+            >
+              {statusLoading ? "..." : "Mark as Shooted"}
+            </button>
+          )}
+          {bookingStatus === "shooted" && (
+            <button
+              onClick={() => handleUpdateStatus("edited")}
+              disabled={statusLoading}
+              className="px-3 py-1.5 bg-black dark:bg-white text-white dark:text-black font-black rounded-lg hover:opacity-90 transition-all flex items-center gap-1 shrink-0"
+            >
+              {statusLoading ? "..." : "Mark as Edited"}
+            </button>
+          )}
+          {bookingStatus === "edited" && (
+            <button
+              onClick={() => handleUpdateStatus("sent")}
+              disabled={statusLoading}
+              className="px-3 py-1.5 bg-accent text-black font-black rounded-lg hover:opacity-90 transition-all flex items-center gap-1 shadow-sm shrink-0"
+            >
+              {statusLoading ? "..." : "Send Photos & Request Review"}
+            </button>
+          )}
+          {bookingStatus === "sent" && (
+            <span className="italic opacity-80">Waiting for client review...</span>
+          )}
+        </div>
+      )}
+
+      {/* Client review request banner */}
+      {userRole === "client" && bookingStatus === "sent" && (
+        <div className="bg-accent/10 border-b border-accent/20 px-6 py-3.5 shrink-0 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-foreground dark:text-white font-bold animate-fadeIn">
+          <div className="space-y-0.5 text-center sm:text-left">
+            <p className="font-black text-sm text-black dark:text-white">✨ Photos Delivered!</p>
+            <p className="text-gray-500 dark:text-zinc-400">Your photographer has sent the files. Please leave a review to complete the booking.</p>
+          </div>
+          <button
+            onClick={() => setShowReviewModal(true)}
+            className="px-4 py-2 bg-accent text-black font-black rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-md shrink-0 text-xs"
+          >
+            Leave a Review
+          </button>
+        </div>
+      )}
 
       {/* Report modal */}
       {showReport && (
@@ -332,6 +516,23 @@ export default function ChatWindow({
           <Send size={16} />
         </button>
       </form>
+
+      {/* Review Modal hydration */}
+      {showReviewModal && (
+        <ReviewModal
+          bookingId={bookingId}
+          photographerId={photographerId}
+          photographerName={photographerName}
+          reviewerId={currentUserId}
+          reviewerName={clientName}
+          onClose={() => setShowReviewModal(false)}
+          onSubmitted={async () => {
+            setShowReviewModal(false);
+            // Advance status to completed once reviewed
+            await handleUpdateStatus("completed");
+          }}
+        />
+      )}
     </div>
   );
 }

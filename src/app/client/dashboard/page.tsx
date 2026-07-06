@@ -9,7 +9,7 @@ import ReviewModal from "@/components/ReviewModal";
 
 interface DBBooking {
   id: string;
-  status: "pending" | "paid" | "completed" | "cancellation_requested" | "cancelled" | "refunded";
+  status: string;
   fee_krw: number;
   created_at: string;
   photographer_id: string;
@@ -218,17 +218,12 @@ export default function ClientDashboard() {
                   </div>
                 </div>
 
-                {/* Right side Status & Payment Details */}
+                {/* Right side Status & Details */}
                 <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 shrink-0">
-                  <div className="text-left md:text-right">
-                    <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold">Reservation Paid</p>
-                    <p className="text-lg font-black text-foreground dark:text-white">{(booking.fee_krw / 1000).toFixed(0)}k KRW</p>
-                  </div>
-
                   <div className="flex items-center gap-2">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                        booking.status === "paid"
+                        ["paid", "booking", "shooted", "edited", "sent"].includes(booking.status)
                           ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
                           : booking.status === "completed"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
@@ -244,19 +239,8 @@ export default function ClientDashboard() {
                       {booking.status === "cancellation_requested" ? "cancel pending" : booking.status}
                     </span>
 
-                    {/* Cancel — sends a request; admin reviews any refund. */}
-                    {booking.status === "paid" && (
-                      <button
-                        onClick={() => requestCancellation(booking.id)}
-                        disabled={cancelLoading === booking.id}
-                        className="text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-2 rounded-xl transition-all disabled:opacity-50"
-                      >
-                        {cancelLoading === booking.id ? "…" : "Cancel"}
-                      </button>
-                    )}
-
-                    {/* Chat CTA - Enabled only for paid bookings */}
-                    {(booking.status === "paid" || booking.status === "completed") && (
+                    {/* Chat CTA - Enabled for active/completed bookings */}
+                    {["booking", "shooted", "edited", "sent", "completed", "paid", "confirmed"].includes(booking.status) && (
                       <Link
                         href="/client/chat"
                         className="flex items-center gap-1.5 text-xs font-black bg-black dark:bg-white text-white dark:text-black px-3 py-2 rounded-xl hover:opacity-90 transition-opacity border border-transparent"
@@ -266,8 +250,8 @@ export default function ClientDashboard() {
                       </Link>
                     )}
 
-                    {/* Review CTA - completed bookings not yet reviewed */}
-                    {booking.status === "completed" && !reviewedBookingIds.has(booking.id) && (
+                    {/* Review CTA - completed/sent bookings not yet reviewed */}
+                    {(booking.status === "completed" || booking.status === "sent") && !reviewedBookingIds.has(booking.id) && (
                       <button
                         onClick={() => setReviewTarget(booking)}
                         className="flex items-center gap-1.5 text-xs font-black bg-accent text-black px-3 py-2 rounded-xl hover:opacity-90 transition-opacity"
@@ -276,7 +260,7 @@ export default function ClientDashboard() {
                         <span>Review</span>
                       </button>
                     )}
-                    {booking.status === "completed" && reviewedBookingIds.has(booking.id) && (
+                    {(booking.status === "completed" || booking.status === "sent") && reviewedBookingIds.has(booking.id) && (
                       <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                         <Star size={13} className="fill-current" />
                         Reviewed

@@ -4,12 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, RefreshCw, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/Toast";
 
 interface DBBooking {
   id: string;
-  status: "pending" | "paid" | "completed" | "cancelled";
+  status: string;
   fee_krw: number;
   created_at: string;
   client_id: string;
@@ -230,18 +231,13 @@ export default function PhotographerDashboard() {
                 </div>
               </div>
 
-              {/* Right Column: Price, Status, & Actions */}
+              {/* Right Column: Status & Actions */}
               <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 shrink-0">
-                <div className="text-left md:text-right">
-                  <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold">Reservation Fee Paid</p>
-                  <p className="text-lg font-black text-foreground dark:text-white">{(booking.fee_krw / 1000).toFixed(0)}k KRW</p>
-                </div>
-
                 <div className="flex items-center gap-2">
                   {/* Status Badge */}
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                      booking.status === "paid"
+                      ["paid", "booking", "shooted", "edited", "sent"].includes(booking.status)
                         ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
                         : booking.status === "completed"
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
@@ -253,26 +249,15 @@ export default function PhotographerDashboard() {
                     {booking.status}
                   </span>
 
-                  {/* Actions for Paid Bookings */}
-                  {booking.status === "paid" && (
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => markCompleted(booking.id)}
-                        disabled={actionLoading === booking.id}
-                        className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-xl transition-all"
-                        title="Mark Session Completed"
-                      >
-                        <CheckCircle2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => requestCancellation(booking.id)}
-                        disabled={actionLoading === booking.id}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
-                        title="Request Cancellation"
-                      >
-                        <XCircle size={18} />
-                      </button>
-                    </div>
+                  {/* Chat CTA - Enabled for active/completed bookings */}
+                  {["booking", "shooted", "edited", "sent", "completed", "paid", "confirmed"].includes(booking.status) && (
+                    <Link
+                      href="/photographer/chat"
+                      className="flex items-center gap-1.5 text-xs font-black bg-black dark:bg-white text-white dark:text-black px-3 py-2 rounded-xl hover:opacity-90 transition-opacity border border-transparent"
+                    >
+                      <MessageSquare size={13} />
+                      <span>Chat</span>
+                    </Link>
                   )}
                 </div>
               </div>

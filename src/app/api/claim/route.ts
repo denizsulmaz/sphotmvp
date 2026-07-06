@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import { sendNotificationEmail } from "@/lib/notify";
 
 /**
  * Consume a claim token: the photographer sets their email + password and takes
@@ -71,6 +72,64 @@ export async function POST(req: NextRequest) {
   }
 
   await supabase.from("claim_tokens").update({ consumed: true }).eq("id", t.id);
+
+  // 1. Fetch photographer name
+  const { data: photoProf } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", t.photographer_id)
+    .maybeSingle();
+  const photoName = photoProf?.full_name || "Photographer";
+
+  // 2. Resolve admin profile to act as the "someone" sending the welcome text
+  const { data: adminProf } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+
+  // If no admin, default to a null UUID so the database accepts it
+  const adminId = adminProf?.id || "00000000-0000-0000-0000-000000000000";
+
+  // 3. Create a welcome onboarding booking
+  const { data: welcomeBooking, error: bkgErr } = await supabase
+    .from("bookings")
+    .insert({
+      client_id: adminId,
+      photographer_id: t.photographer_id,
+      slot_id: null, // slotless onboarding chat
+      status: "booking",
+      fee_krw: 0,
+      shoot_location: "SPHOT Onboarding Chat",
+      details: "Welcome onboarding conversation",
+    })
+    .select()
+    .single();
+
+  if (!bkgErr && welcomeBooking) {
+    // 4. Insert welcome text message from the admin
+    await supabase.from("messages").insert({
+      booking_id: welcomeBooking.id,
+      sender_id: adminId,
+      content: `Welcome to SPHOT! Your photographer profile has been claimed successfully. You can manage your calendar, update your portfolio, and coordinate with clients directly here. Let us know if you have any questions!`,
+    });
+  } else {
+    console.error("[claim] Failed to create welcome chat:", bkgErr?.message);
+  }
+
+  // 5. Notify hi@booksphot.com about the claimed profile
+  const subject = `[SPHOT] Photographer Profile Claimed - ${photoName}`;
+  const textContent = `Photographer profile has been successfully claimed by:\nName: ${photoName}\nEmail: ${t.invited_email}\nPhotographer ID: ${t.photographer_id}`;
+  const htmlContent = `
+    <h2>Photographer Profile Claimed</h2>
+    <p><strong>Name:</strong> ${photoName}</p>
+    <p><strong>Email:</strong> ${t.invited_email}</p>
+    <p><strong>Photographer ID:</strong> ${t.photographer_id}</p>
+    <hr/>
+    <p><em>SPHOT Alerts System</em></p>
+  `;
+  await sendNotificationEmail(subject, htmlContent, textContent);
 
   return NextResponse.json({ ok: true, email: t.invited_email });
 }

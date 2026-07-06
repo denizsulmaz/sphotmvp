@@ -22,7 +22,7 @@ export async function insertBookingSystemMessage(
   const { data: b } = await supabase
     .from("bookings")
     .select(
-      "shoot_location, location_type, group_size, shoot_style, preferred_language, duration_label, details, slot_id"
+      "shoot_location, location_type, group_size, shoot_style, preferred_language, duration_label, details, slot_id, photographer_id"
     )
     .eq("id", bookingId)
     .single();
@@ -38,9 +38,39 @@ export async function insertBookingSystemMessage(
     if (slot) {
       const s = new Date(slot.start_time);
       const e = new Date(slot.end_time);
-      const date = s.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-      const time = `${s.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${e.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-      scheduleLine = `⏰ Schedule: ${date}, ${time}`;
+
+      // Resolve photographer timezone
+      const { data: photoProfile } = await supabase
+        .from("photographer_profiles")
+        .select("timezone")
+        .eq("id", b.photographer_id)
+        .maybeSingle();
+      const tz = photoProfile?.timezone || "Asia/Seoul";
+
+      const date = new Intl.DateTimeFormat("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: tz
+      }).format(s);
+
+      const startStr = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: tz
+      }).format(s);
+
+      const endStr = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: tz
+      }).format(e);
+
+      const time = `${startStr} – ${endStr}`;
+      scheduleLine = `⏰ Schedule: ${date}, ${time} (Studio Time)`;
     }
   }
 
