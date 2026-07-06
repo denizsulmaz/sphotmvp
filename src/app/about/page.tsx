@@ -67,7 +67,7 @@ export default function AboutPage() {
                   <span className="font-bold">Deniz Sulmaz</span>, <span className="font-normal text-gray-400">Co-Founder</span>
                 </h2>
                 <p className="text-gray-300 leading-relaxed text-lg mb-4">
-                  {"Hi, I'm Deniz! I've always had a deep love for creativity and technology. I believe that photography is the perfect intersection where artistic expression meets technical precision."}
+                  {"Hi, it's Deniz! I've always had a deep love for creativity and technology. I believe that photography is the perfect intersection where artistic expression meets technical precision."}
                 </p>
                 <p className="text-gray-300 leading-relaxed text-lg">
                   {"Building SPHOT allowed me to connect passionate visual creators with people who want to preserve their most meaningful moments. Together with Irina, we combine our design and technical expertise to build a reliable, beautiful platform, driven by our shared passion for photography and connecting people."}
