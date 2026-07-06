@@ -45,7 +45,7 @@ export default function AboutPage() {
                   {"Hi, I'm Irina! When I moved to Seoul, I realized how incredibly hard it was to find the right photographer, whether for a personal portrait, a love story, or a professional branding shoot. Endlessly scrolling through social media, translating messages, and comparing prices felt overwhelming."}
                 </p>
                 <p className="text-gray-300 leading-relaxed text-lg">
-                  {"I created SPHOT to solve this exact problem: an easy, transparent way to connect people who want beautiful photos with the talented, vetted photographers who capture them brilliantly."}
+                  {"We created SPHOT to solve this exact problem: an easy, transparent way to connect people who want beautiful photos with the talented, vetted photographers who capture them brilliantly."}
                 </p>
               </div>
             </div>
