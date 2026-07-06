@@ -62,13 +62,28 @@ export async function POST(req: NextRequest) {
   }
 
   // Update the existing seed auth user → real email + chosen password, confirmed.
+  let claimError: string | null = null;
   const { error: updErr } = await supabase.auth.admin.updateUserById(t.photographer_id, {
     email: t.invited_email,
     password,
     email_confirm: true,
   });
+
   if (updErr) {
-    return NextResponse.json({ error: updErr.message }, { status: 400 });
+    // If the user doesn't exist in auth.users yet, create them with the pre-allocated photographer UUID
+    const { error: createErr } = await supabase.auth.admin.createUser({
+      id: t.photographer_id,
+      email: t.invited_email,
+      password: password,
+      email_confirm: true,
+    });
+    if (createErr) {
+      claimError = createErr.message || "Failed to configure user profile password.";
+    }
+  }
+
+  if (claimError) {
+    return NextResponse.json({ error: claimError }, { status: 400 });
   }
 
   await supabase.from("claim_tokens").update({ consumed: true }).eq("id", t.id);

@@ -52,7 +52,8 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Could not complete claim.");
+        const errorMsg = typeof data.error === "object" ? JSON.stringify(data.error) : String(data.error || "Could not complete claim.");
+        setError(errorMsg);
         setSubmitting(false);
         return;
       }

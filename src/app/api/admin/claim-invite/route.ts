@@ -44,15 +44,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Admin only." }, { status: 403 });
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.get("host")}`;
+
   // Ensure the target is a real photographer profile.
-  const { data: ph } = await supabase
+  const { data: dbPh } = await supabase
     .from("photographer_profiles")
-    .select("id, public_code")
+    .select(`
+      id, 
+      public_code, 
+      profiles:id ( full_name, avatar_url )
+    `)
     .eq("id", photographer_id)
     .maybeSingle();
-  if (!ph) {
+  if (!dbPh) {
     return NextResponse.json({ error: "Photographer not found." }, { status: 404 });
   }
+
+  const ph = dbPh as any;
+  const profileInfo = Array.isArray(ph.profiles) ? ph.profiles[0] : ph.profiles;
+  const photoName = profileInfo?.full_name || "Photographer";
+  const avatarUrl = profileInfo?.avatar_url || "https://booksphot.com/media/default-profile.webp";
+  const profileUrl = `${siteUrl}/p/${ph.public_code}`;
 
   // Generate token + store hash.
   const token = crypto.randomBytes(32).toString("hex");
@@ -71,12 +83,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not create invite." }, { status: 500 });
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.get("host")}`;
   const claimUrl = `${siteUrl}/claim/${token}`;
 
   // Email via Resend (dev fallback: return the link).
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM || "SPHOT <onboarding@resend.dev>";
+  const rawFrom = process.env.RESEND_FROM || "SPHOT Team <onboarding@resend.dev>";
+  const from = rawFrom.includes("<")
+    ? `SPHOT Team ${rawFrom.substring(rawFrom.indexOf("<"))}`
+    : "SPHOT Team <team@email.booksphot.com>";
+
   if (apiKey) {
     await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -84,18 +99,27 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         from,
         to: [email],
-        subject: "Claim your SPHOT Sphoter profile",
+        subject: `Claim your SPHOT profile (${photoName})`,
         html: brandedEmail({
           preheader: "You've been invited to manage your SPHOT profile.",
           bodyHtml: `
-            <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#111111;">Claim your profile${ph.public_code ? ` <span style="color:#999;font-weight:600;">(${ph.public_code})</span>` : ""}</h1>
-            <p style="margin:0 auto 24px;max-width:360px;color:#555555;font-size:14px;line-height:1.6;">
-              You&rsquo;ve been invited to manage your Sphoter profile on SPHOT. Set your password to take ownership. Your portfolio and bookings are already set up.
+            <div style="text-align:center;margin-bottom:24px;">
+              <img src="${avatarUrl}" width="70" height="70" style="border-radius:50%;object-fit:cover;border:2px solid #000000;display:inline-block;" />
+              <h2 style="margin:12px 0 2px;font-size:18px;font-weight:800;color:#111111;">${photoName}</h2>
+              <p style="margin:0;font-size:13px;color:#888888;">
+                <a href="${profileUrl}" style="color:#000000;font-weight:bold;text-decoration:underline;">booksphot.com/p/${ph.public_code}</a>
+              </p>
+            </div>
+            <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#111111;text-align:center;">Claim your profile</h1>
+            <p style="margin:0 auto 24px;max-width:360px;color:#555555;font-size:14px;line-height:1.6;text-align:center;">
+              You&rsquo;ve been invited to manage your photographer profile on SPHOT. Set your password to take ownership. Your portfolio and bookings are already set up.
             </p>
-            <a href="${claimUrl}" style="display:inline-block;background:#000000;color:#fffa6c;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">
-              Claim my profile
-            </a>
-            <p style="margin:24px auto 0;max-width:360px;color:#999999;font-size:12px;line-height:1.6;">
+            <div style="text-align:center;margin-bottom:20px;">
+              <a href="${claimUrl}" style="display:inline-block;background:#000000;color:#fffa6c;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:800;font-size:14px;">
+                Claim my profile
+              </a>
+            </div>
+            <p style="margin:24px auto 0;max-width:360px;color:#999999;font-size:12px;line-height:1.6;text-align:center;">
               This link expires in ${CLAIM_TTL_DAYS} days. If you weren&rsquo;t expecting this, you can ignore this email.
             </p>`,
         }),
