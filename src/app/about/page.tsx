@@ -4,8 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, Linkedin } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
-const IRINA_LINKEDIN = "https://www.linkedin.com/in/irina-chus";
-const DENIZ_LINKEDIN = "https://www.linkedin.com/in/denizsulmaz";
+const IRINA_LINKEDIN = "https://www.linkedin.com/in/irinachus/";
+const DENIZ_LINKEDIN = "https://www.linkedin.com/in/denizsulmaz/";
 
 export default function AboutPage() {
   const { t } = useLanguage();
