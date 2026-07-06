@@ -10,7 +10,7 @@ import photographersData from "@/data/photographers.json";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
-  CreditCard, 
+  MessageSquare, 
   User as UserIcon, 
   Mail, 
   Lock, 
@@ -1161,7 +1161,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
               <div>
                 <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
-                    <CreditCard size={20} />
+                    <MessageSquare size={20} />
                   </div>
                   {t("coConfirmTitle")}
                 </h2>
@@ -1313,7 +1313,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             </div>
           )}
 
-          {/* Pricing Box & Final Payment (Active in Step 4) */}
+          {/* Booking Summary Box & Final Trigger (Active in Step 4) */}
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="text-base font-black text-foreground dark:text-white border-b border-gray-100 dark:border-zinc-800 pb-3">
               {t("coPaymentSummary")}
@@ -1321,18 +1321,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
             <div className="space-y-3 text-xs">
               <div className="flex justify-between text-gray-500">
-                <span>{t("coReservationFee")}</span>
-                <span className="font-bold text-foreground dark:text-white">Free</span>
-              </div>
-              <div className="flex justify-between text-gray-500">
                 <span>{t("coShootPrice")}</span>
                 <span className="font-bold text-foreground dark:text-white italic">{t("coDirectSettlement")}</span>
               </div>
-            </div>
-
-            <div className="border-t border-gray-100 dark:border-zinc-800 pt-3 flex justify-between items-center text-sm font-black">
-              <span className="text-gray-600 dark:text-zinc-400">{t("coTotalNow")}</span>
-              <span className="text-lg text-black dark:text-white font-black">Free</span>
             </div>
 
             {step === 4 ? (
@@ -1346,7 +1337,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                   <span className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <CreditCard size={16} />
+                    <MessageSquare size={16} />
                     <span>{t("coPayFee")}</span>
                   </>
                 )}

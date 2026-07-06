@@ -52,8 +52,8 @@ export default function CommunityGuidelinesPage() {
           </h2>
           <ul className="list-disc pl-6 space-y-2">
             <li><strong>Share accurate shoot details.</strong> Location, group size, style, and expectations help your photographer prepare.</li>
-            <li><strong>Understand the reservation fee.</strong> The 25,000 KRW deposit secures your slot and unlocks chat. It counts toward your shoot; you agree the full price directly with your photographer.</li>
-            <li><strong>Cancel responsibly.</strong> If you can&apos;t make it, cancel as early as possible. Reservation fees are refundable up to 48 hours before the session.</li>
+            <li><strong>Direct Coordination.</strong> Booking slots and connecting with photographers on SPHOT is entirely free of charge. You will agree on the session price and details directly with your photographer in chat.</li>
+            <li><strong>Coordinate cancellations.</strong> If you cannot make it to a scheduled session, please communicate and reschedule/cancel directly with your photographer as early as possible.</li>
             <li><strong>Leave fair reviews.</strong> Review based on your real experience. No fake, retaliatory, or incentivized reviews.</li>
             <li><strong>Respect the photographer&apos;s work.</strong> Don&apos;t pressure photographers into unsafe locations, unpaid extras, or unrealistic timelines.</li>
           </ul>

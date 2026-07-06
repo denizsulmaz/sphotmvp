@@ -21,7 +21,7 @@ const siteUrl = BRAND.url;
 
 const siteTitle = `${BRAND.name} — ${BRAND.tagline}`;
 const siteDesc =
-  'Browse, chat with, and book vetted photographers in Seoul. Secure your shoot with a flat reservation fee — Hanbok, couple, family, wedding, editorial and more.';
+  "Browse, chat with, and book vetted photographers in Seoul directly. Free connection directory and secure chat — Hanbok, couple, family, wedding, editorial and more.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
