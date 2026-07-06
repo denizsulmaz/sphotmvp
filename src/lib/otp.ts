@@ -36,7 +36,7 @@ export async function sendOtpEmail(
   code: string
 ): Promise<{ delivered: boolean; devFallback: boolean }> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM || "SPHOT <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM || '"SPHOT Team" <onboarding@resend.dev>';
 
   if (!apiKey) {
     // Dev fallback: no key configured. Log so the flow can be exercised.

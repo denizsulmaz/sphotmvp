@@ -87,10 +87,10 @@ export async function POST(req: NextRequest) {
 
   // Email via Resend (dev fallback: return the link).
   const apiKey = process.env.RESEND_API_KEY;
-  const rawFrom = process.env.RESEND_FROM || "SPHOT Team <onboarding@resend.dev>";
+  const rawFrom = process.env.RESEND_FROM || '"SPHOT Team" <onboarding@resend.dev>';
   const from = rawFrom.includes("<")
-    ? `SPHOT Team ${rawFrom.substring(rawFrom.indexOf("<"))}`
-    : "SPHOT Team <team@email.booksphot.com>";
+    ? `"SPHOT Team" ${rawFrom.substring(rawFrom.indexOf("<"))}`
+    : '"SPHOT Team" <team@email.booksphot.com>';
 
   if (apiKey) {
     await fetch("https://api.resend.com/emails", {

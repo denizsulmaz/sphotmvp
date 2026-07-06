@@ -8,7 +8,7 @@ export async function sendNotificationEmail(
   textContent: string
 ): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM || "SPHOT <alerts@email.booksphot.com>";
+  const from = process.env.RESEND_FROM || '"SPHOT Team" <alerts@email.booksphot.com>';
   const to = "hi@booksphot.com";
 
   if (!apiKey) {
