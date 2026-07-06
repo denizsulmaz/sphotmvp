@@ -517,11 +517,15 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
       const slotIds = selectedSlots.map((s) => s.id);
 
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access_token = sessionData.session?.access_token;
+
       // Call server-side API to create booking and lock slot safely
       const res = await fetch("/api/booking/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          access_token,
           client_id: user.id,
           photographer_id: photographer.id,
           slot_id: selectedSlots[0].id,

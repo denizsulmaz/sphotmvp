@@ -10,16 +10,23 @@ import { sendNotificationEmail } from "@/lib/notify";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { bookingId, nextStatus } = body;
+    const { access_token, bookingId, nextStatus } = body;
 
-    if (!bookingId || !nextStatus) {
+    if (!bookingId || !nextStatus || !access_token) {
       return NextResponse.json(
-        { error: "bookingId and nextStatus are required." },
+        { error: "bookingId, nextStatus, and access_token are required." },
         { status: 400 }
       );
     }
 
     const supabase = getServerSupabase();
+
+    // Verify caller authentication status
+    const { data: userData, error: authErr } = await supabase.auth.getUser(access_token);
+    if (authErr || !userData.user) {
+      return NextResponse.json({ error: "Unauthorized access." }, { status: 401 });
+    }
+    const callerId = userData.user.id;
 
     // 1. Fetch current booking details
     const { data: booking, error: fetchErr } = await supabase
@@ -30,6 +37,19 @@ export async function POST(req: NextRequest) {
 
     if (fetchErr || !booking) {
       return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+    }
+
+    // Verify participant authorization
+    let isAuthorized = callerId === booking.client_id || callerId === booking.photographer_id;
+    if (!isAuthorized) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", callerId).maybeSingle();
+      if (profile?.role === "admin") {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Forbidden: You are not authorized to update this booking." }, { status: 403 });
     }
 
     const oldStatus = booking.status;

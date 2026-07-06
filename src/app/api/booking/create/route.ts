@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
+      access_token,
       client_id,
       photographer_id,
       slot_id,
@@ -23,14 +24,20 @@ export async function POST(req: NextRequest) {
       details,
     } = body;
 
-    if (!client_id || !photographer_id || !slot_id) {
+    if (!client_id || !photographer_id || !slot_id || !access_token) {
       return NextResponse.json(
-        { error: "Missing required fields (client_id, photographer_id, slot_id)." },
+        { error: "Missing required fields (client_id, photographer_id, slot_id, access_token)." },
         { status: 400 }
       );
     }
 
     const supabase = getServerSupabase();
+
+    // Verify caller authentication status and authorize matching user ID
+    const { data: userData, error: authErr } = await supabase.auth.getUser(access_token);
+    if (authErr || !userData.user || userData.user.id !== client_id) {
+      return NextResponse.json({ error: "Unauthorized operation." }, { status: 401 });
+    }
 
     // 1. Create the booking record with status='booking' and fee_krw=0
     const { data: booking, error: insertErr } = await supabase

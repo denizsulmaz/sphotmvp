@@ -244,10 +244,14 @@ export default function ChatWindow({
   const handleUpdateStatus = async (nextStatus: string) => {
     setStatusLoading(true);
     try {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access_token = sessionData.session?.access_token;
+
       const res = await fetch("/api/booking/update-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId, nextStatus }),
+        body: JSON.stringify({ access_token, bookingId, nextStatus }),
       });
 
       const data = await res.json();
