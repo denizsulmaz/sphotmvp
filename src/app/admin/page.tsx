@@ -44,6 +44,141 @@ interface RefundRow {
 const firstOf = <T,>(v: T | T[] | null | undefined): T | null =>
   Array.isArray(v) ? v[0] ?? null : v ?? null;
 
+const StatCard = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number }) => (
+  <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex items-center gap-4">
+    <div className="p-3.5 bg-accent/10 rounded-2xl"><Icon size={22} className="text-black dark:text-white" /></div>
+    <div>
+      <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{label}</p>
+      <p className="text-xl font-black text-foreground dark:text-white mt-1">{value}</p>
+    </div>
+  </div>
+);
+
+const DetailRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: ReactNode }) => (
+  <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 dark:border-zinc-900 last:border-0">
+    <Icon size={15} className="text-gray-400 dark:text-zinc-500 mt-0.5 shrink-0" />
+    <div className="flex-1 min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">{label}</p>
+      <div className="text-sm text-foreground dark:text-zinc-200 font-medium mt-0.5 break-words">{value || <span className="text-gray-300 dark:text-zinc-600">—</span>}</div>
+    </div>
+  </div>
+);
+
+const Chips = ({ items }: { items: string[] | null | undefined }) =>
+  items && items.length > 0 ? (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((i) => <span key={i} className="px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded text-[11px] font-bold">{i}</span>)}
+    </div>
+  ) : <span className="text-gray-300 dark:text-zinc-600">—</span>;
+
+interface PhotographerCardRowProps {
+  photo: PhotographerRow;
+  pendingMode: boolean;
+  inviteFor: string | null;
+  inviteEmail: string;
+  inviteMsg: string | null;
+  actionLoading: string | null;
+  setDetailFor: (photo: PhotographerRow | null) => void;
+  setInviteFor: (id: string | null) => void;
+  setInviteEmail: (email: string) => void;
+  setInviteMsg: (msg: string | null) => void;
+  sendInvite: (id: string) => void;
+  setApproval: (id: string, approved: boolean) => void;
+}
+
+const PhotographerCardRow = ({
+  photo,
+  pendingMode,
+  inviteFor,
+  inviteEmail,
+  inviteMsg,
+  actionLoading,
+  setDetailFor,
+  setInviteFor,
+  setInviteEmail,
+  setInviteMsg,
+  sendInvite,
+  setApproval,
+}: PhotographerCardRowProps) => (
+  <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
+    <div className="flex items-start gap-4 flex-1">
+      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photo.profiles?.avatar_url || "/media/default-profile.webp"} alt={photo.profiles?.full_name || "Photographer"} className="w-full h-full object-cover" />
+      </div>
+      <div className="space-y-2 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setDetailFor(photo)}
+            className="text-base font-black text-foreground dark:text-white leading-tight hover:text-accent dark:hover:text-accent underline-offset-2 hover:underline transition-colors text-left"
+            title="View full details"
+          >
+            {photo.profiles?.full_name || "Unknown"}
+          </button>
+          {photo.public_code && <span className="text-[10px] font-mono font-bold text-gray-400 dark:text-zinc-500">#{photo.public_code}</span>}
+          {photo.is_approved
+            ? <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-black uppercase tracking-wider">Approved</span>
+            : <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded text-[10px] font-black uppercase tracking-wider">Pending</span>}
+        </div>
+        <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold">Base: {photo.base_price?.toLocaleString()} KRW/hr</p>
+        {pendingMode && <p className="text-xs text-gray-600 dark:text-zinc-400 line-clamp-3 leading-relaxed">{photo.bio || "No biography provided."}</p>}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {photo.locations?.slice(0, 4).map((loc) => (
+            <span key={loc} className="px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 rounded text-[10px] font-bold">{loc}</span>
+          ))}
+        </div>
+
+        {inviteFor === photo.id && (
+          <div className="mt-3 flex flex-col sm:flex-row gap-2">
+            <input
+              type="email" placeholder="photographer@email.com" value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="flex-1 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs outline-none text-foreground dark:text-white"
+            />
+            <button onClick={() => sendInvite(photo.id)} disabled={actionLoading === photo.id}
+              className="px-3 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-black rounded-xl hover:opacity-90">
+              Send invite
+            </button>
+          </div>
+        )}
+        {inviteFor === photo.id && inviteMsg && <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1 break-all">{inviteMsg}</p>}
+      </div>
+    </div>
+
+    <div className="shrink-0 flex items-center gap-2 flex-wrap">
+      {pendingMode ? (
+        <>
+          <button onClick={() => setDetailFor(photo)}
+            className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 font-bold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
+            <Search size={15} /> Details
+          </button>
+          <button onClick={() => setApproval(photo.id, true)} disabled={actionLoading === photo.id}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-black dark:bg-white text-white dark:text-black font-black text-sm rounded-xl hover:opacity-90 active:scale-95 transition-all">
+            <Check size={16} /> Approve
+          </button>
+          <button onClick={() => setApproval(photo.id, false)} disabled={actionLoading === photo.id}
+            className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 font-bold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
+            <X size={16} /> Reject
+          </button>
+        </>
+      ) : (
+        <>
+          <button onClick={() => { setInviteFor(inviteFor === photo.id ? null : photo.id); setInviteMsg(null); setInviteEmail(""); }}
+            className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
+            <Mail size={14} /> {inviteFor === photo.id ? "Close" : "Send claim invite"}
+          </button>
+          {photo.is_approved && (
+            <button onClick={() => setApproval(photo.id, false)} disabled={actionLoading === photo.id}
+              className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
+              Unpublish
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  </div>
+);
+
 export default function AdminApprovals() {
   const [photographers, setPhotographers] = useState<PhotographerRow[]>([]);
   const [stats, setStats] = useState({ totalBookings: 0, totalRevenue: 0, activeUsers: 0 });
@@ -210,115 +345,8 @@ export default function AdminApprovals() {
     );
   }
 
-  const StatCard = ({ icon: Icon, label, value }: { icon: any; label: string; value: string | number }) => (
-    <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex items-center gap-4">
-      <div className="p-3.5 bg-accent/10 rounded-2xl"><Icon size={22} className="text-black dark:text-white" /></div>
-      <div>
-        <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{label}</p>
-        <p className="text-xl font-black text-foreground dark:text-white mt-1">{value}</p>
-      </div>
-    </div>
-  );
-
-  const PhotographerCardRow = ({ photo, pendingMode }: { photo: PhotographerRow; pendingMode: boolean }) => (
-    <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
-      <div className="flex items-start gap-4 flex-1">
-        <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.profiles?.avatar_url || "/media/default-profile.webp"} alt={photo.profiles?.full_name || "Photographer"} className="w-full h-full object-cover" />
-        </div>
-        <div className="space-y-2 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setDetailFor(photo)}
-              className="text-base font-black text-foreground dark:text-white leading-tight hover:text-accent dark:hover:text-accent underline-offset-2 hover:underline transition-colors text-left"
-              title="View full details"
-            >
-              {photo.profiles?.full_name || "Unknown"}
-            </button>
-            {photo.public_code && <span className="text-[10px] font-mono font-bold text-gray-400 dark:text-zinc-500">#{photo.public_code}</span>}
-            {photo.is_approved
-              ? <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded text-[10px] font-black uppercase tracking-wider">Approved</span>
-              : <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded text-[10px] font-black uppercase tracking-wider">Pending</span>}
-          </div>
-          <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold">Base: {photo.base_price?.toLocaleString()} KRW/hr</p>
-          {pendingMode && <p className="text-xs text-gray-600 dark:text-zinc-400 line-clamp-3 leading-relaxed">{photo.bio || "No biography provided."}</p>}
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {photo.locations?.slice(0, 4).map((loc) => (
-              <span key={loc} className="px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 rounded text-[10px] font-bold">{loc}</span>
-            ))}
-          </div>
-
-          {inviteFor === photo.id && (
-            <div className="mt-3 flex flex-col sm:flex-row gap-2">
-              <input
-                type="email" placeholder="photographer@email.com" value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-xs outline-none text-foreground dark:text-white"
-              />
-              <button onClick={() => sendInvite(photo.id)} disabled={actionLoading === photo.id}
-                className="px-3 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-black rounded-xl hover:opacity-90">
-                Send invite
-              </button>
-            </div>
-          )}
-          {inviteFor === photo.id && inviteMsg && <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-1 break-all">{inviteMsg}</p>}
-        </div>
-      </div>
-
-      <div className="shrink-0 flex items-center gap-2 flex-wrap">
-        {pendingMode ? (
-          <>
-            <button onClick={() => setDetailFor(photo)}
-              className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 font-bold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
-              <Search size={15} /> Details
-            </button>
-            <button onClick={() => setApproval(photo.id, true)} disabled={actionLoading === photo.id}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-black dark:bg-white text-white dark:text-black font-black text-sm rounded-xl hover:opacity-90 active:scale-95 transition-all">
-              <Check size={16} /> Approve
-            </button>
-            <button onClick={() => setApproval(photo.id, false)} disabled={actionLoading === photo.id}
-              className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 font-bold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
-              <X size={16} /> Reject
-            </button>
-          </>
-        ) : (
-          <>
-            <button onClick={() => { setInviteFor(inviteFor === photo.id ? null : photo.id); setInviteMsg(null); setInviteEmail(""); }}
-              className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-300 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
-              <Mail size={14} /> {inviteFor === photo.id ? "Close" : "Send claim invite"}
-            </button>
-            {photo.is_approved && (
-              <button onClick={() => setApproval(photo.id, false)} disabled={actionLoading === photo.id}
-                className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
-                Unpublish
-              </button>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-
   const fmtSlot = (iso?: string) =>
     iso ? new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
-
-  const DetailRow = ({ icon: Icon, label, value }: { icon: any; label: string; value: ReactNode }) => (
-    <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 dark:border-zinc-900 last:border-0">
-      <Icon size={15} className="text-gray-400 dark:text-zinc-500 mt-0.5 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">{label}</p>
-        <div className="text-sm text-foreground dark:text-zinc-200 font-medium mt-0.5 break-words">{value || <span className="text-gray-300 dark:text-zinc-600">—</span>}</div>
-      </div>
-    </div>
-  );
-
-  const Chips = ({ items }: { items: string[] | null | undefined }) =>
-    items && items.length > 0 ? (
-      <div className="flex flex-wrap gap-1.5">
-        {items.map((i) => <span key={i} className="px-2 py-0.5 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded text-[11px] font-bold">{i}</span>)}
-      </div>
-    ) : <span className="text-gray-300 dark:text-zinc-600">—</span>;
 
   return (
     <div className="space-y-8">
@@ -442,7 +470,25 @@ export default function AdminApprovals() {
             <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">No photographers awaiting approval.</p>
           </div>
         ) : (
-          <div className="space-y-4">{pending.map((p) => <PhotographerCardRow key={p.id} photo={p} pendingMode />)}</div>
+          <div className="space-y-4">
+            {pending.map((p) => (
+              <PhotographerCardRow
+                key={p.id}
+                photo={p}
+                pendingMode
+                inviteFor={inviteFor}
+                inviteEmail={inviteEmail}
+                inviteMsg={inviteMsg}
+                actionLoading={actionLoading}
+                setDetailFor={setDetailFor}
+                setInviteFor={setInviteFor}
+                setInviteEmail={setInviteEmail}
+                setInviteMsg={setInviteMsg}
+                sendInvite={sendInvite}
+                setApproval={setApproval}
+              />
+            ))}
+          </div>
         )}
       </div>
 
@@ -460,7 +506,23 @@ export default function AdminApprovals() {
           </div>
         </div>
         <div className="space-y-4">
-          {filtered.map((p) => <PhotographerCardRow key={p.id} photo={p} pendingMode={false} />)}
+          {filtered.map((p) => (
+            <PhotographerCardRow
+              key={p.id}
+              photo={p}
+              pendingMode={false}
+              inviteFor={inviteFor}
+              inviteEmail={inviteEmail}
+              inviteMsg={inviteMsg}
+              actionLoading={actionLoading}
+              setDetailFor={setDetailFor}
+              setInviteFor={setInviteFor}
+              setInviteEmail={setInviteEmail}
+              setInviteMsg={setInviteMsg}
+              sendInvite={sendInvite}
+              setApproval={setApproval}
+            />
+          ))}
         </div>
       </div>
     </div>
