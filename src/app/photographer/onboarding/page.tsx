@@ -227,7 +227,7 @@ export default function PhotographerOnboarding() {
             <input
               type="number"
               value={basePrice}
-              onChange={(e) => setBasePrice(e.target.value)}
+              onChange={(e) => setBasePrice(e.target.value.replace(/^0+(?=\d)/, ''))}
               placeholder="e.g. 150000"
               className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
             />

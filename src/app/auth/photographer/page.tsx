@@ -122,7 +122,16 @@ export default function PhotographerAuthPage() {
             }
           }
 
-          const parsedInstagramHandle = socialLink.split("instagram.com/").pop()?.replace(/\/$/, "") || socialLink;
+          let cleanInstagram = socialLink.trim();
+          if (cleanInstagram.includes("instagram.com/")) {
+            const parts = cleanInstagram.split("instagram.com/");
+            if (parts[1]) {
+              cleanInstagram = parts[1].split(/[?#]/)[0].replace(/\/$/, "");
+            }
+          }
+          cleanInstagram = cleanInstagram.replace(/^@/, "");
+          const finalHandle = cleanInstagram ? `@${cleanInstagram}` : "";
+          const finalUrl = cleanInstagram ? `https://www.instagram.com/${cleanInstagram}/` : "";
 
           const { error: profileError } = await supabase
             .from("photographer_profiles")
@@ -132,8 +141,8 @@ export default function PhotographerAuthPage() {
               locations: [location],
               categories: selectedCats,
               portfolio_urls: [portfolioLink],
-              instagram: parsedInstagramHandle.startsWith("@") ? parsedInstagramHandle : `@${parsedInstagramHandle}`,
-              instagram_url: socialLink,
+              instagram: finalHandle,
+              instagram_url: finalUrl,
               languages: selectedLangs,
               english_level: selectedLangs.includes("English") ? "Fluent" : "Basic",
               is_approved: false
@@ -368,7 +377,7 @@ export default function PhotographerAuthPage() {
                       required
                       placeholder="e.g. 150000"
                       value={basePrice}
-                      onChange={(e) => setBasePrice(e.target.value)}
+                      onChange={(e) => setBasePrice(e.target.value.replace(/^0+(?=\d)/, ''))}
                       className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"
                     />
                   </div>
@@ -417,12 +426,12 @@ export default function PhotographerAuthPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 dark:text-zinc-500 mb-1.5 flex items-center gap-1">
-                      <Instagram size={12} /> Instagram Profile URL
+                      <Instagram size={12} /> Instagram Handle
                     </label>
                     <input
-                      type="url"
+                      type="text"
                       required
-                      placeholder="https://instagram.com/yourhandle"
+                      placeholder="e.g. @yourhandle"
                       value={socialLink}
                       onChange={(e) => setSocialLink(e.target.value)}
                       className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white focus:border-black dark:focus:border-white transition-all"

@@ -11,7 +11,7 @@ export default function ProfileBuilder() {
   
   // Profile settings state
   const [bio, setBio] = useState("");
-  const [basePrice, setBasePrice] = useState(0);
+  const [basePrice, setBasePrice] = useState<string>("");
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [portfolioUrls, setPortfolioUrls] = useState<string[]>([]);
@@ -65,7 +65,7 @@ export default function ProfileBuilder() {
 
         if (data) {
           setBio(data.bio || "");
-          setBasePrice(data.base_price || 0);
+          setBasePrice(data.base_price !== null && data.base_price !== undefined ? String(data.base_price) : "");
           setSelectedLocations(data.locations || []);
           setSelectedCategories(data.categories || []);
           setPortfolioUrls(data.portfolio_urls || []);
@@ -98,17 +98,28 @@ export default function ProfileBuilder() {
     setError(null);
     setSuccess(false);
 
+    let cleanInstagram = instagram.trim();
+    if (cleanInstagram.includes("instagram.com/")) {
+      const parts = cleanInstagram.split("instagram.com/");
+      if (parts[1]) {
+        cleanInstagram = parts[1].split(/[?#]/)[0].replace(/\/$/, "");
+      }
+    }
+    cleanInstagram = cleanInstagram.replace(/^@/, "");
+    const finalHandle = cleanInstagram ? `@${cleanInstagram}` : "";
+    const finalUrl = cleanInstagram ? `https://www.instagram.com/${cleanInstagram}/` : "";
+
     try {
       const { error: updateError } = await supabase
         .from("photographer_profiles")
         .update({
           bio,
-          base_price: basePrice,
+          base_price: basePrice ? Number(basePrice) : 0,
           locations: selectedLocations,
           categories: selectedCategories,
           portfolio_urls: portfolioUrls,
-          instagram,
-          instagram_url: instagramUrl,
+          instagram: finalHandle,
+          instagram_url: finalUrl,
           languages,
           english_level: englishLevel,
           response_speed: responseSpeed,
@@ -119,6 +130,8 @@ export default function ProfileBuilder() {
         .eq("id", user.id);
 
       if (updateError) throw updateError;
+      setInstagram(finalHandle);
+      setInstagramUrl(finalUrl);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
@@ -256,7 +269,7 @@ export default function ProfileBuilder() {
                   type="number"
                   required
                   value={basePrice}
-                  onChange={(e) => setBasePrice(Number(e.target.value))}
+                  onChange={(e) => setBasePrice(e.target.value.replace(/^0+(?=\d)/, ''))}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
                 />
               </div>
@@ -269,18 +282,36 @@ export default function ProfileBuilder() {
                   onChange={(e) => setInstagram(e.target.value)}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
                 />
+                {instagram && (
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    Preview link:{" "}
+                    <a
+                      href={(() => {
+                        let h = instagram.trim();
+                        if (h.includes("instagram.com/")) {
+                          const p = h.split("instagram.com/");
+                          if (p[1]) h = p[1].split(/[?#]/)[0].replace(/\/$/, "");
+                        }
+                        h = h.replace(/^@/, "");
+                        return h ? `https://www.instagram.com/${h}/` : "";
+                      })()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-500 dark:text-accent underline hover:opacity-80 transition-opacity"
+                    >
+                      {(() => {
+                        let h = instagram.trim();
+                        if (h.includes("instagram.com/")) {
+                          const p = h.split("instagram.com/");
+                          if (p[1]) h = p[1].split(/[?#]/)[0].replace(/\/$/, "");
+                        }
+                        h = h.replace(/^@/, "");
+                        return h ? `https://www.instagram.com/${h}/` : "";
+                      })()}
+                    </a>
+                  </p>
+                )}
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Instagram URL</label>
-              <input
-                type="url"
-                placeholder="https://www.instagram.com/joshfotos_/"
-                value={instagramUrl}
-                onChange={(e) => setInstagramUrl(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
-              />
             </div>
 
             <div>
