@@ -20,13 +20,19 @@ const timeOptions = Array.from({ length: 48 }, (_, idx) => {
   return `${formattedHour}:${minutes}`;
 });
 
+const getDefaultDate = () => {
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  return nextYear.toISOString().split("T")[0];
+};
+
 export default function ScheduleManager() {
   const { user } = useAuth();
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
 
   // New slot form state
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(getDefaultDate);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [unavailableDate, setUnavailableDate] = useState("");
@@ -173,7 +179,7 @@ export default function ScheduleManager() {
       // Reset fields
       setStartTime("");
       setEndTime("");
-      setDate("");
+      setDate(getDefaultDate());
       showToast(`Successfully created ${insertedSlots.length} slot(s).`, "success");
     } catch (err: any) {
       console.error("Error creating slot:", err);
@@ -270,7 +276,7 @@ export default function ScheduleManager() {
 
           <form onSubmit={handleAddSlot} className="space-y-4">
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Date / Repeat Until (Optional)</label>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Date / Repeat Until</label>
               <input
                 type="date"
                 value={date}
