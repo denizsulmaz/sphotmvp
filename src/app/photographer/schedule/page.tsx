@@ -66,6 +66,34 @@ export default function ScheduleManager() {
     fetchSlots();
   }, [fetchSlots]);
 
+  const notifyScheduleChange = async (action: string, slotsDescription: string) => {
+    if (!user || !supabase) return;
+    try {
+      const { data: pData } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      const fullName = pData?.full_name || user.email || "Unknown";
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access_token = sessionData.session?.access_token;
+      if (access_token) {
+        await fetch("/api/notify/transaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_token,
+            type: "photographer_availability",
+            details: {
+              fullName,
+              action,
+              slotsDescription,
+            },
+          }),
+        });
+      }
+    } catch (err) {
+      console.error("notifyScheduleChange error:", err);
+    }
+  };
+
   const handleAddSlot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !supabase) return;
@@ -181,6 +209,11 @@ export default function ScheduleManager() {
       setEndTime("");
       setDate(getDefaultDate());
       showToast("Successfully set availability.", "success");
+
+      // Notify admin
+      const count = slotsToInsert.length;
+      const slotsDescription = `Created ${count} hourly slot(s) between ${startTime} and ${endTime} repeating until ${date || '1 year'}.`;
+      await notifyScheduleChange("Created Slots", slotsDescription);
     } catch (err: any) {
       console.error("Error creating slot:", err);
       setError(err.message || "Failed to add availability slot.");
@@ -216,6 +249,9 @@ export default function ScheduleManager() {
       }));
 
       showToast(`Successfully marked ${targetDateStr} as unavailable.`, "success");
+
+      // Notify admin
+      await notifyScheduleChange("Marked Date Unavailable", `Marked ${targetDateStr} as unavailable (deleted any available slots on this day).`);
     } catch (err: any) {
       console.error("Error marking unavailable:", err);
       showToast(err.message || "Failed to update unavailability.", "error");
@@ -236,6 +272,13 @@ export default function ScheduleManager() {
         .eq("status", "available"); // Guard to prevent deleting booked slots
 
       if (deleteError) throw deleteError;
+
+      // Notify admin
+      const matched = slots.find(s => s.id === slotId);
+      const slotDesc = matched 
+        ? `Deleted available slot: ${new Date(matched.start_time).toLocaleString()} - ${new Date(matched.end_time).toLocaleString()}`
+        : `Deleted availability slot (ID: ${slotId})`;
+      await notifyScheduleChange("Deleted Slot", slotDesc);
 
       // Update state
       setSlots(prev => prev.filter(s => s.id !== slotId));

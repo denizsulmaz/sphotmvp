@@ -154,6 +154,27 @@ export default function PhotographerAuthPage() {
             // We don't crash, but warn the user that they can finalize this inside the profile page
           }
 
+          // Send admin notification
+          const { data: sessionData } = await supabase.auth.getSession();
+          const access_token = sessionData.session?.access_token;
+          if (access_token) {
+            await fetch("/api/notify/transaction", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                access_token,
+                type: "photographer_signup",
+                details: {
+                  fullName,
+                  instagram: finalHandle,
+                  basePrice,
+                  portfolioLink,
+                  location,
+                },
+              }),
+            }).catch((e) => console.error("Signup notification error:", e));
+          }
+
           setSuccess("Application submitted successfully! Your account is created and pending admin verification.");
           setTimeout(() => {
             router.push("/photographer/dashboard");

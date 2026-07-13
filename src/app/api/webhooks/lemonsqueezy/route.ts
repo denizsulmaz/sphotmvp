@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { insertBookingSystemMessage } from "@/lib/bookingMessage";
+import { sendNotificationEmail } from "@/lib/notify";
 
 /**
  * Lemon Squeezy webhook handler.
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
       // Fetch booking details to get the associated availability slot ID
       const { data: booking, error: fetchError } = await supabase
         .from("bookings")
-        .select("slot_id")
+        .select("slot_id, client_id, photographer_id")
         .eq("id", bookingId)
         .single();
 
@@ -110,6 +111,29 @@ export async function POST(req: NextRequest) {
       // Post the SPHOT system pre-info message that opens the chat.
       await insertBookingSystemMessage(supabase, bookingId).catch((e) =>
         console.error("[Webhook] system message:", e?.message)
+      );
+
+      // Retrieve client and photographer profile details for the email alert
+      const { data: clientProf } = await supabase.from("profiles").select("full_name").eq("id", booking.client_id).maybeSingle();
+      const { data: photoProf } = await supabase.from("profiles").select("full_name").eq("id", booking.photographer_id).maybeSingle();
+      const clientName = clientProf?.full_name || "Client";
+      const photoName = photoProf?.full_name || "Photographer";
+
+      // Send payment succeeded email notification to hi@booksphot.com
+      const subject = `[SPHOT] Payment Succeeded: ${clientName} & ${photoName}`;
+      const textContent = `Payment succeeded for SPHOT connection booking between Client: ${clientName} and Photographer: ${photoName}.\nStatus: paid\nOrder ID: ${orderId}\nBooking ID: ${bookingId}`;
+      const htmlContent = `
+        <h2>SPHOT Payment Succeeded Alert</h2>
+        <p><strong>Client:</strong> ${clientName}</p>
+        <p><strong>Photographer:</strong> ${photoName}</p>
+        <p><strong>Status:</strong> paid (Payment confirmed via Lemon Squeezy)</p>
+        <p><strong>Order ID:</strong> ${orderId}</p>
+        <p><strong>Booking ID:</strong> ${bookingId}</p>
+        <hr/>
+        <p><em>SPHOT Alerts System</em></p>
+      `;
+      await sendNotificationEmail(subject, htmlContent, textContent).catch((e) =>
+        console.error("[Webhook] Failed to send payment notification:", e?.message)
       );
 
       console.log(

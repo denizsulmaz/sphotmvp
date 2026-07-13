@@ -660,7 +660,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
                     {next21Days.map((day, idx) => {
                       const isSelected = selectedDate?.toDateString() === day.toDateString();
-                      const hasSlots = daysWithSlots.has(day.toDateString());
+                      const hasSlots = daysWithSlots.has(getTzDateString(day, photographer?.timezone));
                       return (
                         <button
                           key={idx}

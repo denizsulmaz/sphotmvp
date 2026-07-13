@@ -136,6 +136,32 @@ export default function PhotographerOnboarding() {
         .eq("id", user.id);
 
       if (profileErr) throw profileErr;
+
+      // Get photographer profile name and notify admin
+      const { data: pData } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      const fullName = pData?.full_name || user.email || "Unknown";
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access_token = sessionData.session?.access_token;
+      if (access_token) {
+        await fetch("/api/notify/transaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            access_token,
+            type: "photographer_onboarding",
+            details: {
+              fullName,
+              bio,
+              basePrice,
+              locations: selectedLocations,
+              categories: selectedCategories,
+              languages: selectedLanguages,
+            },
+          }),
+        }).catch((e) => console.error("Onboarding notification error:", e));
+      }
+
       router.push("/photographer/dashboard");
     } catch (err: any) {
       setError(err.message || "Failed to save. Please try again.");
