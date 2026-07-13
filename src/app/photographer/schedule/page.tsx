@@ -13,6 +13,13 @@ interface AvailabilitySlot {
   status: "available" | "booked";
 }
 
+const timeOptions = Array.from({ length: 48 }, (_, idx) => {
+  const hour = Math.floor(idx / 2);
+  const minutes = idx % 2 === 0 ? "00" : "30";
+  const formattedHour = String(hour).padStart(2, "0");
+  return `${formattedHour}:${minutes}`;
+});
+
 export default function ScheduleManager() {
   const { user } = useAuth();
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
@@ -279,25 +286,31 @@ export default function ScheduleManager() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Start Time</label>
-                <input
-                  type="time"
+                <select
                   required
-                  step="1800"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
-                />
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-sm outline-none text-foreground dark:text-white appearance-none"
+                >
+                  <option value="" disabled>Select Time</option>
+                  {timeOptions.map((t) => (
+                    <option key={`start-${t}`} value={t}>{t}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">End Time</label>
-                <input
-                  type="time"
+                <select
                   required
-                  step="1800"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
-                />
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3.5 px-4 text-sm outline-none text-foreground dark:text-white appearance-none"
+                >
+                  <option value="" disabled>Select Time</option>
+                  {timeOptions.map((t) => (
+                    <option key={`end-${t}`} value={t}>{t}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
