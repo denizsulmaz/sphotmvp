@@ -254,6 +254,17 @@ export default function ScheduleManager() {
     return { dateStr, timeStr };
   };
 
+  // Find the earliest date in the slots list to display only one day's slots
+  const uniqueDates = Array.from(new Set(slots.map(s => s.start_time.split("T")[0])));
+  const earliestDate = uniqueDates.sort()[0];
+  const displayedSlots = earliestDate 
+    ? slots.filter(s => s.start_time.split("T")[0] === earliestDate)
+    : [];
+
+  const earliestDateFormatted = earliestDate 
+    ? new Date(`${earliestDate}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    : "";
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
       
@@ -413,10 +424,12 @@ export default function ScheduleManager() {
         </div>
       </div>
 
-      {/* Right Column: Slots List */}
+       {/* Right Column: Slots List */}
       <div className="md:col-span-7 space-y-4">
         <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm">
-          <h2 className="text-xl font-black text-foreground dark:text-white mb-2">Availability Calendar</h2>
+          <h2 className="text-xl font-black text-foreground dark:text-white mb-2">
+            Availability Calendar {earliestDateFormatted ? `(${earliestDateFormatted})` : ""}
+          </h2>
           <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours.</p>
         </div>
 
@@ -432,7 +445,7 @@ export default function ScheduleManager() {
           </div>
         ) : (
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar">
-            {slots.map((slot) => {
+            {displayedSlots.map((slot) => {
               const formatted = formatSlotDateTime(slot.start_time, slot.end_time);
               return (
                 <div
