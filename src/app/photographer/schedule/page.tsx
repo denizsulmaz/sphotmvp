@@ -180,7 +180,7 @@ export default function ScheduleManager() {
       setStartTime("");
       setEndTime("");
       setDate(getDefaultDate());
-      showToast(`Successfully created ${insertedSlots.length} slot(s).`, "success");
+      showToast("Successfully set availability.", "success");
     } catch (err: any) {
       console.error("Error creating slot:", err);
       setError(err.message || "Failed to add availability slot.");
@@ -444,7 +444,6 @@ export default function ScheduleManager() {
                       <Clock size={18} className="text-gray-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase tracking-wider">{formatted.dateStr}</p>
                       <p className="text-sm font-bold text-foreground dark:text-white mt-0.5">{formatted.timeStr}</p>
                     </div>
                   </div>
