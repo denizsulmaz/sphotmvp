@@ -84,6 +84,7 @@ interface PhotographerCardRowProps {
   setInviteMsg: (msg: string | null) => void;
   sendInvite: (id: string) => void;
   setApproval: (id: string, approved: boolean) => void;
+  onReject: (id: string) => void;
 }
 
 const PhotographerCardRow = ({
@@ -99,6 +100,7 @@ const PhotographerCardRow = ({
   setInviteMsg,
   sendInvite,
   setApproval,
+  onReject,
 }: PhotographerCardRowProps) => (
   <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6">
     <div className="flex items-start gap-4 flex-1">
@@ -156,7 +158,7 @@ const PhotographerCardRow = ({
             className="flex items-center gap-1.5 px-4 py-2.5 bg-black dark:bg-white text-white dark:text-black font-black text-sm rounded-xl hover:opacity-90 active:scale-95 transition-all">
             <Check size={16} /> Approve
           </button>
-          <button onClick={() => setApproval(photo.id, false)} disabled={actionLoading === photo.id}
+          <button onClick={() => onReject(photo.id)} disabled={actionLoading === photo.id}
             className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 dark:border-zinc-800 text-gray-500 dark:text-zinc-400 font-bold text-sm rounded-xl hover:bg-gray-50 dark:hover:bg-zinc-900">
             <X size={16} /> Reject
           </button>
@@ -292,6 +294,33 @@ export default function AdminApprovals() {
     } catch (err) {
       console.error("approval:", err);
       alert("Could not update approval.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!supabase) return;
+    if (!confirm("Are you sure you want to reject and completely delete this photographer application?")) return;
+    setActionLoading(id);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/reject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: sess.session?.access_token,
+          photographer_id: id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reject photographer.");
+      
+      // Remove from state list
+      setPhotographers((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      console.error("reject error:", err);
+      alert(err.message || "Could not reject photographer.");
     } finally {
       setActionLoading(null);
     }
@@ -486,6 +515,7 @@ export default function AdminApprovals() {
                 setInviteMsg={setInviteMsg}
                 sendInvite={sendInvite}
                 setApproval={setApproval}
+                onReject={handleReject}
               />
             ))}
           </div>
@@ -521,6 +551,7 @@ export default function AdminApprovals() {
               setInviteMsg={setInviteMsg}
               sendInvite={sendInvite}
               setApproval={setApproval}
+              onReject={handleReject}
             />
           ))}
         </div>
