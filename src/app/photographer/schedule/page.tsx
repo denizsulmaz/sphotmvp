@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { Plus, Trash2, Calendar, Clock, AlertCircle, Sparkles } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, AlertCircle, Sparkles, CalendarOff } from "lucide-react";
 import { useToast } from "@/components/Toast";
 
 interface AvailabilitySlot {
@@ -22,6 +22,7 @@ export default function ScheduleManager() {
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [unavailableDate, setUnavailableDate] = useState("");
   
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -59,55 +60,91 @@ export default function ScheduleManager() {
     setActionLoading(true);
 
     try {
-      // Build ISO datetimes
-      const startDateTime = new Date(`${date}T${startTime}`);
-      const endDateTime = new Date(`${date}T${endTime}`);
-
-      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        throw new Error("Invalid date or time values.");
+      // Validate time is on the hour or half-hour (e.g. 18:00 or 18:30)
+      const startParts = startTime.split(":");
+      const endParts = endTime.split(":");
+      if (startParts.length >= 2) {
+        const startMin = parseInt(startParts[1], 10);
+        if (startMin !== 0 && startMin !== 30) {
+          throw new Error("Start time must be on the hour or half-hour (e.g. 18:00 or 18:30).");
+        }
+      }
+      if (endParts.length >= 2) {
+        const endMin = parseInt(endParts[1], 10);
+        if (endMin !== 0 && endMin !== 30) {
+          throw new Error("End time must be on the hour or half-hour (e.g. 18:00 or 18:30).");
+        }
       }
 
-      if (startDateTime <= new Date()) {
-        throw new Error("Slots must be in the future.");
+      if (date) {
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (date < todayStr) {
+          throw new Error("Deadline date cannot be in the past.");
+        }
       }
 
-      if (endDateTime <= startDateTime) {
-        throw new Error("End time must be after start time.");
-      }
+      const targetDeadline = date ? new Date(`${date}T23:59:59`) : null;
+      const startDay = new Date();
+      startDay.setHours(0, 0, 0, 0);
 
-      // Check overlapping slots locally (or let DB handle it)
-      const isOverlapping = slots.some(slot => {
-        const s = new Date(slot.start_time);
-        const e = new Date(slot.end_time);
-        return (startDateTime < e && endDateTime > s);
-      });
-
-      if (isOverlapping) {
-        throw new Error("This slot range overlaps with an existing availability slot.");
+      const maxDays = 365;
+      const endDay = new Date(startDay);
+      if (targetDeadline) {
+        endDay.setTime(targetDeadline.getTime());
+      } else {
+        endDay.setDate(endDay.getDate() + maxDays);
       }
 
       const slotsToInsert = [];
-      let currentStart = new Date(startDateTime);
-      while (currentStart < endDateTime) {
-        const currentEnd = new Date(currentStart);
-        currentEnd.setHours(currentEnd.getHours() + 1);
+      const now = new Date();
 
-        if (currentEnd > endDateTime) {
-          break; // only create full hour-by-hour slots
+      // Loop through each day from startDay to endDay
+      let currentDay = new Date(startDay);
+      while (currentDay <= endDay) {
+        const yyyy = currentDay.getFullYear();
+        const mm = String(currentDay.getMonth() + 1).padStart(2, '0');
+        const dd = String(currentDay.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        const dayStartDateTime = new Date(`${dateStr}T${startTime}`);
+        const dayEndDateTime = new Date(`${dateStr}T${endTime}`);
+
+        if (!isNaN(dayStartDateTime.getTime()) && !isNaN(dayEndDateTime.getTime())) {
+          if (dayStartDateTime > now && dayEndDateTime > dayStartDateTime) {
+            let currentStart = new Date(dayStartDateTime);
+            while (currentStart < dayEndDateTime) {
+              const currentEnd = new Date(currentStart);
+              currentEnd.setHours(currentEnd.getHours() + 1);
+
+              if (currentEnd > dayEndDateTime) {
+                break; // only create full hour-by-hour slots
+              }
+
+              // Check overlapping slots locally
+              const overlaps = slots.some(slot => {
+                const s = new Date(slot.start_time);
+                const e = new Date(slot.end_time);
+                return (currentStart < e && currentEnd > s);
+              });
+
+              if (!overlaps) {
+                slotsToInsert.push({
+                  photographer_id: user.id,
+                  start_time: currentStart.toISOString(),
+                  end_time: currentEnd.toISOString(),
+                  status: "available",
+                });
+              }
+
+              currentStart = currentEnd;
+            }
+          }
         }
-
-        slotsToInsert.push({
-          photographer_id: user.id,
-          start_time: currentStart.toISOString(),
-          end_time: currentEnd.toISOString(),
-          status: "available",
-        });
-
-        currentStart = currentEnd;
+        currentDay.setDate(currentDay.getDate() + 1);
       }
 
       if (slotsToInsert.length === 0) {
-        throw new Error("Availability range must be at least 1 hour.");
+        throw new Error("No new slots to create. Make sure you set a future time and they don't overlap with existing slots.");
       }
 
       const { data, error: insertError } = await supabase
@@ -126,12 +163,49 @@ export default function ScheduleManager() {
         )
       );
 
-      // Reset time fields
+      // Reset fields
       setStartTime("");
       setEndTime("");
+      setDate("");
+      showToast(`Successfully created ${insertedSlots.length} slot(s).`, "success");
     } catch (err: any) {
       console.error("Error creating slot:", err);
       setError(err.message || "Failed to add availability slot.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkUnavailable = async (targetDateStr: string) => {
+    if (!user || !supabase) return;
+    if (!confirm(`Are you sure you want to make ${targetDateStr} unavailable? This will delete all available slots on this day.`)) return;
+
+    setActionLoading(true);
+    setError(null);
+    try {
+      const startOfDay = new Date(`${targetDateStr}T00:00:00`);
+      const endOfDay = new Date(`${targetDateStr}T23:59:59.999`);
+
+      const { error: deleteError } = await supabase
+        .from("availability_slots")
+        .delete()
+        .eq("photographer_id", user.id)
+        .eq("status", "available")
+        .gte("start_time", startOfDay.toISOString())
+        .lte("start_time", endOfDay.toISOString());
+
+      if (deleteError) throw deleteError;
+
+      // Update state
+      setSlots(prev => prev.filter(slot => {
+        const slotDate = new Date(slot.start_time);
+        return !(slotDate >= startOfDay && slotDate <= endOfDay);
+      }));
+
+      showToast(`Successfully marked ${targetDateStr} as unavailable.`, "success");
+    } catch (err: any) {
+      console.error("Error marking unavailable:", err);
+      showToast(err.message || "Failed to update unavailability.", "error");
     } finally {
       setActionLoading(false);
     }
@@ -189,15 +263,17 @@ export default function ScheduleManager() {
 
           <form onSubmit={handleAddSlot} className="space-y-4">
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Date</label>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Date / Repeat Until (Optional)</label>
               <input
                 type="date"
-                required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 min={new Date().toISOString().split("T")[0]}
                 className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
               />
+              <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1.5">
+                If left blank, availability repeats daily forever (365 days). If set, repeats daily until this date.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -206,6 +282,7 @@ export default function ScheduleManager() {
                 <input
                   type="time"
                   required
+                  step="1800"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
@@ -216,6 +293,7 @@ export default function ScheduleManager() {
                 <input
                   type="time"
                   required
+                  step="1800"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
@@ -238,6 +316,81 @@ export default function ScheduleManager() {
               )}
             </button>
           </form>
+        </div>
+
+        {/* Manage Unavailability Card */}
+        <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+          <h2 className="text-xl font-black flex items-center gap-2.5 text-foreground dark:text-white">
+            <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+              <CalendarOff size={16} />
+            </span>
+            Manage Unavailability
+          </h2>
+
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900 rounded-2xl">
+            <div>
+              <p className="text-sm font-bold text-foreground dark:text-white font-black">I&apos;m unavailable today</p>
+              <p className="text-[10px] text-gray-400 dark:text-zinc-500">Quickly remove today&apos;s available slots</p>
+            </div>
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={async () => {
+                if (actionLoading) return;
+                const todayStr = new Date().toISOString().split("T")[0];
+                const hasSlots = slots.some(slot => {
+                  const slotDate = slot.start_time.split("T")[0];
+                  return slotDate === todayStr && slot.status === "available";
+                });
+                if (!hasSlots) {
+                  showToast("To add available hours for today, use the form above.", "info");
+                  return;
+                }
+                await handleMarkUnavailable(todayStr);
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                !slots.some(slot => {
+                  const slotDate = slot.start_time.split("T")[0];
+                  return slotDate === new Date().toISOString().split("T")[0] && slot.status === "available";
+                }) ? "bg-accent" : "bg-gray-200 dark:bg-zinc-800"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  !slots.some(slot => {
+                    const slotDate = slot.start_time.split("T")[0];
+                    return slotDate === new Date().toISOString().split("T")[0] && slot.status === "available";
+                  }) ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="border-t border-gray-100 dark:border-zinc-800 pt-4">
+            <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Mark Specific Date Unavailable</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={unavailableDate}
+                onChange={(e) => setUnavailableDate(e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
+                className="flex-1 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-sm outline-none text-foreground dark:text-white"
+              />
+              <button
+                type="button"
+                disabled={actionLoading || !unavailableDate}
+                onClick={() => {
+                  if (unavailableDate) {
+                    handleMarkUnavailable(unavailableDate);
+                    setUnavailableDate("");
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors shrink-0 flex items-center justify-center"
+              >
+                Mark
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

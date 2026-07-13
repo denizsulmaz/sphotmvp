@@ -5,9 +5,11 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES } from "@/lib/types";
 import { Save, AlertCircle, Camera, Check, Upload, Trash2, Globe, MapPin } from "lucide-react";
+import { useToast } from "@/components/Toast";
 
 export default function ProfileBuilder() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   
   // Profile settings state
   const [bio, setBio] = useState("");
@@ -15,6 +17,7 @@ export default function ProfileBuilder() {
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [portfolioUrls, setPortfolioUrls] = useState<string[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState("");
   
   // Meta filters state
   const [instagram, setInstagram] = useState("");
@@ -31,6 +34,7 @@ export default function ProfileBuilder() {
   // UI state
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -80,6 +84,17 @@ export default function ProfileBuilder() {
           setPublicCode(data.public_code || "");
           setTimezone(data.timezone || "Asia/Seoul");
         }
+
+        // Fetch user avatar
+        const { data: userProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (!profileError && userProfile) {
+          setAvatarUrl(userProfile.avatar_url || "");
+        }
       } catch (err: any) {
         console.error("Error fetching photographer profile:", err);
         setError("Failed to load profile. Please make sure you are registered as a Sphoter.");
@@ -90,6 +105,76 @@ export default function ProfileBuilder() {
 
     fetchProfile();
   }, [user]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !user || !supabase) return;
+    setUploadingAvatar(true);
+    setError(null);
+
+    const file = e.target.files[0];
+    const fileExt = file.name.split(".").pop();
+    const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl(publicUrl);
+      showToast("Profile picture updated successfully.", "success");
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err: any) {
+      console.error("Avatar upload failed:", err);
+      setError(err.message || "Failed to upload avatar.");
+      showToast(err.message || "Failed to upload avatar.", "error");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user || !supabase) return;
+    if (!confirm("Are you sure you want to remove your profile picture?")) return;
+
+    setUploadingAvatar(true);
+    setError(null);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: "" })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      setAvatarUrl("");
+      showToast("Profile picture removed.", "success");
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (err: any) {
+      console.error("Avatar removal failed:", err);
+      setError(err.message || "Failed to remove avatar.");
+      showToast(err.message || "Failed to remove avatar.", "error");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,6 +347,52 @@ export default function ProfileBuilder() {
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
             <h3 className="text-lg font-black text-foreground dark:text-white mb-2">Basic Info</h3>
             
+            {/* Profile Picture Upload Block */}
+            <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800/50">
+              <div className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-200 dark:bg-zinc-800 shrink-0 border-2 border-gray-100 dark:border-zinc-800 flex items-center justify-center">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Camera size={24} className="text-gray-400" />
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-bold text-foreground dark:text-white">Profile Picture</p>
+                <div className="flex items-center gap-2">
+                  <label className="cursor-pointer px-3.5 py-2 bg-black dark:bg-white text-white dark:text-black text-xs font-black rounded-xl hover:opacity-90 transition-all flex items-center gap-1.5 shadow-sm">
+                    <Upload size={12} />
+                    <span>Upload Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                      disabled={uploadingAvatar}
+                    />
+                  </label>
+                  {avatarUrl && !avatarUrl.includes("default-profile") && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="px-3.5 py-2 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 text-xs font-black rounded-xl hover:bg-red-100 dark:hover:bg-red-950/50 transition-all flex items-center gap-1.5 border border-red-100 dark:border-red-950/20"
+                    >
+                      <Trash2 size={12} />
+                      <span>Remove</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Starting Price (KRW / Hour)</label>
