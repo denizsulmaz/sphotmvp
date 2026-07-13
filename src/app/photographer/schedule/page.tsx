@@ -26,15 +26,9 @@ const getTomorrowDate = () => {
   return tomorrow.toISOString().split("T")[0];
 };
 
-const getIn7DaysDate = (startDateStr: string) => {
+const get30DaysLaterDate = (startDateStr: string) => {
   const d = new Date(startDateStr);
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().split("T")[0];
-};
-
-const getMaxRepeatDate = (startDateStr: string) => {
-  const d = new Date(startDateStr);
-  d.setDate(d.getDate() + 60);
+  d.setDate(d.getDate() + 30);
   return d.toISOString().split("T")[0];
 };
 
@@ -44,17 +38,16 @@ export default function ScheduleManager() {
   const [loading, setLoading] = useState(true);
 
   // New slot form state
-  const [slotDate, setSlotDate] = useState(getTomorrowDate);
-  const [repeatDaily, setRepeatDaily] = useState(false);
-  const [repeatUntil, setRepeatUntil] = useState(() => getIn7DaysDate(getTomorrowDate()));
+  const [startDate, setStartDate] = useState(getTomorrowDate);
+  const [repeatUntil, setRepeatUntil] = useState(() => get30DaysLaterDate(getTomorrowDate()));
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [unavailableDate, setUnavailableDate] = useState("");
 
-  // Sync repeatUntil date when slotDate changes to prevent past constraints
+  // Sync repeatUntil date when startDate changes to default to 30 days later
   useEffect(() => {
-    setRepeatUntil(getIn7DaysDate(slotDate));
-  }, [slotDate]);
+    setRepeatUntil(get30DaysLaterDate(startDate));
+  }, [startDate]);
   
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -136,31 +129,28 @@ export default function ScheduleManager() {
         }
       }
 
-      if (!slotDate) {
-        throw new Error("Date is required.");
+      if (!startDate) {
+        throw new Error("Start date is required.");
       }
       const todayStr = new Date().toISOString().split("T")[0];
-      if (slotDate < todayStr) {
-        throw new Error("Date cannot be in the past.");
+      if (startDate < todayStr) {
+        throw new Error("Start date cannot be in the past.");
       }
 
-      if (repeatDaily) {
-        if (!repeatUntil) {
-          throw new Error("Repeat until date is required when repeat is enabled.");
-        }
-        if (repeatUntil < slotDate) {
-          throw new Error("Repeat until date must be after the start date.");
-        }
-        const maxLimit = getMaxRepeatDate(slotDate);
-        if (repeatUntil > maxLimit) {
-          throw new Error("Repeat duration cannot exceed 60 days to ensure performance.");
-        }
+      if (!repeatUntil) {
+        throw new Error("Repeat until date is required.");
+      }
+      if (repeatUntil < startDate) {
+        throw new Error("Repeat until date must be after or equal to the start date.");
       }
 
-      const startDay = new Date(`${slotDate}T00:00:00`);
-      const endDay = repeatDaily 
-        ? new Date(`${repeatUntil}T23:59:59`)
-        : new Date(`${slotDate}T23:59:59`);
+      const maxLimit = get30DaysLaterDate(startDate);
+      if (repeatUntil > maxLimit) {
+        throw new Error("Repeat duration cannot exceed 30 days to ensure performance.");
+      }
+
+      const startDay = new Date(`${startDate}T00:00:00`);
+      const endDay = new Date(`${repeatUntil}T23:59:59`);
 
       const slotsToInsert = [];
       const now = new Date();
@@ -233,14 +223,11 @@ export default function ScheduleManager() {
       // Reset fields
       setStartTime("");
       setEndTime("");
-      setRepeatDaily(false);
       showToast("Successfully set availability.", "success");
 
       // Notify admin
       const count = slotsToInsert.length;
-      const slotsDescription = repeatDaily
-        ? `Created ${count} hourly slot(s) between ${startTime} and ${endTime} repeating daily from ${slotDate} until ${repeatUntil}.`
-        : `Created ${count} hourly slot(s) on ${slotDate} between ${startTime} and ${endTime}.`;
+      const slotsDescription = `Created ${count} hourly slot(s) between ${startTime} and ${endTime} repeating daily from ${startDate} until ${repeatUntil}.`;
       await notifyScheduleChange("Created Slots", slotsDescription);
     } catch (err: any) {
       console.error("Error creating slot:", err);
@@ -357,32 +344,18 @@ export default function ScheduleManager() {
           )}
 
           <form onSubmit={handleAddSlot} className="space-y-4">
-            <div>
-              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Date</label>
-              <input
-                type="date"
-                required
-                value={slotDate}
-                onChange={(e) => setSlotDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-                className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 py-1">
-              <input
-                type="checkbox"
-                id="repeatDaily"
-                checked={repeatDaily}
-                onChange={(e) => setRepeatDaily(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 dark:border-zinc-700 accent-accent"
-              />
-              <label htmlFor="repeatDaily" className="text-xs font-bold text-gray-600 dark:text-zinc-300 cursor-pointer">
-                Repeat daily for multiple days
-              </label>
-            </div>
-
-            {repeatDaily && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Start Date</label>
+                <input
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Repeat Until</label>
                 <input
@@ -390,15 +363,15 @@ export default function ScheduleManager() {
                   required
                   value={repeatUntil}
                   onChange={(e) => setRepeatUntil(e.target.value)}
-                  min={slotDate}
-                  max={getMaxRepeatDate(slotDate)}
+                  min={startDate}
+                  max={get30DaysLaterDate(startDate)}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
                 />
-                <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1.5">
-                  Limit: Maximum 60 days from the start date to keep database performance optimal.
-                </p>
               </div>
-            )}
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-zinc-500">
+              Note: To keep database performance optimal, scheduling repeats is pre-set to 30 days (1 month) by default.
+            </p>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
