@@ -20,16 +20,22 @@ const timeOptions = Array.from({ length: 48 }, (_, idx) => {
   return `${formattedHour}:${minutes}`;
 });
 
-const getTomorrowDate = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split("T")[0];
+const getLocalDateString = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const getTodayDate = () => {
+  return getLocalDateString(new Date());
 };
 
 const get30DaysLaterDate = (startDateStr: string) => {
-  const d = new Date(startDateStr);
+  const parts = startDateStr.split("-");
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
   d.setDate(d.getDate() + 30);
-  return d.toISOString().split("T")[0];
+  return getLocalDateString(d);
 };
 
 export default function ScheduleManager() {
@@ -38,8 +44,8 @@ export default function ScheduleManager() {
   const [loading, setLoading] = useState(true);
 
   // New slot form state
-  const [startDate, setStartDate] = useState(getTomorrowDate);
-  const [repeatUntil, setRepeatUntil] = useState(() => get30DaysLaterDate(getTomorrowDate()));
+  const [startDate, setStartDate] = useState(getTodayDate);
+  const [repeatUntil, setRepeatUntil] = useState(() => get30DaysLaterDate(getTodayDate()));
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [unavailableDate, setUnavailableDate] = useState("");
@@ -132,7 +138,7 @@ export default function ScheduleManager() {
       if (!startDate) {
         throw new Error("Start date is required.");
       }
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getTodayDate();
       if (startDate < todayStr) {
         throw new Error("Start date cannot be in the past.");
       }
@@ -163,8 +169,8 @@ export default function ScheduleManager() {
         const dd = String(currentDay.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}-${mm}-${dd}`;
 
-        const dayStartDateTime = new Date(`${dateStr}T${startTime}`);
-        const dayEndDateTime = new Date(`${dateStr}T${endTime}`);
+        const dayStartDateTime = new Date(`${dateStr}T${startTime}:00+09:00`);
+        const dayEndDateTime = new Date(`${dateStr}T${endTime}:00+09:00`);
 
         if (!isNaN(dayStartDateTime.getTime()) && !isNaN(dayEndDateTime.getTime())) {
           if (dayStartDateTime > now && dayEndDateTime > dayStartDateTime) {
