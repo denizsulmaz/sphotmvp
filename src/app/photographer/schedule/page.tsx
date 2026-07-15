@@ -49,6 +49,70 @@ export default function ScheduleManager() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [unavailableDate, setUnavailableDate] = useState("");
+  
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => getTodayDate());
+  
+  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const getDaysInMonth = (year: number, month: number) => {
+    const date = new Date(year, month, 1);
+    const days = [];
+    const firstDayIndex = date.getDay();
+    
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      days.push({
+        date: new Date(year, month - 1, prevMonthLastDay - i),
+        isCurrentMonth: false,
+      });
+    }
+    
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    for (let i = 1; i <= lastDay; i++) {
+      days.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true,
+      });
+    }
+    
+    const totalCells = days.length;
+    const nextPadding = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let i = 1; i <= nextPadding; i++) {
+      days.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false,
+      });
+    }
+    
+    return days;
+  };
+
+  const calendarCells = getDaysInMonth(currentYear, currentMonth);
+
+  const prevMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonth(prev => prev - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonth(prev => prev + 1);
+    }
+  };
 
   // Sync repeatUntil date when startDate changes to default to 30 days later
   useEffect(() => {
@@ -318,16 +382,16 @@ export default function ScheduleManager() {
     return { dateStr, timeStr };
   };
 
-  // Find the earliest date in the slots list to display only one day's slots
-  const uniqueDates = Array.from(new Set(slots.map(s => s.start_time.split("T")[0])));
-  const earliestDate = uniqueDates.sort()[0];
-  const displayedSlots = earliestDate 
-    ? slots.filter(s => s.start_time.split("T")[0] === earliestDate)
-    : [];
-
-  const earliestDateFormatted = earliestDate 
-    ? new Date(`${earliestDate}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
-    : "";
+  // Group slots by date for display
+  const slotsByDate: Record<string, AvailabilitySlot[]> = {};
+  slots.forEach((s) => {
+    const dStr = s.start_time.split("T")[0];
+    if (!slotsByDate[dStr]) {
+      slotsByDate[dStr] = [];
+    }
+    slotsByDate[dStr].push(s);
+  });
+  const sortedDates = Object.keys(slotsByDate).sort();
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
@@ -505,65 +569,260 @@ export default function ScheduleManager() {
 
        {/* Right Column: Slots List */}
       <div className="md:col-span-7 space-y-4">
-        <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm">
-          <h2 className="text-xl font-black text-foreground dark:text-white mb-2">
-            Availability Calendar {earliestDateFormatted ? `(${earliestDateFormatted})` : ""}
-          </h2>
-          <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours.</p>
+        <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-foreground dark:text-white">
+              Availability Calendar
+            </h2>
+            <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours.</p>
+          </div>
+          <div className="flex bg-gray-50 dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-xl p-1 shrink-0 self-start sm:self-center">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                viewMode === "list"
+                  ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
+                  : "text-gray-500 dark:text-zinc-400 hover:text-foreground"
+              }`}
+            >
+              List View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("calendar")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                viewMode === "calendar"
+                  ? "bg-black dark:bg-white text-white dark:text-black shadow-sm"
+                  : "text-gray-500 dark:text-zinc-400 hover:text-foreground"
+              }`}
+            >
+              Day View
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center min-h-[30vh]">
             <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : slots.length === 0 ? (
+        ) : slots.length === 0 && viewMode === "list" ? (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">
             <Calendar size={40} className="mx-auto text-gray-300 dark:text-zinc-700 mb-4" />
             <h3 className="text-lg font-black text-foreground dark:text-white">No Slots Created</h3>
             <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Add slots on the left to allow users to reserve your hours.</p>
           </div>
-        ) : (
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar">
-            {displayedSlots.map((slot) => {
-              const formatted = formatSlotDateTime(slot.start_time, slot.end_time);
+        ) : viewMode === "list" ? (
+          <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 hide-scrollbar">
+            {sortedDates.map((dateStr) => {
+              const dateSlots = slotsByDate[dateStr];
+              const formattedDate = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
               return (
-                <div
-                  key={slot.id}
-                  className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 transition-all hover:border-gray-200 dark:hover:border-zinc-800"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-gray-50 dark:bg-zinc-900 rounded-xl">
-                      <Clock size={18} className="text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground dark:text-white mt-0.5">{formatted.timeStr}</p>
-                    </div>
-                  </div>
+                <div key={dateStr} className="space-y-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-2 mb-1.5">{formattedDate}</h3>
+                  <div className="space-y-2">
+                    {dateSlots.map((slot) => {
+                      const formatted = formatSlotDateTime(slot.start_time, slot.end_time);
+                      return (
+                        <div
+                          key={slot.id}
+                          className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 transition-all hover:border-gray-200 dark:hover:border-zinc-800"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-3 bg-gray-50 dark:bg-zinc-900 rounded-xl">
+                              <Clock size={18} className="text-gray-400" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-foreground dark:text-white mt-0.5">{formatted.timeStr}</p>
+                            </div>
+                          </div>
 
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                        slot.status === "booked"
-                          ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
-                          : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
-                      }`}
-                    >
-                      {slot.status}
-                    </span>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                slot.status === "booked"
+                                  ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
+                                  : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
+                              }`}
+                            >
+                              {slot.status}
+                            </span>
 
-                    {slot.status === "available" && (
-                      <button
-                        onClick={() => handleDeleteSlot(slot.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Delete Slot"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
+                            {slot.status === "available" && (
+                              <button
+                                onClick={() => handleDeleteSlot(slot.id)}
+                                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                title="Delete Slot"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
+          </div>
+        ) : (
+          /* Month Calendar View */
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-foreground dark:text-white">
+                  {monthNames[currentMonth]} {currentYear}
+                </h3>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={prevMonth}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-xl transition-colors text-gray-500 hover:text-foreground font-black text-sm"
+                  >
+                    &larr;
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextMonth}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-xl transition-colors text-gray-500 hover:text-foreground font-black text-sm"
+                  >
+                    &rarr;
+                  </button>
+                </div>
+              </div>
+
+              {/* Day names header */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+              </div>
+
+              {/* Grid cells */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarCells.map((cell, idx) => {
+                  const dateStr = getLocalDateString(cell.date);
+                  const isSelected = selectedCalendarDate === dateStr;
+                  const daySlots = slotsByDate[dateStr] || [];
+                  const hasSlots = daySlots.length > 0;
+                  
+                  const todayStr = getTodayDate();
+                  const isPast = dateStr < todayStr;
+                  
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedCalendarDate(dateStr)}
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all relative ${
+                        isSelected
+                          ? "border-black bg-black text-accent font-black shadow-sm dark:border-zinc-800"
+                          : !cell.isCurrentMonth
+                          ? "border-transparent bg-transparent text-gray-300 dark:text-zinc-700 opacity-30"
+                          : isPast
+                          ? "border-transparent bg-transparent text-gray-400 dark:text-zinc-600 opacity-60"
+                          : "border-gray-50 dark:border-zinc-900/50 bg-gray-50/50 dark:bg-zinc-900/20 text-gray-700 dark:text-zinc-300 hover:border-gray-200 dark:hover:border-zinc-800"
+                      }`}
+                    >
+                      <span className="text-xs font-black">
+                        {cell.date.getDate()}
+                      </span>
+                      {hasSlots && (
+                        <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-accent' : 'bg-black dark:bg-accent'}`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-foreground dark:text-white">
+                  Schedule for {new Date(`${selectedCalendarDate}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                </h3>
+                <span className="text-xs font-black px-2 py-0.5 rounded bg-gray-50 dark:bg-zinc-900 text-gray-500 border border-gray-100 dark:border-zinc-800">
+                  {(slotsByDate[selectedCalendarDate] || []).length} Hours Set
+                </span>
+              </div>
+
+              {(() => {
+                const daySlots = slotsByDate[selectedCalendarDate] || [];
+                if (daySlots.length === 0) {
+                  return (
+                    <div className="py-8 text-center space-y-4">
+                      <p className="text-xs text-gray-400 dark:text-zinc-500">No active hours set for this date.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStartDate(selectedCalendarDate);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black font-black rounded-xl text-xs hover:opacity-90 transition-all inline-flex items-center gap-1.5"
+                      >
+                        <Plus size={14} />
+                        <span>Add Hours for This Date</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
+                      {daySlots.map((slot) => {
+                        const formatted = formatSlotDateTime(slot.start_time, slot.end_time);
+                        return (
+                          <div
+                            key={slot.id}
+                            className="bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/60 rounded-xl p-3.5 flex items-center justify-between gap-4"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Clock size={16} className="text-gray-400" />
+                              <span className="text-xs font-bold text-foreground dark:text-white">{formatted.timeStr}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                                  slot.status === "booked"
+                                    ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
+                                    : "bg-white text-gray-500 dark:bg-zinc-950 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
+                                }`}
+                              >
+                                {slot.status}
+                              </span>
+                              {slot.status === "available" && (
+                                <button
+                                  onClick={() => handleDeleteSlot(slot.id)}
+                                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                  title="Delete Slot"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => handleMarkUnavailable(selectedCalendarDate)}
+                      className="w-full py-2.5 bg-red-50 hover:bg-red-100/50 dark:bg-red-950/10 dark:hover:bg-red-950/20 text-red-600 dark:text-red-400 font-bold border border-red-100/80 dark:border-red-950/20 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <CalendarOff size={14} />
+                      <span>Mark Date as Unavailable</span>
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
       </div>
