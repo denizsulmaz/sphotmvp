@@ -379,6 +379,20 @@ export default function ScheduleManager() {
         [...prev, data as AvailabilityRule].sort((a, b) => a.valid_from.localeCompare(b.valid_from))
       );
 
+      // Migration moment: the photographer just adopted the rule system, so
+      // clear their leftover per-hour 'available' rows from the old system
+      // (booked rows are untouched). Until a photographer creates a rule,
+      // their legacy slots keep working — nothing breaks for anyone else.
+      const { data: cleared } = await supabase
+        .from("availability_slots")
+        .delete()
+        .eq("photographer_id", user.id)
+        .eq("status", "available")
+        .select("id");
+      if (cleared && cleared.length > 0) {
+        setSlots(prev => prev.filter(s => !cleared.some(c => c.id === s.id)));
+      }
+
       // Reset fields
       setStartTime("");
       setEndTime("");
@@ -766,45 +780,38 @@ export default function ScheduleManager() {
               )}
             </button>
           </form>
-        </div>
 
-        {/* Active Rules Card */}
-        <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
-          <h2 className="text-xl font-black flex items-center gap-2.5 text-foreground dark:text-white">
-            <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
-              <Repeat size={16} />
-            </span>
-            Active Rules
-          </h2>
-
-          {rules.length === 0 ? (
-            <p className="text-xs text-gray-400 dark:text-zinc-500">No recurring rules yet. Create one above to open your schedule.</p>
-          ) : (
-            <div className="space-y-2">
-              {rules.map((rule) => (
-                <div
-                  key={rule.id}
-                  className="bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/60 rounded-xl p-3.5 flex items-center justify-between gap-3"
-                >
-                  <div>
-                    <p className="text-xs font-bold text-foreground dark:text-white">
-                      {daysSummary(rule.days_of_week)} {minuteToHHMM(rule.start_minute)}&ndash;{minuteToHHMM(rule.end_minute)}
-                    </p>
-                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">
-                      {formatShortDate(rule.valid_from)} &ndash; {formatShortDate(rule.valid_until)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteRule(rule)}
-                    disabled={actionLoading}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                    title="Delete Rule"
+          {/* Tucked away: existing rules, collapsed by default to keep the screen clean */}
+          {rules.length > 0 && (
+            <details className="mt-4 group">
+              <summary className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 cursor-pointer hover:text-gray-600 dark:hover:text-zinc-300 transition-colors list-none flex items-center gap-1.5">
+                <Repeat size={11} />
+                Manage existing rules ({rules.length})
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {rules.map((rule) => (
+                  <div
+                    key={rule.id}
+                    className="bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/60 rounded-lg px-3 py-2 flex items-center justify-between gap-2"
                   >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <p className="text-[11px] text-gray-500 dark:text-zinc-400">
+                      <span className="font-bold text-foreground dark:text-white">
+                        {daysSummary(rule.days_of_week)} {minuteToHHMM(rule.start_minute)}&ndash;{minuteToHHMM(rule.end_minute)}
+                      </span>{" "}
+                      · {formatShortDate(rule.valid_from)} &ndash; {formatShortDate(rule.valid_until)}
+                    </p>
+                    <button
+                      onClick={() => handleDeleteRule(rule)}
+                      disabled={actionLoading}
+                      className="p-1.5 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                      title="Delete rule"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
         </div>
 
