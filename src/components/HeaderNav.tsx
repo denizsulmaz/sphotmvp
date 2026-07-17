@@ -6,10 +6,12 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSelector from "@/components/LanguageSelector";
 import { LogIn, LogOut, User as UserIcon } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 export default function HeaderNav() {
   const { user, role, signOut, loading } = useAuth();
   const { t } = useLanguage();
+  const unreadCount = useUnreadMessages();
 
   const getDashboardLink = () => {
     if (role === "admin") return "/admin/dashboard";
@@ -43,12 +45,18 @@ export default function HeaderNav() {
                 <div className="flex items-center gap-3">
                   <Link
                     href={getDashboardLink()}
-                    className="flex items-center gap-1 text-sm font-bold bg-gray-100 dark:bg-zinc-800 text-foreground dark:text-white px-3 py-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                    className="relative flex items-center gap-1 text-sm font-bold bg-gray-100 dark:bg-zinc-800 text-foreground dark:text-white px-3 py-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                   >
                     <UserIcon size={14} />
                     <span className="hidden sm:inline">
                       {role === "admin" ? "Admin" : role === "photographer" ? "Studio" : "Account"}
                     </span>
+                    {unreadCount > 0 && (
+                      <span
+                        aria-label={`${unreadCount} unread conversations`}
+                        className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-black"
+                      />
+                    )}
                   </Link>
                   <button
                     onClick={signOut}

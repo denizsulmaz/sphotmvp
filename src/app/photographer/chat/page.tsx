@@ -116,10 +116,10 @@ export default function PhotographerChatPortal() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-stretch h-[560px]">
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start h-auto">
       
       {/* Sidebar: Conversations List */}
-      <div className="md:col-span-4 bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-4 shadow-sm flex flex-col h-full overflow-hidden">
+      <div className="md:col-span-4 bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-4 shadow-sm flex flex-col h-auto md:h-[680px] overflow-hidden">
         <div className="mb-4 px-2">
           <h3 className="text-lg font-black text-foreground dark:text-white flex items-center gap-2.5">
             <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
@@ -178,7 +178,7 @@ export default function PhotographerChatPortal() {
       </div>
 
       {/* Main chat viewport */}
-      <div className="md:col-span-8 h-full flex flex-col gap-3">
+      <div className="md:col-span-8 h-[600px] md:h-[680px] flex flex-col gap-3">
         {selectedBooking && user ? (
           <>
             {/* Workflow bar: current status + next-step action */}

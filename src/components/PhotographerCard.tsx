@@ -38,8 +38,12 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
     : ["", "", ""];
 
   const images = isUuid ? dbImages : localImages;
-  const profilePic = isUuid
-    ? photographer.avatarUrl || "/media/default-profile.webp"
+  // Prefer the uploaded avatar from the DB; static seed image only for
+  // legacy seed profiles that never uploaded one.
+  const profilePic = photographer.avatarUrl
+    ? photographer.avatarUrl
+    : isUuid
+    ? "/media/default-profile.webp"
     : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
   const topCategories = photographer["Global Categories"]

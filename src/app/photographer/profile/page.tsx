@@ -255,6 +255,7 @@ export default function ProfileBuilder() {
 
     const uploadedUrls: string[] = [];
     let failed = 0;
+    let firstFailReason = "";
     for (const file of toUpload) {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
@@ -265,6 +266,7 @@ export default function ProfileBuilder() {
       if (uploadError) {
         console.error("Storage upload failed:", uploadError);
         failed++;
+        if (!firstFailReason) firstFailReason = uploadError.message || "unknown error";
         setUploadingCount((c) => Math.max(0, c - 1));
         continue;
       }
@@ -293,7 +295,7 @@ export default function ProfileBuilder() {
     }
 
     if (failed > 0) {
-      showToast(`${uploadedUrls.length} image(s) saved, ${failed} failed to upload.`, "error");
+      showToast(`${uploadedUrls.length} image(s) saved, ${failed} failed: ${firstFailReason}`, "error");
     } else {
       showToast(`${uploadedUrls.length} portfolio image(s) uploaded and saved.`, "success");
     }

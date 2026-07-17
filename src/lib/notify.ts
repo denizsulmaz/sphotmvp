@@ -45,3 +45,42 @@ export async function sendNotificationEmail(
     return false;
   }
 }
+
+/**
+ * Send an email to a specific recipient (user-facing notifications, e.g.
+ * "you have a new message"). Same Resend plumbing and dev fallback as above.
+ */
+export async function sendEmailTo(
+  to: string,
+  subject: string,
+  htmlContent: string,
+  textContent: string
+): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM || '"SPHOT Team" <alerts@email.booksphot.com>';
+
+  if (!apiKey) {
+    console.warn(`[Notify][dev] No RESEND_API_KEY — email to ${to} would be: ${subject}`);
+    return false;
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: [to], subject, html: htmlContent, text: textContent }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[Notify] Resend failed for ${to} (${res.status}): ${body}`);
+      return false;
+    }
+    return true;
+  } catch (e: any) {
+    console.error(`[Notify] Failed to reach Resend:`, e?.message);
+    return false;
+  }
+}

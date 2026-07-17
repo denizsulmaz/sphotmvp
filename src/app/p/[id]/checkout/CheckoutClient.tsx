@@ -7,6 +7,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import CustomDropdown from "@/components/CustomDropdown";
 import photographersData from "@/data/photographers.json";
+import {
+  expandAvailability,
+  todayIn,
+  addDays,
+  type ExpandedSlot,
+  type SlotRow,
+} from "@/lib/availability";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
@@ -31,11 +38,9 @@ interface PhotographerProfile {
   timezone?: string;
 }
 
-interface SlotDetails {
-  id: string;
-  start_time: string;
-  end_time: string;
-}
+// Bookable hours are ExpandedSlot values from @/lib/availability, uniquely
+// keyed by their UTC start_time ISO string (there is no per-hour row id
+// anymore — hours are generated from recurrence rules).
 
 interface CheckoutClientProps {
   id: string;
@@ -68,7 +73,7 @@ const formatTimeRange = (startStr: string, endStr: string, tz?: string) => {
   return `${sStr} - ${eStr}`;
 };
 
-const formatSelectedSlotsTime = (slotsList: SlotDetails[], tz?: string) => {
+const formatSelectedSlotsTime = (slotsList: ExpandedSlot[], tz?: string) => {
   if (slotsList.length === 0) return "";
   
   // Sort slots by start time
@@ -142,8 +147,8 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const { t } = useLanguage();
 
   const [photographer, setPhotographer] = useState<PhotographerProfile | null>(null);
-  const [dbSlots, setDbSlots] = useState<SlotDetails[]>([]);
-  const [selectedSlots, setSelectedSlots] = useState<SlotDetails[]>([]);
+  const [dbSlots, setDbSlots] = useState<ExpandedSlot[]>([]);
+  const [selectedSlots, setSelectedSlots] = useState<ExpandedSlot[]>([]);
   const [authView, setAuthView] = useState<"register" | "signin">("register");
 
   // Booking Wizard Steps:
@@ -155,7 +160,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
   // Step 1: Schedule selection states
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<SlotDetails[]>([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<ExpandedSlot[]>([]);
 
   // Step 2: Shoot details states
   const [locationType, setLocationType] = useState("Outdoor");
@@ -194,7 +199,34 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     dbSlots.map((s) => getTzDateString(new Date(s.start_time), photographer?.timezone))
   );
 
-  // Fetch Photographer Profile and Database Slots
+  // Fetch the photographer's availability rules, exceptions, and slot rows
+  // (both statuses — booked rows block hours), then expand them into concrete
+  // bookable hours for today → 60 days ahead in the studio timezone.
+  const fetchAvailability = async (photographerUuid: string, tz: string): Promise<ExpandedSlot[]> => {
+    if (!supabase) return [];
+    const fromDate = todayIn(tz);
+    const toDate = addDays(fromDate, 60);
+    const [{ data: rules }, { data: exceptions }, { data: slotRows }] = await Promise.all([
+      supabase.from("availability_rules").select("*").eq("photographer_id", photographerUuid),
+      supabase.from("availability_exceptions").select("*").eq("photographer_id", photographerUuid),
+      supabase
+        .from("availability_slots")
+        .select("id, start_time, end_time, status")
+        .eq("photographer_id", photographerUuid)
+        .gte("start_time", `${addDays(fromDate, -1)}T00:00:00Z`)
+        .lte("start_time", `${addDays(toDate, 1)}T23:59:59Z`),
+    ]);
+    return expandAvailability({
+      rules: rules || [],
+      exceptions: exceptions || [],
+      slots: (slotRows || []) as SlotRow[],
+      timezone: tz,
+      fromDate,
+      toDate,
+    });
+  };
+
+  // Fetch Photographer Profile and expanded availability
   useEffect(() => {
     const loadCheckoutData = async () => {
       setLoading(true);
@@ -219,12 +251,14 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         const isMockId = id.startsWith("S01") || id.startsWith("S02");
         // The real photographer UUID — used for all downstream DB queries / FKs.
         let photographerUuid = id;
+        let studioTz = "Asia/Seoul";
         if (dbPhoto) {
           const photoData = dbPhoto as any;
           if (!photoData.is_approved) {
             throw new Error("This photographer profile is not active.");
           }
           photographerUuid = photoData.id;
+          studioTz = photoData.timezone || "Asia/Seoul";
           const profileInfo = Array.isArray(photoData.profiles) ? photoData.profiles[0] : photoData.profiles;
           const code = photoData.public_code || id;
           setPhotographer({
@@ -248,21 +282,17 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           });
         }
 
-        // 2. Fetch all future availability slots (by the resolved UUID)
-        const { data: slotsData } = await supabase
-          .from("availability_slots")
-          .select("id, start_time, end_time")
-          .eq("photographer_id", photographerUuid)
-          .eq("status", "available")
-          .gt("start_time", new Date().toISOString())
-          .order("start_time", { ascending: true });
-
-        const fetchedSlots = (slotsData || []) as SlotDetails[];
+        // 2. Expand rule-based availability into bookable hours (by the
+        //    resolved UUID), for today → 60 days ahead in the studio tz.
+        const fetchedSlots = await fetchAvailability(photographerUuid, studioTz);
         setDbSlots(fetchedSlots);
 
-        // Pre-select slot if query parameter exists
+        // Pre-select slot if query parameter exists (UTC start ISO, or a
+        // legacy slot row id for old links).
         if (initialSlotId) {
-          const matchedSlot = fetchedSlots.find(s => s.id === initialSlotId);
+          const matchedSlot = fetchedSlots.find(
+            (s) => s.start_time === initialSlotId || s.slotId === initialSlotId
+          );
           if (matchedSlot) {
             setSelectedSlots([matchedSlot]);
             const slotDate = new Date(matchedSlot.start_time);
@@ -313,12 +343,12 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
   }, [user, step]);
 
-  const handleToggleSlot = (slotItem: SlotDetails) => {
+  const handleToggleSlot = (slotItem: ExpandedSlot) => {
     setError(null);
     setSelectedSlots(prev => {
-      const exists = prev.some(s => s.id === slotItem.id);
+      const exists = prev.some(s => s.start_time === slotItem.start_time);
       if (exists) {
-        return prev.filter(s => s.id !== slotItem.id);
+        return prev.filter(s => s.start_time !== slotItem.start_time);
       } else {
         return [...prev, slotItem].sort(
           (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
@@ -520,7 +550,8 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     try {
       if (!supabase) return;
 
-      const slotIds = selectedSlots.map((s) => s.id);
+      // UTC ISO start times of every selected hour (contiguous or not).
+      const slotStarts = selectedSlots.map((s) => s.start_time);
 
       const { data: sessionData } = await supabase.auth.getSession();
       const access_token = sessionData.session?.access_token;
@@ -533,8 +564,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           access_token,
           client_id: user.id,
           photographer_id: photographer.id,
-          slot_id: selectedSlots[0].id,
-          extra_slot_ids: slotIds.slice(1), // additional slots beyond the first
+          slot_starts: slotStarts,
           shoot_location: shootLocation,
           location_type: locationType,
           shoot_style: shootStyle,
@@ -547,6 +577,21 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
       if (!res.ok) {
         const { error: errData } = await res.json().catch(() => ({ error: "Booking failed." }));
+        // On a slot conflict, refresh availability so the picker reflects the
+        // newly booked hours, and drop selections that are no longer valid.
+        if (res.status === 409) {
+          try {
+            const fresh = await fetchAvailability(
+              photographer.id,
+              photographer.timezone || "Asia/Seoul"
+            );
+            setDbSlots(fresh);
+            const freshStarts = new Set(fresh.map((s) => s.start_time));
+            setSelectedSlots((prev) => prev.filter((s) => freshStarts.has(s.start_time)));
+          } catch (refreshErr) {
+            console.error("Failed to refresh availability after conflict:", refreshErr);
+          }
+        }
         throw new Error(errData || "Failed to create booking.");
       }
 
@@ -724,13 +769,13 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                   ) : (
                     <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 hide-scrollbar">
                       {availableTimeSlots.map((slotItem) => {
-                        const isSelected = selectedSlots.some(s => s.id === slotItem.id);
-                        
+                        const isSelected = selectedSlots.some(s => s.start_time === slotItem.start_time);
+
                         const startHourStr = formatInTz(slotItem.start_time, { hour: "2-digit", minute: "2-digit", hour12: false }, photographer?.timezone);
-                        
+
                         return (
                           <button
-                            key={slotItem.id}
+                            key={slotItem.start_time}
                             type="button"
                             onClick={() => handleToggleSlot(slotItem)}
                             className={`w-full flex items-center justify-center py-4 rounded-xl border text-lg font-black tracking-wide transition-all duration-200 ${

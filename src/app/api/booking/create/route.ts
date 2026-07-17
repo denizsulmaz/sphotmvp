@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { insertBookingSystemMessage } from "@/lib/bookingMessage";
 import { sendNotificationEmail } from "@/lib/notify";
+import { expandAvailability, utcToLocalDay, addDays } from "@/lib/availability";
 
 /**
- * API route to securely create a booking, lock slots, and send alerts.
- * Bypasses RLS constraints using the service-role client.
+ * Securely create a booking (service-role, bypasses RLS).
+ *
+ * Availability is rule-based: clients request hours by UTC start time
+ * (`slot_starts: string[]`). The route validates every requested hour against
+ * the photographer's rules/exceptions (or a legacy 'available' slot row) and
+ * MATERIALIZES them as 'booked' availability_slots rows. Race safety comes
+ * from the unique index on (photographer_id, start_time): a concurrent
+ * booking of the same hour fails the insert and gets a 409.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +21,7 @@ export async function POST(req: NextRequest) {
       access_token,
       client_id,
       photographer_id,
-      slot_id,
+      slot_starts,
       shoot_location,
       location_type,
       shoot_style,
@@ -24,12 +31,31 @@ export async function POST(req: NextRequest) {
       details,
     } = body;
 
-    if (!client_id || !photographer_id || !slot_id || !access_token) {
+    if (!client_id || !photographer_id || !access_token) {
       return NextResponse.json(
-        { error: "Missing required fields (client_id, photographer_id, slot_id, access_token)." },
+        { error: "Missing required fields (client_id, photographer_id, access_token)." },
         { status: 400 }
       );
     }
+    if (!Array.isArray(slot_starts) || slot_starts.length === 0 || slot_starts.length > 12) {
+      return NextResponse.json(
+        { error: "slot_starts must be a non-empty array of ISO start times (max 12)." },
+        { status: 400 }
+      );
+    }
+    // Normalize + validate the requested hours.
+    const requestedStarts: string[] = [];
+    for (const s of slot_starts) {
+      const t = Date.parse(s);
+      if (!Number.isFinite(t)) {
+        return NextResponse.json({ error: "Invalid slot start time." }, { status: 400 });
+      }
+      if (t < Date.now()) {
+        return NextResponse.json({ error: "Slot start time is in the past." }, { status: 400 });
+      }
+      requestedStarts.push(new Date(t).toISOString());
+    }
+    const uniqueStarts = Array.from(new Set(requestedStarts)).sort();
 
     const supabase = getServerSupabase();
 
@@ -39,46 +65,136 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized operation." }, { status: 401 });
     }
 
-    // 1. Lock all selected availability slots atomically BEFORE creating the booking.
-    // Only flips slots that are still 'available' and belong to this photographer;
-    // if any slot was taken in the meantime, revert and reject.
-    if (body.extra_slot_ids !== undefined && !Array.isArray(body.extra_slot_ids)) {
-      return NextResponse.json({ error: "extra_slot_ids must be an array." }, { status: 400 });
+    // 1. Load the photographer's timezone, rules, exceptions, and existing
+    //    slot rows around the requested window, then expand availability.
+    const { data: photoProfile } = await supabase
+      .from("photographer_profiles")
+      .select("timezone, is_approved")
+      .eq("id", photographer_id)
+      .maybeSingle();
+    if (!photoProfile || !photoProfile.is_approved) {
+      return NextResponse.json({ error: "Photographer not found." }, { status: 404 });
     }
-    const extraSlotIds: string[] = (body.extra_slot_ids || []).filter(Boolean);
-    const allSlotIds = Array.from(new Set<string>([slot_id, ...extraSlotIds]));
+    const tz = photoProfile.timezone || "Asia/Seoul";
+    const fromDay = addDays(utcToLocalDay(uniqueStarts[0], tz), -1);
+    const toDay = addDays(utcToLocalDay(uniqueStarts[uniqueStarts.length - 1], tz), 1);
 
-    const { data: lockedSlots, error: lockErr } = await supabase
-      .from("availability_slots")
-      .update({ status: "booked" })
-      .in("id", allSlotIds)
-      .eq("status", "available")
-      .eq("photographer_id", photographer_id)
-      .select("id");
+    const [{ data: rules }, { data: exceptions }, { data: slotRows }] = await Promise.all([
+      supabase.from("availability_rules").select("*").eq("photographer_id", photographer_id),
+      supabase.from("availability_exceptions").select("*").eq("photographer_id", photographer_id),
+      supabase
+        .from("availability_slots")
+        .select("id, start_time, end_time, status")
+        .eq("photographer_id", photographer_id)
+        .gte("start_time", `${fromDay}T00:00:00Z`)
+        .lte("start_time", `${toDay}T23:59:59Z`),
+    ]);
 
-    const lockedIds = (lockedSlots || []).map((s) => s.id);
-    if (lockErr || lockedIds.length !== allSlotIds.length) {
-      // Revert any slots we did manage to flip.
-      if (lockedIds.length > 0) {
-        await supabase
-          .from("availability_slots")
-          .update({ status: "available" })
-          .in("id", lockedIds);
+    const expanded = expandAvailability({
+      rules: rules || [],
+      exceptions: exceptions || [],
+      slots: (slotRows || []) as any,
+      timezone: tz,
+      fromDate: fromDay,
+      toDate: toDay,
+    });
+    const availableByStart = new Map(expanded.map((e) => [e.start_time, e]));
+
+    for (const start of uniqueStarts) {
+      if (!availableByStart.has(start)) {
+        return NextResponse.json(
+          { error: "One of the selected times is no longer available. Please pick another time." },
+          { status: 409 }
+        );
       }
+    }
+
+    // 2. Materialize the hours as 'booked' slot rows. For each hour: first try
+    //    to claim a legacy 'available' row (update where status='available' —
+    //    a concurrent claimer makes this a 0-row update), otherwise insert a
+    //    new booked row (the unique index rejects a concurrent duplicate).
+    const claimedIds: string[] = []; // in request order (primary first)
+    const claimedLegacy: string[] = []; // pre-existing rows flipped to booked
+    const insertedNew: string[] = []; // rows this request created
+    let conflict = false;
+    for (const start of uniqueStarts) {
+      const slot = availableByStart.get(start)!;
+      if (slot.source === "slot" && slot.slotId) {
+        const { data: updated } = await supabase
+          .from("availability_slots")
+          .update({ status: "booked" })
+          .eq("id", slot.slotId)
+          .eq("status", "available")
+          .select("id");
+        if (updated && updated.length === 1) {
+          claimedIds.push(slot.slotId);
+          claimedLegacy.push(slot.slotId);
+          continue;
+        }
+        conflict = true;
+        break;
+      }
+      const { data: inserted, error: insErr } = await supabase
+        .from("availability_slots")
+        .insert({
+          photographer_id,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          status: "booked",
+        })
+        .select("id")
+        .single();
+      if (insErr || !inserted) {
+        // Unique-index collision: a row for this hour already exists. If it's
+        // an 'available' row (e.g. released by a cancellation, or created
+        // between our expansion and now), claim it instead of failing.
+        const { data: claimed } = await supabase
+          .from("availability_slots")
+          .update({ status: "booked" })
+          .eq("photographer_id", photographer_id)
+          .eq("start_time", slot.start_time)
+          .eq("status", "available")
+          .select("id");
+        if (claimed && claimed.length === 1) {
+          claimedIds.push(claimed[0].id);
+          claimedLegacy.push(claimed[0].id);
+          continue;
+        }
+        conflict = true;
+        break;
+      }
+      claimedIds.push(inserted.id);
+      insertedNew.push(inserted.id);
+    }
+
+    const releaseClaimed = async () => {
+      // Legacy rows revert to available; rows we created are deleted (the hour
+      // remains bookable through the rule that generated it).
+      if (claimedLegacy.length > 0) {
+        await supabase.from("availability_slots").update({ status: "available" }).in("id", claimedLegacy);
+      }
+      if (insertedNew.length > 0) {
+        await supabase.from("availability_slots").delete().in("id", insertedNew);
+      }
+    };
+
+    if (conflict) {
+      await releaseClaimed();
       return NextResponse.json(
         { error: "Slot is no longer available. Please pick another time." },
         { status: 409 }
       );
     }
 
-    // 2. Create the booking record with status='booking' and fee_krw=0
+    // 3. Create the booking record with status='booking' and fee_krw=0
+    const primarySlotId = claimedIds[0];
     const { data: booking, error: insertErr } = await supabase
       .from("bookings")
       .insert({
         client_id,
         photographer_id,
-        slot_id,
-        extra_slot_ids: allSlotIds.filter((id) => id !== slot_id),
+        slot_id: primarySlotId,
+        extra_slot_ids: claimedIds.slice(1),
         status: "booking",
         fee_krw: 0,
         shoot_location,
@@ -93,11 +209,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertErr || !booking) {
-      // Release the slots we locked (covers unique-index violations on slot_id too).
-      await supabase
-        .from("availability_slots")
-        .update({ status: "available" })
-        .in("id", lockedIds);
+      await releaseClaimed();
       console.error("[booking/create] Booking insert failed:", insertErr?.message);
       return NextResponse.json(
         { error: "Slot is no longer available. Please pick another time." },
@@ -105,18 +217,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Post the initial system pre-info message in the conversation
+    // 4. Post the initial system pre-info message in the conversation
     await insertBookingSystemMessage(supabase, booking.id).catch((e) =>
       console.error("[booking/create] Failed to insert system message:", e.message)
     );
 
-    // 4. Retrieve client and photographer profile details for the email alert
+    // 5. Retrieve client and photographer profile details for the email alert
     const { data: clientProf } = await supabase.from("profiles").select("full_name").eq("id", client_id).maybeSingle();
     const { data: photoProf } = await supabase.from("profiles").select("full_name").eq("id", photographer_id).maybeSingle();
     const clientName = clientProf?.full_name || "Client";
     const photoName = photoProf?.full_name || "Photographer";
 
-    // 5. Send status change / creation email notification to hi@booksphot.com
     const subject = `[SPHOT] New Connection Booking - ${clientName} & ${photoName}`;
     const textContent = `New connection booking created between Client: ${clientName} and Photographer: ${photoName}.\nStatus: booking\nLocation: ${shoot_location} (${location_type})\nStyle: ${shoot_style}\nDuration: ${duration_label}\nDetails: ${details || "None"}`;
     const htmlContent = `

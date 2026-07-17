@@ -1,17 +1,44 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
-import { Plus, Trash2, Calendar, Clock, AlertCircle, Sparkles, CalendarOff } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, AlertCircle, Sparkles, CalendarOff, Repeat } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import {
+  expandAvailability,
+  minuteToHHMM,
+  addDays,
+  todayIn,
+  utcToLocalDay,
+  utcToLocalMinute,
+  localToUtc,
+  type AvailabilityRule,
+  type SlotRow,
+} from "@/lib/availability";
 
-interface AvailabilitySlot {
+interface ExceptionRow {
   id: string;
-  start_time: string;
-  end_time: string;
-  status: "available" | "booked";
+  date: string; // YYYY-MM-DD (studio tz)
+  start_minute: number | null; // null = whole day off
+  end_minute: number | null;
 }
+
+// One hour as shown in the calendar/list. 'rule' hours come from a recurrence
+// rule (delete = insert an exception), 'slot' hours are legacy
+// availability_slots rows (delete = delete the row), 'booked' are real bookings.
+interface DisplayHour {
+  start_time: string; // UTC ISO
+  end_time: string; // UTC ISO
+  dayKey: string; // studio-tz YYYY-MM-DD
+  startMinute: number;
+  kind: "rule" | "slot" | "booked";
+  slotId?: string;
+}
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DISPLAY_WINDOW_DAYS = 60;
+const MAX_RULE_DAYS = 366;
 
 const timeOptions = Array.from({ length: 48 }, (_, idx) => {
   const hour = Math.floor(idx / 2);
@@ -31,47 +58,42 @@ const getTodayDate = () => {
   return getLocalDateString(new Date());
 };
 
-// Returns the YYYY-MM-DD day key of an ISO timestamp as seen in the given IANA timezone.
-// en-CA locale formats dates as YYYY-MM-DD, matching our day-key convention.
-const slotDayKey = (isoString: string, tz: string) => {
-  try {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(isoString));
-  } catch {
-    return isoString.split("T")[0]; // fallback: UTC date
-  }
-};
-
 // "Today" (YYYY-MM-DD) in the given timezone.
-const todayInTz = (tz: string) => slotDayKey(new Date().toISOString(), tz);
+const todayInTz = (tz: string) => todayIn(tz);
 
-const get30DaysLaterDate = (startDateStr: string) => {
-  const parts = startDateStr.split("-");
-  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-  d.setDate(d.getDate() + 30);
-  return getLocalDateString(d);
+const hhmmToMinute = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map((v) => parseInt(v, 10));
+  return h * 60 + m;
 };
+
+// Human summary of a rule's days: "Every day" or "Mon, Tue, Wed".
+const daysSummary = (days: number[]) => {
+  if (days.length === 7) return "Every day";
+  return [...days].sort((a, b) => a - b).map((d) => DAY_LABELS[d]).join(", ");
+};
+
+const formatShortDate = (dateStr: string) =>
+  new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 export default function ScheduleManager() {
   const { user } = useAuth();
-  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [rules, setRules] = useState<AvailabilityRule[]>([]);
+  const [exceptions, setExceptions] = useState<ExceptionRow[]>([]);
+  const [slots, setSlots] = useState<SlotRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [photographerTz, setPhotographerTz] = useState("Asia/Seoul");
 
-  // New slot form state
+  // New rule form state
   const [startDate, setStartDate] = useState(getTodayDate);
-  const [repeatUntil, setRepeatUntil] = useState(() => get30DaysLaterDate(getTodayDate()));
+  const [repeatUntil, setRepeatUntil] = useState(() => addDays(getTodayDate(), 30));
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [unavailableDate, setUnavailableDate] = useState("");
-  
+
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => getTodayDate());
-  
+
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
 
@@ -84,7 +106,7 @@ export default function ScheduleManager() {
     const date = new Date(year, month, 1);
     const days = [];
     const firstDayIndex = date.getDay();
-    
+
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     for (let i = firstDayIndex - 1; i >= 0; i--) {
       days.push({
@@ -92,7 +114,7 @@ export default function ScheduleManager() {
         isCurrentMonth: false,
       });
     }
-    
+
     const lastDay = new Date(year, month + 1, 0).getDate();
     for (let i = 1; i <= lastDay; i++) {
       days.push({
@@ -100,7 +122,7 @@ export default function ScheduleManager() {
         isCurrentMonth: true,
       });
     }
-    
+
     const totalCells = days.length;
     const nextPadding = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
     for (let i = 1; i <= nextPadding; i++) {
@@ -109,7 +131,7 @@ export default function ScheduleManager() {
         isCurrentMonth: false,
       });
     }
-    
+
     return days;
   };
 
@@ -135,14 +157,14 @@ export default function ScheduleManager() {
 
   // Sync repeatUntil date when startDate changes to default to 30 days later
   useEffect(() => {
-    setRepeatUntil(get30DaysLaterDate(startDate));
+    setRepeatUntil(addDays(startDate, 30));
   }, [startDate]);
-  
+
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const { showToast } = useToast();
 
-  const fetchSlots = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!user || !supabase) return;
     setLoading(true);
     try {
@@ -152,28 +174,53 @@ export default function ScheduleManager() {
         .select("timezone")
         .eq("id", user.id)
         .maybeSingle();
-      if (pProfile?.timezone) setPhotographerTz(pProfile.timezone);
+      const tz = pProfile?.timezone || "Asia/Seoul";
+      setPhotographerTz(tz);
 
-      const { data, error: dbError } = await supabase
-        .from("availability_slots")
-        .select("*")
-        .eq("photographer_id", user.id)
-        .gt("start_time", new Date().toISOString())
-        .order("start_time", { ascending: true });
+      const fromDate = todayIn(tz);
+      const toDate = addDays(fromDate, DISPLAY_WINDOW_DAYS);
+      const windowStartIso = localToUtc(fromDate, 0, tz).toISOString();
+      const windowEndIso = localToUtc(addDays(toDate, 1), 0, tz).toISOString();
 
-      if (dbError) throw dbError;
-      setSlots((data || []) as AvailabilitySlot[]);
+      const [rulesRes, exceptionsRes, slotsRes] = await Promise.all([
+        supabase
+          .from("availability_rules")
+          .select("id, photographer_id, days_of_week, start_minute, end_minute, valid_from, valid_until")
+          .eq("photographer_id", user.id)
+          .gte("valid_until", fromDate)
+          .order("valid_from", { ascending: true }),
+        supabase
+          .from("availability_exceptions")
+          .select("id, date, start_minute, end_minute")
+          .eq("photographer_id", user.id)
+          .gte("date", fromDate),
+        supabase
+          .from("availability_slots")
+          .select("id, start_time, end_time, status")
+          .eq("photographer_id", user.id)
+          .gte("start_time", windowStartIso)
+          .lt("start_time", windowEndIso)
+          .order("start_time", { ascending: true }),
+      ]);
+
+      if (rulesRes.error) throw rulesRes.error;
+      if (exceptionsRes.error) throw exceptionsRes.error;
+      if (slotsRes.error) throw slotsRes.error;
+
+      setRules((rulesRes.data || []) as AvailabilityRule[]);
+      setExceptions((exceptionsRes.data || []) as ExceptionRow[]);
+      setSlots((slotsRes.data || []) as SlotRow[]);
     } catch (err: any) {
-      console.error("Error fetching slots:", err);
-      setError("Failed to load availability slots.");
+      console.error("Error fetching availability:", err);
+      setError("Failed to load availability.");
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchSlots();
-  }, [fetchSlots]);
+    fetchData();
+  }, [fetchData]);
 
   const notifyScheduleChange = async (action: string, slotsDescription: string) => {
     if (!user || !supabase) return;
@@ -203,7 +250,66 @@ export default function ScheduleManager() {
     }
   };
 
-  const handleAddSlot = async (e: React.FormEvent) => {
+  // ── Compute displayed hours: rules + exceptions + legacy slots, plus booked ──
+  const displayHours: DisplayHour[] = useMemo(() => {
+    const fromDate = todayIn(photographerTz);
+    const toDate = addDays(fromDate, DISPLAY_WINDOW_DAYS);
+
+    const expanded = expandAvailability({
+      rules,
+      exceptions,
+      slots,
+      timezone: photographerTz,
+      fromDate,
+      toDate,
+    });
+
+    const hours: DisplayHour[] = expanded.map((s) => ({
+      start_time: s.start_time,
+      end_time: s.end_time,
+      dayKey: s.dayKey,
+      startMinute: s.startMinute,
+      kind: s.source,
+      slotId: s.slotId,
+    }));
+
+    // expandAvailability excludes booked hours — merge them in for display.
+    for (const s of slots) {
+      if (s.status !== "booked") continue;
+      const dayKey = utcToLocalDay(s.start_time, photographerTz);
+      if (dayKey < fromDate || dayKey > toDate) continue;
+      hours.push({
+        start_time: new Date(s.start_time).toISOString(),
+        end_time: new Date(s.end_time).toISOString(),
+        dayKey,
+        startMinute: utcToLocalMinute(s.start_time, photographerTz),
+        kind: "booked",
+        slotId: s.id,
+      });
+    }
+
+    return hours.sort((a, b) => a.start_time.localeCompare(b.start_time));
+  }, [rules, exceptions, slots, photographerTz]);
+
+  // Group displayed hours by their studio-timezone day
+  const hoursByDate: Record<string, DisplayHour[]> = {};
+  displayHours.forEach((h) => {
+    if (!hoursByDate[h.dayKey]) {
+      hoursByDate[h.dayKey] = [];
+    }
+    hoursByDate[h.dayKey].push(h);
+  });
+  const sortedDates = Object.keys(hoursByDate).sort();
+
+  // Whether today (studio tz) is fully marked off via a whole-day exception.
+  const todayStr = todayInTz(photographerTz);
+  const todayWholeDayException = exceptions.find(
+    (ex) => ex.date === todayStr && ex.start_minute === null
+  );
+  const unavailableToday = !!todayWholeDayException;
+
+  // ── Create a recurrence rule (replaces bulk slot-row creation) ──
+  const handleAddRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !supabase) return;
     setError(null);
@@ -226,11 +332,17 @@ export default function ScheduleManager() {
         }
       }
 
+      const start_minute = hhmmToMinute(startTime);
+      const end_minute = hhmmToMinute(endTime);
+      if (end_minute <= start_minute) {
+        throw new Error("End time must be after the start time.");
+      }
+
       if (!startDate) {
         throw new Error("Start date is required.");
       }
-      const todayStr = todayInTz(photographerTz);
-      if (startDate < todayStr) {
+      const today = todayInTz(photographerTz);
+      if (startDate < today) {
         throw new Error("Start date cannot be in the past.");
       }
 
@@ -240,107 +352,31 @@ export default function ScheduleManager() {
       if (repeatUntil < startDate) {
         throw new Error("Repeat until date must be after or equal to the start date.");
       }
-
-      const maxLimit = get30DaysLaterDate(startDate);
-      if (repeatUntil > maxLimit) {
-        throw new Error("Repeat duration cannot exceed 30 days to ensure performance.");
+      if (repeatUntil > addDays(startDate, MAX_RULE_DAYS)) {
+        throw new Error("A rule can cover at most one year. Create a new rule when this one ends.");
       }
 
-      const startDay = new Date(`${startDate}T00:00:00`);
-      const endDay = new Date(`${repeatUntil}T23:59:59`);
-
-      const slotsToInsert = [];
-      const now = new Date();
-
-      // Loop through each day from startDay to endDay
-      let currentDay = new Date(startDay);
-      while (currentDay <= endDay) {
-        const yyyy = currentDay.getFullYear();
-        const mm = String(currentDay.getMonth() + 1).padStart(2, '0');
-        const dd = String(currentDay.getDate()).padStart(2, '0');
-        const dateStr = `${yyyy}-${mm}-${dd}`;
-
-        // Build timezone-aware date strings using the photographer's timezone.
-        // Create a date in the photographer's local time by formatting with their tz,
-        // then use the IANA timezone for accurate offset resolution.
-        const tzOffset = (() => {
-          try {
-            // Get the UTC offset for the photographer's timezone on this specific date
-            const probe = new Date(`${dateStr}T12:00:00Z`);
-            const utcStr = probe.toLocaleString('en-US', { timeZone: 'UTC' });
-            const tzStr = probe.toLocaleString('en-US', { timeZone: photographerTz });
-            const diffMs = new Date(tzStr).getTime() - new Date(utcStr).getTime();
-            const diffHours = Math.floor(Math.abs(diffMs) / 3600000);
-            const diffMinutes = Math.floor((Math.abs(diffMs) % 3600000) / 60000);
-            const sign = diffMs >= 0 ? '+' : '-';
-            return `${sign}${String(diffHours).padStart(2,'0')}:${String(diffMinutes).padStart(2,'0')}`;
-          } catch {
-            return '+09:00'; // fallback to KST
-          }
-        })();
-        const dayStartDateTime = new Date(`${dateStr}T${startTime}:00${tzOffset}`);
-        const dayEndDateTime = new Date(`${dateStr}T${endTime}:00${tzOffset}`);
-
-        if (!isNaN(dayStartDateTime.getTime()) && !isNaN(dayEndDateTime.getTime())) {
-          if (dayStartDateTime > now && dayEndDateTime > dayStartDateTime) {
-            let currentStart = new Date(dayStartDateTime);
-            while (currentStart < dayEndDateTime) {
-              const currentEnd = new Date(currentStart);
-              currentEnd.setHours(currentEnd.getHours() + 1);
-
-              if (currentEnd > dayEndDateTime) {
-                break; // only create full hour-by-hour slots
-              }
-
-              // Check overlapping slots locally
-              const overlaps = slots.some(slot => {
-                const s = new Date(slot.start_time);
-                const e = new Date(slot.end_time);
-                return (currentStart < e && currentEnd > s);
-              });
-
-              if (!overlaps) {
-                slotsToInsert.push({
-                  photographer_id: user.id,
-                  start_time: currentStart.toISOString(),
-                  end_time: currentEnd.toISOString(),
-                  status: "available",
-                });
-              }
-
-              currentStart = currentEnd;
-            }
-          }
-        }
-        currentDay.setDate(currentDay.getDate() + 1);
-      }
-
-      if (slotsToInsert.length === 0) {
-        throw new Error("No new slots to create. Make sure you set a future time and they don't overlap with existing slots.");
+      if (selectedDays.length === 0) {
+        throw new Error("Select at least one day of the week.");
       }
 
       const { data, error: insertError } = await supabase
-        .from("availability_slots")
-        .insert(slotsToInsert)
-        .select();
+        .from("availability_rules")
+        .insert({
+          photographer_id: user.id,
+          days_of_week: [...selectedDays].sort((a, b) => a - b),
+          start_minute,
+          end_minute,
+          valid_from: startDate,
+          valid_until: repeatUntil,
+        })
+        .select("id, photographer_id, days_of_week, start_minute, end_minute, valid_from, valid_until")
+        .single();
 
-      if (insertError) {
-        // Unique-index collision: slots were added elsewhere (another tab/session)
-        // after this page loaded. Refresh so the local overlap check sees them.
-        if ((insertError as any).code === "23505") {
-          await fetchSlots();
-          throw new Error("Some of these times already exist in your schedule — it has been refreshed. Please try again.");
-        }
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      const insertedSlots = (data || []) as AvailabilitySlot[];
-
-      // Add to list and sort
-      setSlots(prev => 
-        [...prev, ...insertedSlots].sort(
-          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-        )
+      setRules(prev =>
+        [...prev, data as AvailabilityRule].sort((a, b) => a.valid_from.localeCompare(b.valid_from))
       );
 
       // Reset fields
@@ -349,51 +385,100 @@ export default function ScheduleManager() {
       showToast("Successfully set availability.", "success");
 
       // Notify admin
-      const count = slotsToInsert.length;
-      const slotsDescription = `Created ${count} hourly slot(s) between ${startTime} and ${endTime} repeating daily from ${startDate} until ${repeatUntil}.`;
-      await notifyScheduleChange("Created Slots", slotsDescription);
+      const description = `Created availability rule: ${daysSummary(selectedDays)} ${minuteToHHMM(start_minute)}-${minuteToHHMM(end_minute)}, valid ${startDate} to ${repeatUntil}.`;
+      await notifyScheduleChange("Created Availability Rule", description);
     } catch (err: any) {
-      console.error("Error creating slot:", err);
-      setError(err.message || "Failed to add availability slot.");
+      console.error("Error creating rule:", err);
+      setError(err.message || "Failed to add availability.");
     } finally {
       setActionLoading(false);
     }
   };
 
+  // ── Delete a recurrence rule ──
+  const handleDeleteRule = async (rule: AvailabilityRule) => {
+    if (!supabase) return;
+    if (!confirm(`Delete this rule (${daysSummary(rule.days_of_week)} ${minuteToHHMM(rule.start_minute)}-${minuteToHHMM(rule.end_minute)})? All hours it generates will disappear from your public schedule. Booked sessions are not affected.`)) return;
+
+    setActionLoading(true);
+    try {
+      const { error: deleteError } = await supabase
+        .from("availability_rules")
+        .delete()
+        .eq("id", rule.id);
+
+      if (deleteError) throw deleteError;
+
+      setRules(prev => prev.filter(r => r.id !== rule.id));
+      showToast("Rule deleted.", "success");
+      await notifyScheduleChange(
+        "Deleted Availability Rule",
+        `Deleted rule: ${daysSummary(rule.days_of_week)} ${minuteToHHMM(rule.start_minute)}-${minuteToHHMM(rule.end_minute)}, valid ${rule.valid_from} to ${rule.valid_until}.`
+      );
+    } catch (err: any) {
+      console.error("Error deleting rule:", err);
+      showToast(err.message || "Failed to delete rule.", "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Mark an entire day unavailable (whole-day exception + legacy cleanup) ──
   const handleMarkUnavailable = async (targetDateStr: string) => {
     if (!user || !supabase) return;
-    if (!confirm(`Are you sure you want to make ${targetDateStr} unavailable? This will delete all available slots on this day.`)) return;
+    if (!confirm(`Are you sure you want to make ${targetDateStr} unavailable? All bookable hours on this day will be removed from your public schedule.`)) return;
 
     setActionLoading(true);
     setError(null);
     try {
-      // Select exactly the slots displayed under this day (studio timezone), so
-      // "mark this day unavailable" deletes precisely what the photographer sees.
+      // 1. Whole-day exception silences any rule-generated hours on this date.
+      const { data: exData, error: exError } = await supabase
+        .from("availability_exceptions")
+        .insert({
+          photographer_id: user.id,
+          date: targetDateStr,
+          start_minute: null,
+          end_minute: null,
+        })
+        .select("id, date, start_minute, end_minute")
+        .single();
+
+      let alreadyMarked = false;
+      if (exError) {
+        if ((exError as any).code === "23505") {
+          alreadyMarked = true; // already marked unavailable — fine
+        } else {
+          throw exError;
+        }
+      } else if (exData) {
+        setExceptions(prev => [...prev, exData as ExceptionRow]);
+      }
+
+      // 2. Legacy 'available' slot rows aren't affected by exceptions in the
+      // DB (the expander blocks them for display, but delete them for real).
       const idsToDelete = slots
-        .filter(slot => slot.status === "available" && slotDayKey(slot.start_time, photographerTz) === targetDateStr)
+        .filter(slot => slot.status === "available" && utcToLocalDay(slot.start_time, photographerTz) === targetDateStr)
         .map(slot => slot.id);
 
-      if (idsToDelete.length === 0) {
-        showToast(`No available slots found on ${targetDateStr}.`, "info");
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("availability_slots")
+          .delete()
+          .eq("photographer_id", user.id)
+          .eq("status", "available")
+          .in("id", idsToDelete);
+
+        if (deleteError) throw deleteError;
+        setSlots(prev => prev.filter(slot => !idsToDelete.includes(slot.id)));
+      }
+
+      if (alreadyMarked && idsToDelete.length === 0) {
+        showToast(`${targetDateStr} is already marked as unavailable.`, "info");
         return;
       }
 
-      const { error: deleteError } = await supabase
-        .from("availability_slots")
-        .delete()
-        .eq("photographer_id", user.id)
-        .eq("status", "available")
-        .in("id", idsToDelete);
-
-      if (deleteError) throw deleteError;
-
-      // Update state
-      setSlots(prev => prev.filter(slot => !idsToDelete.includes(slot.id)));
-
       showToast(`Successfully marked ${targetDateStr} as unavailable.`, "success");
-
-      // Notify admin
-      await notifyScheduleChange("Marked Date Unavailable", `Marked ${targetDateStr} as unavailable (deleted any available slots on this day).`);
+      await notifyScheduleChange("Marked Date Unavailable", `Marked ${targetDateStr} as fully unavailable (whole-day exception; removed any remaining bookable hours).`);
     } catch (err: any) {
       console.error("Error marking unavailable:", err);
       showToast(err.message || "Failed to update unavailability.", "error");
@@ -402,39 +487,86 @@ export default function ScheduleManager() {
     }
   };
 
-  const handleDeleteSlot = async (slotId: string) => {
-    if (!supabase) return;
-    if (!confirm("Are you sure you want to delete this availability slot?")) return;
-
+  // ── Toggle "I'm unavailable today" off: remove today's whole-day exception ──
+  const handleClearUnavailableToday = async () => {
+    if (!user || !supabase || !todayWholeDayException) return;
+    setActionLoading(true);
     try {
-      const { data: deletedRows, error: deleteError } = await supabase
-        .from("availability_slots")
+      const { error: deleteError } = await supabase
+        .from("availability_exceptions")
         .delete()
-        .eq("id", slotId)
-        .eq("status", "available") // Guard to prevent deleting booked slots
-        .select("id");
+        .eq("id", todayWholeDayException.id);
 
       if (deleteError) throw deleteError;
 
-      if (!deletedRows || deletedRows.length === 0) {
-        // 0 rows deleted: the slot was just booked (or already gone). Refetch to show its real status.
-        showToast("This slot was just booked and can no longer be removed.", "error");
-        await fetchSlots();
-        return;
+      setExceptions(prev => prev.filter(ex => ex.id !== todayWholeDayException.id));
+      showToast("You are available again today (per your rules).", "success");
+      await notifyScheduleChange("Cleared Unavailable Today", `Removed the whole-day exception for ${todayStr}; rule-based hours apply again.`);
+    } catch (err: any) {
+      console.error("Error clearing unavailability:", err);
+      showToast(err.message || "Failed to update unavailability.", "error");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // ── Delete a single displayed hour ──
+  const handleDeleteHour = async (hour: DisplayHour) => {
+    if (!user || !supabase) return;
+    if (hour.kind === "booked") return;
+    if (!confirm("Are you sure you want to remove this hour from your availability?")) return;
+
+    try {
+      if (hour.kind === "slot" && hour.slotId) {
+        // Legacy availability_slots row → delete the row (guarded on status).
+        const { data: deletedRows, error: deleteError } = await supabase
+          .from("availability_slots")
+          .delete()
+          .eq("id", hour.slotId)
+          .eq("status", "available") // Guard to prevent deleting booked slots
+          .select("id");
+
+        if (deleteError) throw deleteError;
+
+        if (!deletedRows || deletedRows.length === 0) {
+          // 0 rows deleted: the slot was just booked (or already gone). Refetch to show its real status.
+          showToast("This slot was just booked and can no longer be removed.", "error");
+          await fetchData();
+          return;
+        }
+
+        setSlots(prev => prev.filter(s => s.id !== hour.slotId));
+      } else {
+        // Rule-generated hour → add an hour-off exception for that date.
+        const { data: exData, error: exError } = await supabase
+          .from("availability_exceptions")
+          .insert({
+            photographer_id: user.id,
+            date: hour.dayKey,
+            start_minute: hour.startMinute,
+            end_minute: hour.startMinute + 60,
+          })
+          .select("id, date, start_minute, end_minute")
+          .single();
+
+        if (exError) {
+          if ((exError as any).code === "23505") {
+            showToast("This hour was already removed. Refreshing your schedule.", "info");
+            await fetchData();
+            return;
+          }
+          throw exError;
+        }
+
+        if (exData) setExceptions(prev => [...prev, exData as ExceptionRow]);
       }
 
       // Notify admin
-      const matched = slots.find(s => s.id === slotId);
-      const slotDesc = matched 
-        ? `Deleted available slot: ${new Date(matched.start_time).toLocaleString()} - ${new Date(matched.end_time).toLocaleString()}`
-        : `Deleted availability slot (ID: ${slotId})`;
-      await notifyScheduleChange("Deleted Slot", slotDesc);
-
-      // Update state
-      setSlots(prev => prev.filter(s => s.id !== slotId));
+      const slotDesc = `Removed available hour: ${new Date(hour.start_time).toLocaleString()} - ${new Date(hour.end_time).toLocaleString()}${hour.kind === "rule" ? " (exception to recurring rule)" : ""}`;
+      await notifyScheduleChange("Removed Available Hour", slotDesc);
     } catch (err: any) {
-      console.error("Error deleting slot:", err);
-      showToast("Failed to delete slot. Booked slots cannot be deleted.", "error");
+      console.error("Error removing hour:", err);
+      showToast("Failed to remove hour. Booked hours cannot be removed.", "error");
     }
   };
 
@@ -458,28 +590,73 @@ export default function ScheduleManager() {
     return { dateStr, timeStr };
   };
 
-  // Group slots by their studio-timezone day for display
-  const slotsByDate: Record<string, AvailabilitySlot[]> = {};
-  slots.forEach((s) => {
-    const dStr = slotDayKey(s.start_time, photographerTz);
-    if (!slotsByDate[dStr]) {
-      slotsByDate[dStr] = [];
-    }
-    slotsByDate[dStr].push(s);
-  });
-  const sortedDates = Object.keys(slotsByDate).sort();
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
+  const renderHourRow = (hour: DisplayHour, compact: boolean) => {
+    const formatted = formatSlotDateTime(hour.start_time, hour.end_time);
+    const isBooked = hour.kind === "booked";
+    return (
+      <div
+        key={hour.start_time}
+        className={
+          compact
+            ? "bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/60 rounded-xl p-3.5 flex items-center justify-between gap-4"
+            : "bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 transition-all hover:border-gray-200 dark:hover:border-zinc-800"
+        }
+      >
+        <div className="flex items-center gap-3">
+          {compact ? (
+            <Clock size={16} className="text-gray-400" />
+          ) : (
+            <div className="p-3 bg-gray-50 dark:bg-zinc-900 rounded-xl">
+              <Clock size={18} className="text-gray-400" />
+            </div>
+          )}
+          <span className={compact ? "text-xs font-bold text-foreground dark:text-white" : "text-sm font-bold text-foreground dark:text-white"}>
+            {formatted.timeStr}
+          </span>
+        </div>
+
+        <div className={compact ? "flex items-center gap-2" : "flex items-center gap-3"}>
+          <span
+            className={`${compact ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-0.5 text-[10px]"} rounded font-black uppercase tracking-wider ${
+              isBooked
+                ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
+                : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
+            }`}
+          >
+            {isBooked ? "Booked" : "Available"}
+          </span>
+
+          {!isBooked && (
+            <button
+              onClick={() => handleDeleteHour(hour)}
+              className={compact ? "p-1 text-gray-400 hover:text-red-500 transition-colors" : "p-2 text-gray-400 hover:text-red-500 transition-colors"}
+              title="Remove Hour"
+            >
+              <Trash2 size={compact ? 14 : 16} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-      
-      {/* Left Column: Create Slot Form */}
+
+      {/* Left Column: Create Rule Form */}
       <div className="md:col-span-5 space-y-6">
         <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
           <h2 className="text-xl font-black mb-4 flex items-center gap-2.5 text-foreground dark:text-white">
             <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
               <Sparkles size={16} />
             </span>
-            Add Availability Slot
+            Add Availability
           </h2>
 
           {error && (
@@ -489,7 +666,7 @@ export default function ScheduleManager() {
             </div>
           )}
 
-          <form onSubmit={handleAddSlot} className="space-y-4">
+          <form onSubmit={handleAddRule} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Start Date</label>
@@ -510,13 +687,37 @@ export default function ScheduleManager() {
                   value={repeatUntil}
                   onChange={(e) => setRepeatUntil(e.target.value)}
                   min={startDate}
-                  max={get30DaysLaterDate(startDate)}
+                  max={addDays(startDate, MAX_RULE_DAYS)}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-1.5">Days of Week</label>
+              <div className="flex gap-1.5">
+                {DAY_LABELS.map((label, day) => {
+                  const active = selectedDays.includes(day);
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wide border transition-all ${
+                        active
+                          ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                          : "bg-gray-50 dark:bg-zinc-900 text-gray-400 dark:text-zinc-500 border-gray-200 dark:border-zinc-800 hover:text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <p className="text-[10px] text-gray-400 dark:text-zinc-500">
-              Note: To keep database performance optimal, scheduling repeats is pre-set to 30 days (1 month) by default.
+              This creates a recurring availability rule — one rule covers the whole period (up to 1 year), no per-hour database rows are created. Remove single hours or days later without touching the rule.
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -560,11 +761,51 @@ export default function ScheduleManager() {
               ) : (
                 <>
                   <Plus size={16} />
-                  <span>Create Available Hour</span>
+                  <span>Create Availability Rule</span>
                 </>
               )}
             </button>
           </form>
+        </div>
+
+        {/* Active Rules Card */}
+        <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm space-y-4">
+          <h2 className="text-xl font-black flex items-center gap-2.5 text-foreground dark:text-white">
+            <span className="w-8 h-8 rounded-lg bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+              <Repeat size={16} />
+            </span>
+            Active Rules
+          </h2>
+
+          {rules.length === 0 ? (
+            <p className="text-xs text-gray-400 dark:text-zinc-500">No recurring rules yet. Create one above to open your schedule.</p>
+          ) : (
+            <div className="space-y-2">
+              {rules.map((rule) => (
+                <div
+                  key={rule.id}
+                  className="bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/60 rounded-xl p-3.5 flex items-center justify-between gap-3"
+                >
+                  <div>
+                    <p className="text-xs font-bold text-foreground dark:text-white">
+                      {daysSummary(rule.days_of_week)} {minuteToHHMM(rule.start_minute)}&ndash;{minuteToHHMM(rule.end_minute)}
+                    </p>
+                    <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">
+                      {formatShortDate(rule.valid_from)} &ndash; {formatShortDate(rule.valid_until)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteRule(rule)}
+                    disabled={actionLoading}
+                    className="p-2 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    title="Delete Rule"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Manage Unavailability Card */}
@@ -579,37 +820,26 @@ export default function ScheduleManager() {
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900 rounded-2xl">
             <div>
               <p className="text-sm font-bold text-foreground dark:text-white font-black">I&apos;m unavailable today</p>
-              <p className="text-[10px] text-gray-400 dark:text-zinc-500">Quickly remove today&apos;s available slots</p>
+              <p className="text-[10px] text-gray-400 dark:text-zinc-500">Marks the whole day off. Toggle off to restore your rules.</p>
             </div>
             <button
               type="button"
               disabled={actionLoading}
               onClick={async () => {
                 if (actionLoading) return;
-                const todayStr = todayInTz(photographerTz);
-                const hasSlots = slots.some(slot => {
-                  const slotDate = slotDayKey(slot.start_time, photographerTz);
-                  return slotDate === todayStr && slot.status === "available";
-                });
-                if (!hasSlots) {
-                  showToast("To add available hours for today, use the form above.", "info");
-                  return;
+                if (unavailableToday) {
+                  await handleClearUnavailableToday();
+                } else {
+                  await handleMarkUnavailable(todayStr);
                 }
-                await handleMarkUnavailable(todayStr);
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                !slots.some(slot => {
-                  const slotDate = slotDayKey(slot.start_time, photographerTz);
-                  return slotDate === todayInTz(photographerTz) && slot.status === "available";
-                }) ? "bg-accent" : "bg-gray-200 dark:bg-zinc-800"
+                unavailableToday ? "bg-accent" : "bg-gray-200 dark:bg-zinc-800"
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  !slots.some(slot => {
-                    const slotDate = slotDayKey(slot.start_time, photographerTz);
-                    return slotDate === todayInTz(photographerTz) && slot.status === "available";
-                  }) ? "translate-x-6" : "translate-x-1"
+                  unavailableToday ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>
@@ -643,14 +873,14 @@ export default function ScheduleManager() {
         </div>
       </div>
 
-       {/* Right Column: Slots List */}
+       {/* Right Column: Hours List */}
       <div className="md:col-span-7 space-y-4">
         <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-black text-foreground dark:text-white">
               Availability Calendar
             </h2>
-            <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours. Times shown in studio timezone ({photographerTz}).</p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours (next {DISPLAY_WINDOW_DAYS} days). Times shown in studio timezone ({photographerTz}).</p>
           </div>
           <div className="flex bg-gray-50 dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-xl p-1 shrink-0 self-start sm:self-center">
             <button
@@ -682,61 +912,22 @@ export default function ScheduleManager() {
           <div className="flex items-center justify-center min-h-[30vh]">
             <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : slots.length === 0 && viewMode === "list" ? (
+        ) : displayHours.length === 0 && viewMode === "list" ? (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">
             <Calendar size={40} className="mx-auto text-gray-300 dark:text-zinc-700 mb-4" />
-            <h3 className="text-lg font-black text-foreground dark:text-white">No Slots Created</h3>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Add slots on the left to allow users to reserve your hours.</p>
+            <h3 className="text-lg font-black text-foreground dark:text-white">No Availability Set</h3>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">Create a rule on the left to allow users to reserve your hours.</p>
           </div>
         ) : viewMode === "list" ? (
           <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 hide-scrollbar">
             {sortedDates.map((dateStr) => {
-              const dateSlots = slotsByDate[dateStr];
+              const dateHours = hoursByDate[dateStr];
               const formattedDate = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
               return (
                 <div key={dateStr} className="space-y-2">
                   <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mt-2 mb-1.5">{formattedDate}</h3>
                   <div className="space-y-2">
-                    {dateSlots.map((slot) => {
-                      const formatted = formatSlotDateTime(slot.start_time, slot.end_time);
-                      return (
-                        <div
-                          key={slot.id}
-                          className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 transition-all hover:border-gray-200 dark:hover:border-zinc-800"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-3 bg-gray-50 dark:bg-zinc-900 rounded-xl">
-                              <Clock size={18} className="text-gray-400" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-foreground dark:text-white mt-0.5">{formatted.timeStr}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                                slot.status === "booked"
-                                  ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
-                                  : "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
-                              }`}
-                            >
-                              {slot.status}
-                            </span>
-
-                            {slot.status === "available" && (
-                              <button
-                                onClick={() => handleDeleteSlot(slot.id)}
-                                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                title="Delete Slot"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {dateHours.map((hour) => renderHourRow(hour, false))}
                   </div>
                 </div>
               );
@@ -784,12 +975,12 @@ export default function ScheduleManager() {
                 {calendarCells.map((cell, idx) => {
                   const dateStr = getLocalDateString(cell.date);
                   const isSelected = selectedCalendarDate === dateStr;
-                  const daySlots = slotsByDate[dateStr] || [];
-                  const hasSlots = daySlots.length > 0;
-                  
-                  const todayStr = todayInTz(photographerTz);
-                  const isPast = dateStr < todayStr;
-                  
+                  const dayHours = hoursByDate[dateStr] || [];
+                  const hasHours = dayHours.length > 0;
+
+                  const calTodayStr = todayInTz(photographerTz);
+                  const isPast = dateStr < calTodayStr;
+
                   return (
                     <button
                       key={idx}
@@ -808,7 +999,7 @@ export default function ScheduleManager() {
                       <span className="text-xs font-black">
                         {cell.date.getDate()}
                       </span>
-                      {hasSlots && (
+                      {hasHours && (
                         <span className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-accent' : 'bg-black dark:bg-accent'}`} />
                       )}
                     </button>
@@ -823,13 +1014,13 @@ export default function ScheduleManager() {
                   Schedule for {new Date(`${selectedCalendarDate}T00:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                 </h3>
                 <span className="text-xs font-black px-2 py-0.5 rounded bg-gray-50 dark:bg-zinc-900 text-gray-500 border border-gray-100 dark:border-zinc-800">
-                  {(slotsByDate[selectedCalendarDate] || []).length} Hours Set
+                  {(hoursByDate[selectedCalendarDate] || []).length} Hours Set
                 </span>
               </div>
 
               {(() => {
-                const daySlots = slotsByDate[selectedCalendarDate] || [];
-                if (daySlots.length === 0) {
+                const dayHours = hoursByDate[selectedCalendarDate] || [];
+                if (dayHours.length === 0) {
                   return (
                     <div className="py-8 text-center space-y-4">
                       <p className="text-xs text-gray-400 dark:text-zinc-500">No active hours set for this date.</p>
@@ -851,42 +1042,9 @@ export default function ScheduleManager() {
                 return (
                   <div className="space-y-3">
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
-                      {daySlots.map((slot) => {
-                        const formatted = formatSlotDateTime(slot.start_time, slot.end_time);
-                        return (
-                          <div
-                            key={slot.id}
-                            className="bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800/60 rounded-xl p-3.5 flex items-center justify-between gap-4"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Clock size={16} className="text-gray-400" />
-                              <span className="text-xs font-bold text-foreground dark:text-white">{formatted.timeStr}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                                  slot.status === "booked"
-                                    ? "bg-accent/15 text-black dark:text-accent border border-accent/20"
-                                    : "bg-white text-gray-500 dark:bg-zinc-950 dark:text-zinc-400 border border-gray-200 dark:border-zinc-800"
-                                }`}
-                              >
-                                {slot.status}
-                              </span>
-                              {slot.status === "available" && (
-                                <button
-                                  onClick={() => handleDeleteSlot(slot.id)}
-                                  className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                                  title="Delete Slot"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {dayHours.map((hour) => renderHourRow(hour, true))}
                     </div>
-                    
+
                     <button
                       type="button"
                       onClick={() => handleMarkUnavailable(selectedCalendarDate)}

@@ -54,6 +54,7 @@ export default function ChatWindow({
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const initialScrollDone = useRef(false);
+  const lastMarkedRef = useRef(0);
   const { showToast } = useToast();
   const { t } = useLanguage();
 
@@ -69,6 +70,24 @@ export default function ChatWindow({
   ];
 
   const currentStepIdx = steps.findIndex(s => s.key === bookingStatus);
+
+  // Mark this conversation as read for the current user (throttled ~20s).
+  const markRead = async (force = false) => {
+    if (!supabase) return;
+    const now = Date.now();
+    if (!force && now - lastMarkedRef.current < 20_000) return;
+    lastMarkedRef.current = now;
+    try {
+      await supabase.from("conversation_reads").upsert({
+        booking_id: bookingId,
+        user_id: currentUserId,
+        last_read_at: new Date().toISOString(),
+      });
+      window.dispatchEvent(new Event("sphot:unread-refresh"));
+    } catch {
+      // non-fatal — table may not exist on an un-migrated DB
+    }
+  };
 
   // Fetch initial messages and booking status info
   useEffect(() => {
@@ -124,6 +143,9 @@ export default function ChatWindow({
           messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
           initialScrollDone.current = true;
         }, 100);
+
+        // Opening the chat marks it read (not throttled — first call).
+        markRead(true);
       } catch (err) {
         console.error("Error loading chat messages / booking:", err);
       } finally {
@@ -188,6 +210,14 @@ export default function ChatWindow({
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
           }, 100);
+          // Incoming message from the other party while the tab is visible:
+          // the user is looking at it, so mark the conversation read.
+          if (
+            newMessage.sender_id !== currentUserId &&
+            document.visibilityState === "visible"
+          ) {
+            markRead();
+          }
         }
       )
       .subscribe();
@@ -215,7 +245,25 @@ export default function ChatWindow({
       client.removeChannel(msgChannel);
       client.removeChannel(statusChannel);
     };
-  }, [bookingId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, currentUserId]);
+
+  // Returning focus to the window means the user is reading this chat.
+  // The interval keeps the read marker fresh while the chat stays open and
+  // visible but idle, so the "actively chatting" email suppression (3-min
+  // window on the server) never emails someone who is looking at the chat.
+  useEffect(() => {
+    const onFocus = () => markRead();
+    window.addEventListener("focus", onFocus);
+    const keepAlive = setInterval(() => {
+      if (document.visibilityState === "visible") markRead();
+    }, 2 * 60 * 1000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(keepAlive);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, currentUserId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,6 +281,21 @@ export default function ChatWindow({
       });
 
       if (error) throw error;
+
+      // Fire-and-forget: email the other participant if they're away.
+      // Never blocks or fails the send UX.
+      supabase.auth
+        .getSession()
+        .then(({ data }) => {
+          const access_token = data.session?.access_token;
+          if (!access_token) return;
+          return fetch("/api/notify/message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ access_token, booking_id: bookingId }),
+          });
+        })
+        .catch(() => {});
     } catch (err) {
       console.error("Failed to send message:", err);
       showToast("Failed to send message. Please try again.", "error");

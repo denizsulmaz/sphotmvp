@@ -129,8 +129,12 @@ export default function ProfilePageClient({ id }: ProfilePageClientProps) {
 
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
-  const profilePic = isUuid
-    ? photographer.avatarUrl || "/media/default-profile.webp"
+  // Always prefer the uploaded avatar from the DB; fall back to the static
+  // seed image only for legacy seed profiles that never uploaded one.
+  const profilePic = photographer.avatarUrl
+    ? photographer.avatarUrl
+    : isUuid
+    ? "/media/default-profile.webp"
     : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
   return (
