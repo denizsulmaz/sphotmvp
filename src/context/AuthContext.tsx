@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { User, Session, AuthChangeEvent } from "@supabase/supabase-js";
 import { supabase, isSupabaseReady } from "@/lib/supabase";
 
@@ -35,6 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<"admin" | "photographer" | "client" | null>(null);
   const [loading, setLoading] = useState(true);
+  // supabase-js emits SIGNED_IN/TOKEN_REFRESHED every time the window regains
+  // focus (tab switch, file-picker dialog). Track the last user id so those
+  // events don't replace the user object or refetch the profile — a new `user`
+  // identity re-runs every page effect keyed on it, which reads as the whole
+  // page "refreshing itself" and can clobber in-flight edits/uploads.
+  const lastUserIdRef = useRef<string | null>(null);
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
@@ -74,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .then(({ data }: { data: { session: Session | null } }) => {
         const session = data?.session;
         if (session?.user) {
+          lastUserIdRef.current = session.user.id;
           setUser(session.user);
           setLoading(false);
           fetchProfile(session.user.id);
@@ -94,9 +101,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, session: Session | null) => {
         if (session?.user) {
+          // Same user re-emitted on focus/token refresh: keep the existing
+          // object identity and cached profile — do nothing.
+          if (lastUserIdRef.current === session.user.id) return;
+          lastUserIdRef.current = session.user.id;
           setUser(session.user);
           fetchProfile(session.user.id);
         } else {
+          lastUserIdRef.current = null;
           setUser(null);
           setProfile(null);
           setRole(null);
@@ -113,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isSupabaseReady(supabase)) return;
     setLoading(true);
     await supabase.auth.signOut();
+    lastUserIdRef.current = null;
     setUser(null);
     setProfile(null);
     setRole(null);
