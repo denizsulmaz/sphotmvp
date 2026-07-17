@@ -107,6 +107,16 @@ export default function PhotographerAuthPage() {
         if (signUpError) {
           setError(signUpError.message);
         } else if (data.user) {
+          // If email confirmation is enabled there is no session yet — any profile
+          // update or upload would run unauthenticated and be rejected by RLS.
+          if (!data.session) {
+            setSuccess("Check your email to confirm your account, then sign in to complete your application.");
+            setTimeout(() => {
+              setIsSignUp(false);
+            }, 3000);
+            return;
+          }
+
           // Upload avatar if provided
           let avatarUrl: string | null = null;
           if (avatarFile && supabase) {
@@ -115,10 +125,16 @@ export default function PhotographerAuthPage() {
             const { error: uploadErr } = await supabase.storage
               .from("avatars")
               .upload(filePath, avatarFile, { upsert: true });
-            if (!uploadErr) {
-              const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
-              avatarUrl = publicUrl;
-              await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", data.user.id);
+            if (uploadErr) {
+              setError(`Your account was created, but your profile picture failed to upload: ${uploadErr.message}. Please sign in and add it from your profile page.`);
+              return;
+            }
+            const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
+            avatarUrl = publicUrl;
+            const { error: avatarErr } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", data.user.id);
+            if (avatarErr) {
+              setError(`Your account was created, but your profile picture could not be saved: ${avatarErr.message}. Please sign in and add it from your profile page.`);
+              return;
             }
           }
 
@@ -151,7 +167,8 @@ export default function PhotographerAuthPage() {
 
           if (profileError) {
             console.error("Failed to save detailed application fields:", profileError);
-            // We don't crash, but warn the user that they can finalize this inside the profile page
+            setError(`Your account was created, but we could not save your application details: ${profileError.message}. Please sign in and complete your profile.`);
+            return;
           }
 
           // Send admin notification

@@ -150,7 +150,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   // 1: Choose Schedule (21 Days Calendly View)
   // 2: Shoot Details & Preferences
   // 3: Authentication / Account (skipped if user logged in)
-  // 4: Summary & Payment
+  // 4: Summary & Reserve
   const [step, setStep] = useState(1);
 
   // Step 1: Schedule selection states
@@ -396,6 +396,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       if (data.devCode) {
         console.info(`[OTP dev] Your code: ${data.devCode}`);
         setError(`Dev mode: your code is ${data.devCode}`);
+      } else if (data.delivered === false) {
+        // The email was not actually sent — don't advance to the code screen.
+        throw new Error("We couldn't send the verification email — please try again.");
       }
       setShowVerification(true);
       setActionLoading(false);
@@ -458,6 +461,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Resend failed.");
       if (data.devCode) setError(`Dev mode: your code is ${data.devCode}`);
+      else if (data.delivered === false) throw new Error("We couldn't send the verification email — please try again.");
       else setError(null);
       setActionLoading(false);
     } catch (err: any) {
@@ -506,8 +510,8 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
     }
   };
 
-  // Step 4 Final Booking trigger
-  const handleProceedToPayment = async () => {
+  // Step 4 Final Booking trigger — creates a free booking request (no payment).
+  const handleConfirmBooking = async () => {
     if (!user || !photographer || selectedSlots.length === 0) return;
     setError(null);
     setActionLoading(true);
@@ -529,6 +533,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           client_id: user.id,
           photographer_id: photographer.id,
           slot_id: selectedSlots[0].id,
+          extra_slot_ids: slotIds.slice(1), // additional slots beyond the first
           shoot_location: shootLocation,
           location_type: locationType,
           shoot_style: shootStyle,
@@ -561,15 +566,17 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   }
 
   const getDayName = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "short" });
+    return date.toLocaleDateString("en-US", { weekday: "short", timeZone: photographer?.timezone || "Asia/Seoul" });
   };
 
   const getDayNumber = (date: Date) => {
-    return date.getDate();
+    return Number(
+      date.toLocaleDateString("en-US", { day: "numeric", timeZone: photographer?.timezone || "Asia/Seoul" })
+    );
   };
 
   const getMonthName = (date: Date) => {
-    return date.toLocaleDateString("en-US", { month: "short" });
+    return date.toLocaleDateString("en-US", { month: "short", timeZone: photographer?.timezone || "Asia/Seoul" });
   };
 
   return (
@@ -1162,7 +1169,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             </div>
           )}
 
-          {/* STEP 4: SUMMARY & PAYMENT */}
+          {/* STEP 4: SUMMARY & RESERVE */}
           {step === 4 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
               <div>
@@ -1336,7 +1343,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             {step === 4 ? (
               <button
                 type="button"
-                onClick={handleProceedToPayment}
+                onClick={handleConfirmBooking}
                 disabled={actionLoading}
                 className="w-full py-4 rounded-xl bg-accent text-black font-extrabold text-base shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >

@@ -23,6 +23,22 @@ BEGIN
 END;
 $$;
 
+-- SECURITY DEFINER role lookup for column-lock checks in RLS WITH CHECK
+-- clauses (avoids recursive policy evaluation on profiles).
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+DECLARE result text;
+BEGIN
+  SELECT role INTO result FROM public.profiles WHERE id = auth.uid();
+  RETURN result;
+END;
+$$;
+
 -- Generic updated_at touch trigger fn.
 CREATE OR REPLACE FUNCTION public.touch_updated_at()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -42,13 +58,18 @@ ALTER TABLE public.photographer_views ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "public_read_views" ON public.photographer_views;
 CREATE POLICY "public_read_views" ON public.photographer_views FOR SELECT USING (true);
+-- Writes happen only through the SECURITY DEFINER increment RPC below, which
+-- can only add exactly 1. No direct INSERT/UPDATE policies on purpose —
+-- otherwise anyone could set an arbitrary count from the browser.
 DROP POLICY IF EXISTS "public_upsert_views" ON public.photographer_views;
-CREATE POLICY "public_upsert_views" ON public.photographer_views FOR INSERT WITH CHECK (true);
 DROP POLICY IF EXISTS "public_update_views" ON public.photographer_views;
-CREATE POLICY "public_update_views" ON public.photographer_views FOR UPDATE USING (true);
 
 CREATE OR REPLACE FUNCTION public.increment_photographer_view(p_id TEXT)
-RETURNS INTEGER LANGUAGE plpgsql AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE new_count INTEGER;
 BEGIN
   INSERT INTO public.photographer_views (photographer_id, count, updated_at)
@@ -74,7 +95,8 @@ DROP POLICY IF EXISTS "Allow public read for profiles" ON public.profiles;
 CREATE POLICY "Allow public read for profiles" ON public.profiles FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Allow users to update their own profile" ON public.profiles;
 CREATE POLICY "Allow users to update their own profile" ON public.profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id AND role IS NOT DISTINCT FROM public.current_user_role());
 DROP POLICY IF EXISTS "Allow admins to manage profiles" ON public.profiles;
 CREATE POLICY "Allow admins to manage profiles" ON public.profiles
   FOR ALL USING (public.is_admin());
@@ -97,17 +119,47 @@ CREATE TABLE IF NOT EXISTS public.photographer_profiles (
   is_approved     BOOLEAN DEFAULT false,
   approved_at     TIMESTAMPTZ,
   public_code     TEXT,
+  timezone        TEXT DEFAULT 'Asia/Seoul',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE public.photographer_profiles ADD COLUMN IF NOT EXISTS public_code TEXT;
+ALTER TABLE public.photographer_profiles ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Asia/Seoul';
 ALTER TABLE public.photographer_profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read for approved photographers" ON public.photographer_profiles;
 CREATE POLICY "Allow public read for approved photographers" ON public.photographer_profiles
   FOR SELECT USING (is_approved = true OR auth.uid() = id OR public.is_admin());
+-- SECURITY DEFINER check that approval/identity fields are unchanged in an
+-- owner UPDATE (compares the NEW values against the stored row; STABLE means
+-- the lookup sees the pre-update snapshot). Admins bypass via their own policy.
+CREATE OR REPLACE FUNCTION public.photographer_locked_fields_unchanged(
+  p_id UUID, p_is_approved BOOLEAN, p_approved_at TIMESTAMPTZ, p_public_code TEXT
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+DECLARE result boolean;
+BEGIN
+  SELECT p_is_approved IS NOT DISTINCT FROM pp.is_approved
+     AND p_approved_at IS NOT DISTINCT FROM pp.approved_at
+     AND p_public_code IS NOT DISTINCT FROM pp.public_code
+    INTO result
+    FROM public.photographer_profiles pp
+   WHERE pp.id = p_id;
+  RETURN COALESCE(result, false);
+END;
+$$;
+
 DROP POLICY IF EXISTS "Allow photographers to update own profile" ON public.photographer_profiles;
 CREATE POLICY "Allow photographers to update own profile" ON public.photographer_profiles
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (
+    auth.uid() = id
+    AND public.photographer_locked_fields_unchanged(id, is_approved, approved_at, public_code)
+  );
 DROP POLICY IF EXISTS "Allow admins to manage photographer profiles" ON public.photographer_profiles;
 CREATE POLICY "Allow admins to manage photographer profiles" ON public.photographer_profiles
   FOR ALL USING (public.is_admin());
@@ -124,6 +176,9 @@ CREATE TABLE IF NOT EXISTS public.availability_slots (
 ALTER TABLE public.availability_slots ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_slots_photographer ON public.availability_slots (photographer_id, start_time);
 CREATE INDEX IF NOT EXISTS idx_slots_status ON public.availability_slots (status);
+-- No duplicate slots at the same start time for a photographer (stale-tab guard).
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_slots_photographer_start
+  ON public.availability_slots (photographer_id, start_time);
 
 DROP POLICY IF EXISTS "Allow public read for availability slots" ON public.availability_slots;
 CREATE POLICY "Allow public read for availability slots" ON public.availability_slots
@@ -142,7 +197,7 @@ CREATE TABLE IF NOT EXISTS public.bookings (
   photographer_id  UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   slot_id          UUID REFERENCES public.availability_slots(id) ON DELETE SET NULL,
   status           TEXT NOT NULL DEFAULT 'pending'
-                     CHECK (status IN ('pending', 'paid', 'confirmed', 'completed', 'cancellation_requested', 'cancelled', 'refunded')),
+                     CHECK (status IN ('pending', 'paid', 'confirmed', 'booking', 'shooted', 'edited', 'sent', 'completed', 'cancellation_requested', 'cancelled', 'refunded')),
   fee_krw          INTEGER NOT NULL DEFAULT 25000,
   checkout_id      TEXT,
   -- structured shoot details (mirrors checkout wizard)
@@ -165,7 +220,7 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS preferred_language TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS duration_label TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS details TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
--- Refund bookkeeping (mirrors the Lemon Squeezy refund response; null until refunded).
+-- Refund bookkeeping (internal record only; null until refunded).
 -- refund_amount is stored in the order's own currency minor units (e.g. KRW=won, USD=cents),
 -- and refund_currency records which — so the value is correct regardless of store currency.
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
@@ -176,14 +231,19 @@ ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS refund_id TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancel_requested_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS cancel_requested_at TIMESTAMPTZ;
--- Widen status check to include 'confirmed', 'cancellation_requested', and 'refunded'.
+-- Extra availability slots reserved by a multi-slot booking (released on cancel/refund).
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS extra_slot_ids UUID[] NOT NULL DEFAULT '{}';
+-- Widen status check to include workflow statuses and cancellation/refund states.
 ALTER TABLE public.bookings DROP CONSTRAINT IF EXISTS bookings_status_check;
 ALTER TABLE public.bookings ADD CONSTRAINT bookings_status_check
-  CHECK (status IN ('pending', 'paid', 'confirmed', 'completed', 'cancellation_requested', 'cancelled', 'refunded'));
+  CHECK (status IN ('pending', 'paid', 'confirmed', 'booking', 'shooted', 'edited', 'sent', 'completed', 'cancellation_requested', 'cancelled', 'refunded'));
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 CREATE INDEX IF NOT EXISTS idx_bookings_client ON public.bookings (client_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_bookings_photographer ON public.bookings (photographer_id, created_at DESC);
+-- One active booking per slot — DB-level double-booking guard.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_bookings_active_slot ON public.bookings (slot_id)
+  WHERE slot_id IS NOT NULL AND status NOT IN ('cancelled', 'refunded');
 
 DROP TRIGGER IF EXISTS trg_bookings_touch ON public.bookings;
 CREATE TRIGGER trg_bookings_touch BEFORE UPDATE ON public.bookings
@@ -195,13 +255,18 @@ CREATE POLICY "Allow users to view their own bookings" ON public.bookings
 DROP POLICY IF EXISTS "Allow clients to create bookings" ON public.bookings;
 CREATE POLICY "Allow clients to create bookings" ON public.bookings
   FOR INSERT WITH CHECK (auth.uid() = client_id);
+-- All legitimate status/fee changes go through service-role API routes
+-- (booking/update-status, cancel-request, refund, mock-pay, webhooks), which
+-- bypass RLS. No participant UPDATE policy on purpose — browsers must not be
+-- able to flip status or fee_krw directly. Admins keep UPDATE for tooling.
 DROP POLICY IF EXISTS "Allow participants to update bookings" ON public.bookings;
-CREATE POLICY "Allow participants to update bookings" ON public.bookings
-  FOR UPDATE USING (auth.uid() = client_id OR auth.uid() = photographer_id OR public.is_admin());
+DROP POLICY IF EXISTS "Allow admins to update bookings" ON public.bookings;
+CREATE POLICY "Allow admins to update bookings" ON public.bookings
+  FOR UPDATE USING (public.is_admin());
 
 -- ─── 5b. Refunds (admin-issued, reason-required audit trail) ──
--- One row per refund issued. The financial source of truth is Lemon Squeezy;
--- this table records OUR internal context: which admin, why, how much, when.
+-- One row per refund issued. This table records the internal audit context:
+-- which admin, why, how much, when. (No external payment processor is involved.)
 -- amount is stored in the order currency's minor units; currency records which.
 CREATE TABLE IF NOT EXISTS public.refunds (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -210,7 +275,7 @@ CREATE TABLE IF NOT EXISTS public.refunds (
   reason        TEXT NOT NULL,
   amount        INTEGER NOT NULL,
   currency      TEXT NOT NULL DEFAULT 'KRW',
-  ls_refund_id  TEXT,            -- Lemon Squeezy refund/order id (null in mock mode)
+  ls_refund_id  TEXT,            -- legacy external refund id (always null; kept for old rows)
   is_live       BOOLEAN NOT NULL DEFAULT false,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

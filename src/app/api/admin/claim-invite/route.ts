@@ -93,7 +93,8 @@ export async function POST(req: NextRequest) {
     : '"SPHOT Team" <team@email.booksphot.com>';
 
   if (apiKey) {
-    await fetch("https://api.resend.com/emails", {
+    let sendError: string | null = null;
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -125,7 +126,29 @@ export async function POST(req: NextRequest) {
         }),
         text: `Claim your SPHOT profile: ${claimUrl} (expires in ${CLAIM_TTL_DAYS} days)`,
       }),
-    }).catch((e) => console.error("[claim-invite] resend:", e));
+    }).catch((e) => {
+      console.error("[claim-invite] resend:", e);
+      sendError = e?.message || "Network error while sending the invite email.";
+      return null;
+    });
+
+    if (!sendError && res && !res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("[claim-invite] resend failed:", res.status, detail);
+      sendError = `Resend returned ${res.status}.`;
+    }
+
+    if (sendError) {
+      // Roll back: mark the just-created token consumed so the admin can retry cleanly.
+      await supabase
+        .from("claim_tokens")
+        .update({ consumed: true })
+        .eq("token_hash", tokenHash);
+      return NextResponse.json(
+        { error: `The invite email failed to send (${sendError}) The invite token was rolled back — please retry.` },
+        { status: 500 }
+      );
+    }
   }
 
   return NextResponse.json({

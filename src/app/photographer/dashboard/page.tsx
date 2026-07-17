@@ -92,11 +92,18 @@ export default function PhotographerDashboard() {
     if (!supabase) return;
     setActionLoading(bookingId);
     try {
-      const { error: updateError } = await supabase
-        .from("bookings")
-        .update({ status: "completed" })
-        .eq("id", bookingId);
-      if (updateError) throw updateError;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/booking/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: session?.access_token,
+          bookingId,
+          nextStatus: "completed",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update booking status.");
       setBookings(prev =>
         prev.map(b => (b.id === bookingId ? { ...b, status: "completed" } : b))
       );

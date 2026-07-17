@@ -17,12 +17,18 @@ import {
 
 /* ----------------------------- Types ----------------------------- */
 
-type BookingStatus =
-  | "pending"
-  | "paid"
-  | "confirmed"
-  | "completed"
-  | "cancelled";
+import type { BookingStatus } from "@/lib/types";
+
+/** Paid-or-beyond statuses that count toward revenue (excludes cancelled/refunded). */
+const REVENUE_STATUSES: BookingStatus[] = [
+  "paid",
+  "confirmed",
+  "completed",
+  "booking",
+  "shooted",
+  "edited",
+  "sent",
+];
 
 interface BookingMetricRow {
   id: string;
@@ -157,6 +163,17 @@ const STATUS_STYLES: Record<BookingStatus, string> = {
     "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-500/20",
   cancelled:
     "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border-rose-200/60 dark:border-rose-500/20",
+  cancellation_requested:
+    "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 border-orange-200/60 dark:border-orange-500/20",
+  refunded:
+    "bg-gray-50 text-gray-600 dark:bg-zinc-500/10 dark:text-zinc-400 border-gray-200/60 dark:border-zinc-500/20",
+  booking:
+    "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 border-blue-200/60 dark:border-blue-500/20",
+  shooted:
+    "bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400 border-cyan-200/60 dark:border-cyan-500/20",
+  edited:
+    "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border-indigo-200/60 dark:border-indigo-500/20",
+  sent: "bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400 border-teal-200/60 dark:border-teal-500/20",
 };
 
 function StatusBadge({ status }: { status: BookingStatus }) {
@@ -238,7 +255,7 @@ export default function OperationsView() {
              photographer:profiles!bookings_photographer_id_fkey ( full_name )`
           )
           .not("slot_id", "is", null)
-          .in("status", ["paid", "confirmed", "completed"]);
+          .in("status", REVENUE_STATUSES);
         if (sessionErr) throw sessionErr;
 
         const mapped: Session[] = ((sessionRows || []) as SessionRow[]).map(
@@ -285,10 +302,13 @@ export default function OperationsView() {
     for (const b of metrics) {
       total += 1;
       const s = b.status;
-      if (s === "paid") paid += 1;
+      if (!s) continue;
+      // Active paid-or-beyond bookings that haven't wrapped up yet.
+      if (REVENUE_STATUSES.includes(s) && s !== "completed") paid += 1;
       if (s === "completed") completed += 1;
-      if (s === "cancelled") cancelled += 1;
-      if (s === "paid" || s === "confirmed" || s === "completed") {
+      // Refunded bookings ended up cancelled; requests are still pending.
+      if (s === "cancelled" || s === "refunded" || s === "cancellation_requested") cancelled += 1;
+      if (REVENUE_STATUSES.includes(s)) {
         revenue += b.fee_krw ?? 0;
       }
     }
@@ -395,7 +415,7 @@ export default function OperationsView() {
         />
         <MetricCard
           icon={<Wallet size={20} className="text-black dark:text-white" />}
-          label="Paid"
+          label="Active"
           value={summary.paid.toLocaleString()}
         />
         <MetricCard

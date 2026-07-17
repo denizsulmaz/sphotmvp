@@ -256,19 +256,53 @@ export default function ProfileBuilder() {
         .from("portfolios")
         .getPublicUrl(filePath);
 
-      setPortfolioUrls(prev => [...prev, publicUrl]);
+      const newUrls = [...portfolioUrls, publicUrl];
+      setPortfolioUrls(newUrls);
+
+      const { error: dbUpdateError } = await supabase
+        .from("photographer_profiles")
+        .update({ portfolio_urls: newUrls })
+        .eq("id", user.id);
+      if (dbUpdateError) throw dbUpdateError;
+
+      showToast("Portfolio image uploaded and saved.", "success");
     } catch (err: any) {
       console.error("Storage upload failed, trying local fallback:", err);
       // Ask user to enter URL manually as fallback
       const manualUrl = prompt("Upload failed. Enter public image URL manually:");
       if (manualUrl) {
-        setPortfolioUrls(prev => [...prev, manualUrl]);
+        try {
+          const newUrls = [...portfolioUrls, manualUrl];
+          setPortfolioUrls(newUrls);
+          const { error: dbUpdateError } = await supabase
+            .from("photographer_profiles")
+            .update({ portfolio_urls: newUrls })
+            .eq("id", user.id);
+          if (dbUpdateError) throw dbUpdateError;
+          showToast("Portfolio URL saved successfully.", "success");
+        } catch (dbErr: any) {
+          console.error("Failed to save manual URL:", dbErr);
+          showToast("Failed to save URL to database.", "error");
+        }
       }
     }
   };
 
-  const removePortfolioImage = (indexToRemove: number) => {
-    setPortfolioUrls(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  const removePortfolioImage = async (indexToRemove: number) => {
+    if (!user || !supabase) return;
+    const newUrls = portfolioUrls.filter((_, idx) => idx !== indexToRemove);
+    setPortfolioUrls(newUrls);
+    try {
+      const { error: updateError } = await supabase
+        .from("photographer_profiles")
+        .update({ portfolio_urls: newUrls })
+        .eq("id", user.id);
+      if (updateError) throw updateError;
+      showToast("Portfolio image removed and saved.", "success");
+    } catch (err: any) {
+      console.error("Failed to update database after removing image:", err);
+      showToast("Failed to remove image from database.", "error");
+    }
   };
 
   const toggleLocation = (loc: string) => {

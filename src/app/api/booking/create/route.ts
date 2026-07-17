@@ -39,13 +39,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized operation." }, { status: 401 });
     }
 
-    // 1. Create the booking record with status='booking' and fee_krw=0
+    // 1. Lock all selected availability slots atomically BEFORE creating the booking.
+    // Only flips slots that are still 'available' and belong to this photographer;
+    // if any slot was taken in the meantime, revert and reject.
+    const extraSlotIds: string[] = (body.extra_slot_ids || []).filter(Boolean);
+    const allSlotIds = Array.from(new Set<string>([slot_id, ...extraSlotIds]));
+
+    const { data: lockedSlots, error: lockErr } = await supabase
+      .from("availability_slots")
+      .update({ status: "booked" })
+      .in("id", allSlotIds)
+      .eq("status", "available")
+      .eq("photographer_id", photographer_id)
+      .select("id");
+
+    const lockedIds = (lockedSlots || []).map((s) => s.id);
+    if (lockErr || lockedIds.length !== allSlotIds.length) {
+      // Revert any slots we did manage to flip.
+      if (lockedIds.length > 0) {
+        await supabase
+          .from("availability_slots")
+          .update({ status: "available" })
+          .in("id", lockedIds);
+      }
+      return NextResponse.json(
+        { error: "Slot is no longer available. Please pick another time." },
+        { status: 409 }
+      );
+    }
+
+    // 2. Create the booking record with status='booking' and fee_krw=0
     const { data: booking, error: insertErr } = await supabase
       .from("bookings")
       .insert({
         client_id,
         photographer_id,
         slot_id,
+        extra_slot_ids: allSlotIds.filter((id) => id !== slot_id),
         status: "booking",
         fee_krw: 0,
         shoot_location,
@@ -60,17 +90,16 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (insertErr || !booking) {
-      throw insertErr || new Error("Failed to insert booking.");
-    }
-
-    // 2. Lock the availability slot
-    const { error: slotErr } = await supabase
-      .from("availability_slots")
-      .update({ status: "booked" })
-      .eq("id", slot_id);
-
-    if (slotErr) {
-      console.error("[booking/create] Failed to lock slot:", slotErr.message);
+      // Release the slots we locked (covers unique-index violations on slot_id too).
+      await supabase
+        .from("availability_slots")
+        .update({ status: "available" })
+        .in("id", lockedIds);
+      console.error("[booking/create] Booking insert failed:", insertErr?.message);
+      return NextResponse.json(
+        { error: "Slot is no longer available. Please pick another time." },
+        { status: 409 }
+      );
     }
 
     // 3. Post the initial system pre-info message in the conversation
@@ -100,7 +129,10 @@ export async function POST(req: NextRequest) {
       <p><em>SPHOT Alerts System</em></p>
     `;
 
-    await sendNotificationEmail(subject, htmlContent, textContent);
+    // Fire-and-forget: email failure should NOT cause a 500 when the booking already succeeded.
+    sendNotificationEmail(subject, htmlContent, textContent).catch((e) =>
+      console.error("[booking/create] Email notification failed:", e?.message)
+    );
 
     return NextResponse.json({ ok: true, booking });
   } catch (err: any) {

@@ -50,7 +50,6 @@ export default function PrivacyPage() {
             <li>To create and manage your account.</li>
             <li>To process photographer applications and admin verifications.</li>
             <li>To facilitate bookings and in-platform messaging.</li>
-            <li>To process the reservation fee through Lemon Squeezy.</li>
             <li>To verify your email address and send service-related notifications (via Resend).</li>
             <li>To display reviews and to investigate reports for safety and moderation.</li>
             <li>To analyze anonymized usage patterns (with consent) for platform improvements.</li>
@@ -94,7 +93,6 @@ export default function PrivacyPage() {
           <p className="mb-3">We use the following third-party services that may process your data:</p>
           <ul className="list-disc pl-6 space-y-1.5">
             <li><strong>Supabase</strong> (Database & Authentication) — <a href="https://supabase.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
-            <li><strong>Lemon Squeezy</strong> (Payment Processing) — <a href="https://www.lemonsqueezy.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
             <li><strong>Resend</strong> (Transactional Email) — <a href="https://resend.com/legal/privacy-policy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
             <li><strong>Google Analytics</strong> (Usage Analytics, with IP anonymization) — <a href="https://policies.google.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
             <li><strong>Vercel</strong> (Hosting) — <a href="https://vercel.com/legal/privacy-policy" className="underline" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>

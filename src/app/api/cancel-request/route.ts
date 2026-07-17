@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabaseServer";
+import { sendNotificationEmail } from "@/lib/notify";
 
 /**
  * A client or photographer requests cancellation of their own booking.
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   // ── Load + authorize (must be a participant or admin). ──
   const { data: booking, error: fetchErr } = await supabase
     .from("bookings")
-    .select("id, status, client_id, photographer_id, slot_id")
+    .select("id, status, client_id, photographer_id, slot_id, extra_slot_ids")
     .eq("id", booking_id)
     .single();
   if (fetchErr || !booking) {
@@ -85,12 +86,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updErr.message }, { status: 500 });
   }
 
-  // Release the slot so it can be re-booked while the request is reviewed.
-  if (booking.slot_id) {
+  // Release the slot(s) so they can be re-booked while the request is reviewed.
+  const releaseIds = [booking.slot_id, ...((booking.extra_slot_ids as string[] | null) || [])].filter(Boolean);
+  if (releaseIds.length > 0) {
     await supabase
       .from("availability_slots")
       .update({ status: "available" })
-      .eq("id", booking.slot_id);
+      .in("id", releaseIds);
   }
 
   // System message into the chat.
@@ -101,6 +103,28 @@ export async function POST(req: NextRequest) {
     .from("messages")
     .insert({ booking_id, sender_id: null, kind: "system", content: note })
     .then(undefined, () => {});
+
+  // Internal notification email (fire-and-forget: failure never fails the route).
+  const { data: clientProf } = await supabase.from("profiles").select("full_name").eq("id", booking.client_id).maybeSingle();
+  const { data: photoProf } = await supabase.from("profiles").select("full_name").eq("id", booking.photographer_id).maybeSingle();
+  const clientName = clientProf?.full_name || "Client";
+  const photoName = photoProf?.full_name || "Photographer";
+  const subject = `[SPHOT] ${nextStatus === "cancelled" ? "Booking Cancelled" : "Cancellation Requested"} - ${clientName} & ${photoName}`;
+  const textContent = `Booking ${booking_id} between Client: ${clientName} and Photographer: ${photoName} is now '${nextStatus}'.\nRequested by: ${callerId}\nReason: ${reason || "None"}`;
+  const htmlContent = `
+    <h2>SPHOT ${nextStatus === "cancelled" ? "Booking Cancelled" : "Cancellation Requested"}</h2>
+    <p><strong>Client:</strong> ${clientName}</p>
+    <p><strong>Photographer:</strong> ${photoName}</p>
+    <p><strong>New Status:</strong> ${nextStatus}</p>
+    <p><strong>Requested by:</strong> ${callerId}</p>
+    <p><strong>Reason:</strong> ${reason || "None"}</p>
+    <p><strong>Booking ID:</strong> ${booking_id}</p>
+    <hr/>
+    <p><em>SPHOT Alerts System</em></p>
+  `;
+  await sendNotificationEmail(subject, htmlContent, textContent).catch((e) =>
+    console.error("[cancel-request] Email notification failed:", e?.message)
+  );
 
   return NextResponse.json({ ok: true, status: nextStatus });
 }

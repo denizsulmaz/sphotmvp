@@ -31,6 +31,24 @@ const getTodayDate = () => {
   return getLocalDateString(new Date());
 };
 
+// Returns the YYYY-MM-DD day key of an ISO timestamp as seen in the given IANA timezone.
+// en-CA locale formats dates as YYYY-MM-DD, matching our day-key convention.
+const slotDayKey = (isoString: string, tz: string) => {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(isoString));
+  } catch {
+    return isoString.split("T")[0]; // fallback: UTC date
+  }
+};
+
+// "Today" (YYYY-MM-DD) in the given timezone.
+const todayInTz = (tz: string) => slotDayKey(new Date().toISOString(), tz);
+
 const get30DaysLaterDate = (startDateStr: string) => {
   const parts = startDateStr.split("-");
   const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
@@ -42,6 +60,7 @@ export default function ScheduleManager() {
   const { user } = useAuth();
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [photographerTz, setPhotographerTz] = useState("Asia/Seoul");
 
   // New slot form state
   const [startDate, setStartDate] = useState(getTodayDate);
@@ -127,6 +146,14 @@ export default function ScheduleManager() {
     if (!user || !supabase) return;
     setLoading(true);
     try {
+      // Fetch photographer timezone
+      const { data: pProfile } = await supabase
+        .from("photographer_profiles")
+        .select("timezone")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (pProfile?.timezone) setPhotographerTz(pProfile.timezone);
+
       const { data, error: dbError } = await supabase
         .from("availability_slots")
         .select("*")
@@ -202,7 +229,7 @@ export default function ScheduleManager() {
       if (!startDate) {
         throw new Error("Start date is required.");
       }
-      const todayStr = getTodayDate();
+      const todayStr = todayInTz(photographerTz);
       if (startDate < todayStr) {
         throw new Error("Start date cannot be in the past.");
       }
@@ -233,8 +260,26 @@ export default function ScheduleManager() {
         const dd = String(currentDay.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}-${mm}-${dd}`;
 
-        const dayStartDateTime = new Date(`${dateStr}T${startTime}:00+09:00`);
-        const dayEndDateTime = new Date(`${dateStr}T${endTime}:00+09:00`);
+        // Build timezone-aware date strings using the photographer's timezone.
+        // Create a date in the photographer's local time by formatting with their tz,
+        // then use the IANA timezone for accurate offset resolution.
+        const tzOffset = (() => {
+          try {
+            // Get the UTC offset for the photographer's timezone on this specific date
+            const probe = new Date(`${dateStr}T12:00:00Z`);
+            const utcStr = probe.toLocaleString('en-US', { timeZone: 'UTC' });
+            const tzStr = probe.toLocaleString('en-US', { timeZone: photographerTz });
+            const diffMs = new Date(tzStr).getTime() - new Date(utcStr).getTime();
+            const diffHours = Math.floor(Math.abs(diffMs) / 3600000);
+            const diffMinutes = Math.floor((Math.abs(diffMs) % 3600000) / 60000);
+            const sign = diffMs >= 0 ? '+' : '-';
+            return `${sign}${String(diffHours).padStart(2,'0')}:${String(diffMinutes).padStart(2,'0')}`;
+          } catch {
+            return '+09:00'; // fallback to KST
+          }
+        })();
+        const dayStartDateTime = new Date(`${dateStr}T${startTime}:00${tzOffset}`);
+        const dayEndDateTime = new Date(`${dateStr}T${endTime}:00${tzOffset}`);
 
         if (!isNaN(dayStartDateTime.getTime()) && !isNaN(dayEndDateTime.getTime())) {
           if (dayStartDateTime > now && dayEndDateTime > dayStartDateTime) {
@@ -314,24 +359,28 @@ export default function ScheduleManager() {
     setActionLoading(true);
     setError(null);
     try {
-      const startOfDay = new Date(`${targetDateStr}T00:00:00`);
-      const endOfDay = new Date(`${targetDateStr}T23:59:59.999`);
+      // Select exactly the slots displayed under this day (studio timezone), so
+      // "mark this day unavailable" deletes precisely what the photographer sees.
+      const idsToDelete = slots
+        .filter(slot => slot.status === "available" && slotDayKey(slot.start_time, photographerTz) === targetDateStr)
+        .map(slot => slot.id);
+
+      if (idsToDelete.length === 0) {
+        showToast(`No available slots found on ${targetDateStr}.`, "info");
+        return;
+      }
 
       const { error: deleteError } = await supabase
         .from("availability_slots")
         .delete()
         .eq("photographer_id", user.id)
         .eq("status", "available")
-        .gte("start_time", startOfDay.toISOString())
-        .lte("start_time", endOfDay.toISOString());
+        .in("id", idsToDelete);
 
       if (deleteError) throw deleteError;
 
       // Update state
-      setSlots(prev => prev.filter(slot => {
-        const slotDate = new Date(slot.start_time);
-        return !(slotDate >= startOfDay && slotDate <= endOfDay);
-      }));
+      setSlots(prev => prev.filter(slot => !idsToDelete.includes(slot.id)));
 
       showToast(`Successfully marked ${targetDateStr} as unavailable.`, "success");
 
@@ -350,13 +399,21 @@ export default function ScheduleManager() {
     if (!confirm("Are you sure you want to delete this availability slot?")) return;
 
     try {
-      const { error: deleteError } = await supabase
+      const { data: deletedRows, error: deleteError } = await supabase
         .from("availability_slots")
         .delete()
         .eq("id", slotId)
-        .eq("status", "available"); // Guard to prevent deleting booked slots
+        .eq("status", "available") // Guard to prevent deleting booked slots
+        .select("id");
 
       if (deleteError) throw deleteError;
+
+      if (!deletedRows || deletedRows.length === 0) {
+        // 0 rows deleted: the slot was just booked (or already gone). Refetch to show its real status.
+        showToast("This slot was just booked and can no longer be removed.", "error");
+        await fetchSlots();
+        return;
+      }
 
       // Notify admin
       const matched = slots.find(s => s.id === slotId);
@@ -373,19 +430,30 @@ export default function ScheduleManager() {
     }
   };
 
-  // Helper formatting
+  // Helper formatting — pinned to the studio timezone so photographers see the
+  // same times clients see at checkout (mirrors formatInTz in CheckoutClient).
+  const formatInTz = (isoString: string, formatOptions: Intl.DateTimeFormatOptions) => {
+    try {
+      return new Intl.DateTimeFormat("en-US", {
+        ...formatOptions,
+        timeZone: photographerTz,
+      }).format(new Date(isoString));
+    } catch (e) {
+      console.error("Timezone formatting error, falling back to local:", e);
+      return new Intl.DateTimeFormat("en-US", formatOptions).format(new Date(isoString));
+    }
+  };
+
   const formatSlotDateTime = (isoStart: string, isoEnd: string) => {
-    const start = new Date(isoStart);
-    const end = new Date(isoEnd);
-    const dateStr = start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    const timeStr = `${start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - ${end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    const dateStr = formatInTz(isoStart, { weekday: "short", month: "short", day: "numeric" });
+    const timeStr = `${formatInTz(isoStart, { hour: "2-digit", minute: "2-digit" })} - ${formatInTz(isoEnd, { hour: "2-digit", minute: "2-digit" })}`;
     return { dateStr, timeStr };
   };
 
-  // Group slots by date for display
+  // Group slots by their studio-timezone day for display
   const slotsByDate: Record<string, AvailabilitySlot[]> = {};
   slots.forEach((s) => {
-    const dStr = s.start_time.split("T")[0];
+    const dStr = slotDayKey(s.start_time, photographerTz);
     if (!slotsByDate[dStr]) {
       slotsByDate[dStr] = [];
     }
@@ -422,7 +490,7 @@ export default function ScheduleManager() {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
+                  min={todayInTz(photographerTz)}
                   className="w-full bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-3 px-4 text-sm outline-none text-foreground dark:text-white"
                 />
               </div>
@@ -510,9 +578,9 @@ export default function ScheduleManager() {
               disabled={actionLoading}
               onClick={async () => {
                 if (actionLoading) return;
-                const todayStr = new Date().toISOString().split("T")[0];
+                const todayStr = todayInTz(photographerTz);
                 const hasSlots = slots.some(slot => {
-                  const slotDate = slot.start_time.split("T")[0];
+                  const slotDate = slotDayKey(slot.start_time, photographerTz);
                   return slotDate === todayStr && slot.status === "available";
                 });
                 if (!hasSlots) {
@@ -523,16 +591,16 @@ export default function ScheduleManager() {
               }}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 !slots.some(slot => {
-                  const slotDate = slot.start_time.split("T")[0];
-                  return slotDate === new Date().toISOString().split("T")[0] && slot.status === "available";
+                  const slotDate = slotDayKey(slot.start_time, photographerTz);
+                  return slotDate === todayInTz(photographerTz) && slot.status === "available";
                 }) ? "bg-accent" : "bg-gray-200 dark:bg-zinc-800"
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                   !slots.some(slot => {
-                    const slotDate = slot.start_time.split("T")[0];
-                    return slotDate === new Date().toISOString().split("T")[0] && slot.status === "available";
+                    const slotDate = slotDayKey(slot.start_time, photographerTz);
+                    return slotDate === todayInTz(photographerTz) && slot.status === "available";
                   }) ? "translate-x-6" : "translate-x-1"
                 }`}
               />
@@ -546,7 +614,7 @@ export default function ScheduleManager() {
                 type="date"
                 value={unavailableDate}
                 onChange={(e) => setUnavailableDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
+                min={todayInTz(photographerTz)}
                 className="flex-1 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl py-2 px-3 text-sm outline-none text-foreground dark:text-white"
               />
               <button
@@ -574,7 +642,7 @@ export default function ScheduleManager() {
             <h2 className="text-xl font-black text-foreground dark:text-white">
               Availability Calendar
             </h2>
-            <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours.</p>
+            <p className="text-xs text-gray-400 dark:text-zinc-500">Your upcoming public booking hours. Times shown in studio timezone ({photographerTz}).</p>
           </div>
           <div className="flex bg-gray-50 dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-xl p-1 shrink-0 self-start sm:self-center">
             <button
@@ -711,7 +779,7 @@ export default function ScheduleManager() {
                   const daySlots = slotsByDate[dateStr] || [];
                   const hasSlots = daySlots.length > 0;
                   
-                  const todayStr = getTodayDate();
+                  const todayStr = todayInTz(photographerTz);
                   const isPast = dateStr < todayStr;
                   
                   return (

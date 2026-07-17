@@ -14,7 +14,12 @@ function CallbackHandler() {
       return;
     }
 
-    const next = searchParams.get("next");
+    // Only allow same-origin relative paths (single leading "/"; reject "//",
+    // "/\" and anything with a scheme) to prevent open redirects.
+    const nextParam = searchParams.get("next");
+    const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.startsWith("/\\")
+      ? nextParam
+      : null;
 
     // supabase-js automatically exchanges the PKCE code on page load.
     // Poll getSession until the session is ready (usually <500ms).

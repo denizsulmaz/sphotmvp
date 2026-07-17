@@ -45,7 +45,7 @@ export default function AdminConversations() {
         .select(`id, status, created_at, client_id, photographer_id,
           client:profiles!bookings_client_id_fkey ( full_name ),
           photographer:profiles!bookings_photographer_id_fkey ( full_name )`)
-        .in("status", ["paid", "confirmed", "completed", "cancelled"])
+        .neq("status", "pending")
         .order("created_at", { ascending: false });
 
       const rows = (data || []) as ConvRow[];
@@ -170,7 +170,7 @@ export default function AdminConversations() {
                   <p className="text-center text-xs text-gray-400 py-8">No messages yet.</p>
                 ) : (
                   transcript.map((m) => {
-                    if (m.kind === "system") {
+                    if (m.kind === "system" || !m.sender_id) {
                       return (
                         <div key={m.id} className="flex justify-center">
                           <div className="max-w-[85%] bg-accent/10 border border-accent/30 rounded-2xl px-3 py-2 text-[11px] text-center whitespace-pre-wrap text-foreground dark:text-zinc-100">{m.content}</div>

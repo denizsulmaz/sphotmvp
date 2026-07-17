@@ -23,6 +23,9 @@ export default function PhotographerOnboarding() {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [checkAttempt, setCheckAttempt] = useState(0);
 
   // Step 1 — Profile
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -46,17 +49,26 @@ export default function PhotographerOnboarding() {
   useEffect(() => {
     const check = async () => {
       if (!user || !supabase) return;
-      const { data } = await supabase
+      setChecking(true);
+      setCheckError(null);
+      const { data, error: checkErr } = await supabase
         .from("photographer_profiles")
-        .select("categories, avatar_url")
+        .select("categories")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
+      if (checkErr) {
+        setCheckError("Could not load your profile. Please try again.");
+        setChecking(false);
+        return;
+      }
       if (data?.categories?.length) {
         router.replace("/photographer/profile");
+        return;
       }
+      setChecking(false);
     };
     check();
-  }, [user, router]);
+  }, [user, router, checkAttempt]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,10 +131,11 @@ export default function PhotographerOnboarding() {
         }
       }
 
-      // Save profile
+      // Save profile (upsert: the row may be missing if the signup trigger didn't fire)
       const { error: profileErr } = await supabase
         .from("photographer_profiles")
-        .update({
+        .upsert({
+          id: user.id,
           bio,
           base_price: Number(basePrice),
           locations: selectedLocations,
@@ -132,8 +145,7 @@ export default function PhotographerOnboarding() {
           delivery_time: deliveryTime,
           portfolio_urls: portfolioUrls,
           timezone,
-        })
-        .eq("id", user.id);
+        });
 
       if (profileErr) throw profileErr;
 
@@ -169,6 +181,28 @@ export default function PhotographerOnboarding() {
       setSaving(false);
     }
   };
+
+  if (checkError) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-100 dark:border-red-900/30">
+          {checkError}
+        </div>
+        <button onClick={() => setCheckAttempt((n) => n + 1)}
+          className="px-5 py-2.5 rounded-xl text-sm font-black bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition-all">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (checking) {
+    return (
+      <div className="max-w-2xl mx-auto flex items-center justify-center py-24">
+        <span className="w-8 h-8 border-2 border-gray-300 dark:border-zinc-600 border-t-black dark:border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">

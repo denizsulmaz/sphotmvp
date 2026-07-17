@@ -36,7 +36,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden. Admin access required." }, { status: 403 });
     }
 
-    // 3. Delete target photographer from auth.users (cascades to public tables)
+    // 3. Guard: only pending (unapproved) photographer applications may be rejected.
+    const { data: targetProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", photographer_id)
+      .maybeSingle();
+    const { data: targetPhotographer } = await supabase
+      .from("photographer_profiles")
+      .select("id, is_approved")
+      .eq("id", photographer_id)
+      .maybeSingle();
+
+    if (
+      targetProfile?.role !== "photographer" ||
+      !targetPhotographer ||
+      targetPhotographer.is_approved !== false
+    ) {
+      return NextResponse.json(
+        { error: "Can only reject pending photographer applications." },
+        { status: 400 }
+      );
+    }
+
+    // 4. Delete target photographer from auth.users (cascades to public tables)
     const { error: deleteErr } = await supabase.auth.admin.deleteUser(photographer_id);
     if (deleteErr) {
       throw deleteErr;

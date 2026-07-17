@@ -74,7 +74,18 @@ export interface DBAvailabilitySlot {
   status: "available" | "booked";
 }
 
-export type BookingStatus = "pending" | "paid" | "completed" | "cancelled";
+export type BookingStatus =
+  | "pending"
+  | "paid"
+  | "confirmed"
+  | "booking"
+  | "shooted"
+  | "edited"
+  | "sent"
+  | "completed"
+  | "cancellation_requested"
+  | "cancelled"
+  | "refunded";
 
 /** bookings table row */
 export interface DBBooking {
@@ -82,17 +93,33 @@ export interface DBBooking {
   status: BookingStatus;
   fee_krw: number;
   created_at: string;
+  updated_at: string;
   client_id: string;
   photographer_id: string;
   slot_id: string | null;
   checkout_id: string | null;
+  shoot_location: string | null;
+  location_type: string | null;
+  shoot_style: string | null;
+  group_size: string | null;
+  preferred_language: string | null;
+  duration_label: string | null;
+  details: string | null;
+  cancel_requested_by: string | null;
+  cancel_reason: string | null;
+  cancel_requested_at: string | null;
+  refunded_at: string | null;
+  refund_amount: number | null;
+  refund_currency: string | null;
+  refund_id: string | null;
 }
 
 /** messages table row */
 export interface DBMessage {
   id: string;
   booking_id: string;
-  sender_id: string;
+  sender_id: string | null;
+  kind: "user" | "system";
   content: string;
   created_at: string;
 }

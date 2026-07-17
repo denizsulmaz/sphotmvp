@@ -228,16 +228,19 @@ export default function AdminApprovals() {
         })) as RefundRow[]
       );
 
-      const [{ count: bookingsCount }, { count: paidCount }, { count: usersCount }, { count: refundedCount }] = await Promise.all([
+      const [{ count: bookingsCount }, { data: revenueRows }, { count: usersCount }, { data: refundedRows }] = await Promise.all([
         supabase.from("bookings").select("*", { count: "exact", head: true }),
-        supabase.from("bookings").select("*", { count: "exact", head: true }).in("status", ["paid", "confirmed", "completed"]),
+        supabase.from("bookings").select("fee_krw")
+          .in("status", ["paid", "confirmed", "completed", "booking", "shooted", "edited", "sent"]),
         supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("bookings").select("*", { count: "exact", head: true }).eq("status", "refunded"),
+        supabase.from("bookings").select("refund_amount").eq("status", "refunded"),
       ]);
+      // Revenue = collected fees on paid-or-beyond bookings minus refunded amounts.
+      const grossRevenue = (revenueRows || []).reduce((sum: number, r: any) => sum + (r.fee_krw || 0), 0);
+      const refundedTotal = (refundedRows || []).reduce((sum: number, r: any) => sum + (r.refund_amount || 0), 0);
       setStats({
         totalBookings: bookingsCount || 0,
-        // Revenue = paid bookings minus refunded ones (refunds claw the fee back).
-        totalRevenue: ((paidCount || 0) - (refundedCount || 0)) * 25000,
+        totalRevenue: Math.max(0, grossRevenue - refundedTotal),
         activeUsers: usersCount || 0,
       });
     } catch (err) {
@@ -247,8 +250,8 @@ export default function AdminApprovals() {
     }
   }, []);
 
-  // Admin issues a refund (reason required). Calls the server route which hits
-  // Lemon Squeezy in live mode and records the refund audit row.
+  // Admin issues a refund (reason required). Calls the server route which
+  // records the refund audit row and releases the booking's slots.
   const issueRefundFor = async (bookingId: string) => {
     if (!supabase) return;
     const reason = window.prompt(
@@ -442,7 +445,7 @@ export default function AdminApprovals() {
             {refunds.filter((r) => r.status === "cancellation_requested").length > 0 &&
               <span className="text-sm text-amber-500">({refunds.filter((r) => r.status === "cancellation_requested").length} pending)</span>}
           </h2>
-          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Review cancellation requests and issue refunds. Every refund requires a reason and is logged. Refunds are recorded both here and in Lemon Squeezy.</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-1">Review cancellation requests and issue refunds. Every refund requires a reason and is logged.</p>
         </div>
         {refunds.length === 0 ? (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm">

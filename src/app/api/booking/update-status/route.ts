@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     // 1. Fetch current booking details
     const { data: booking, error: fetchErr } = await supabase
       .from("bookings")
-      .select("id, status, client_id, photographer_id, slot_id")
+      .select("id, status, client_id, photographer_id, slot_id, extra_slot_ids")
       .eq("id", bookingId)
       .single();
 
@@ -39,22 +39,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Booking not found." }, { status: 404 });
     }
 
-    // Verify participant authorization
-    let isAuthorized = callerId === booking.client_id || callerId === booking.photographer_id;
-    if (!isAuthorized) {
+    // Verify participant authorization + determine caller role
+    const isPhotographer = callerId === booking.photographer_id;
+    const isClient = callerId === booking.client_id;
+    let isAdmin = false;
+    if (!isPhotographer && !isClient) {
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", callerId).maybeSingle();
-      if (profile?.role === "admin") {
-        isAuthorized = true;
-      }
+      isAdmin = profile?.role === "admin";
     }
 
-    if (!isAuthorized) {
+    if (!isPhotographer && !isClient && !isAdmin) {
       return NextResponse.json({ error: "Forbidden: You are not authorized to update this booking." }, { status: 403 });
     }
 
     const oldStatus = booking.status;
     if (oldStatus === nextStatus) {
       return NextResponse.json({ ok: true, message: "Status is already up to date." });
+    }
+
+    // Enforce the status state machine per caller role.
+    const ALL_STATUSES = [
+      "pending", "paid", "confirmed", "booking", "shooted", "edited",
+      "sent", "completed", "cancellation_requested", "cancelled", "refunded",
+    ];
+    const PHOTOGRAPHER_TRANSITIONS: Record<string, string[]> = {
+      booking: ["shooted"],
+      shooted: ["edited"],
+      edited: ["sent"],
+      sent: ["completed"],
+      // Legacy paid-flow transitions.
+      paid: ["confirmed"],
+      confirmed: ["completed"],
+    };
+
+    if (isAdmin) {
+      if (!ALL_STATUSES.includes(nextStatus)) {
+        return NextResponse.json({ error: `Invalid status '${nextStatus}'.` }, { status: 400 });
+      }
+    } else if (isPhotographer) {
+      const allowed = PHOTOGRAPHER_TRANSITIONS[oldStatus] || [];
+      if (!allowed.includes(nextStatus)) {
+        return NextResponse.json(
+          { error: `Photographers cannot change a booking from '${oldStatus}' to '${nextStatus}'.` },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Client: no direct status changes — cancellations go through /api/cancel-request.
+      return NextResponse.json(
+        { error: "Clients cannot change the booking status directly. To cancel, use the cancellation request flow." },
+        { status: 403 }
+      );
     }
 
     // 2. Perform the database update
@@ -81,12 +116,13 @@ export async function POST(req: NextRequest) {
       sysMsg = "✅ Status updated: Booking completed and closed successfully.";
     } else if (nextStatus === "cancelled") {
       sysMsg = "❌ Status updated: Booking has been cancelled.";
-      // Also release availability slot if cancelled
-      if (booking.slot_id) {
+      // Also release availability slot(s) if cancelled — primary + extras.
+      const releaseIds = [booking.slot_id, ...((booking.extra_slot_ids as string[] | null) || [])].filter(Boolean);
+      if (releaseIds.length > 0) {
         await supabase
           .from("availability_slots")
           .update({ status: "available" })
-          .eq("id", booking.slot_id);
+          .in("id", releaseIds);
       }
     }
 
@@ -119,7 +155,10 @@ export async function POST(req: NextRequest) {
       <p><em>SPHOT Alerts System</em></p>
     `;
 
-    await sendNotificationEmail(subject, htmlContent, textContent);
+    // Fire-and-forget: email failure must not 500 the route after the DB update succeeded.
+    await sendNotificationEmail(subject, htmlContent, textContent).catch((e) =>
+      console.error("[booking/update-status] Email notification failed:", e?.message)
+    );
 
     return NextResponse.json({ ok: true, nextStatus });
   } catch (err: any) {
