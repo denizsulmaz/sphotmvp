@@ -11,7 +11,7 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 export default function HeaderNav() {
   const { user, role, signOut, loading } = useAuth();
   const { t } = useLanguage();
-  const unreadCount = useUnreadMessages();
+  const { count: unreadCount } = useUnreadMessages();
 
   const getDashboardLink = () => {
     if (role === "admin") return "/admin/dashboard";

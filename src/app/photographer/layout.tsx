@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import Link from "next/link";
 import { Calendar, User, MessageSquare, LayoutDashboard, ChevronRight } from "lucide-react";
 
@@ -10,6 +11,7 @@ export default function PhotographerLayout({ children }: { children: React.React
   const { user, role, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const unread = useUnreadMessages();
 
   useEffect(() => {
     if (!loading) {
@@ -66,7 +68,12 @@ export default function PhotographerLayout({ children }: { children: React.React
                   }`}
                 >
                   <span className="flex items-center gap-3">
-                    <Icon size={18} className={isActive ? "text-black dark:text-white" : "text-gray-400 dark:text-zinc-500"} />
+                    <span className="relative">
+                      <Icon size={18} className={isActive ? "text-black dark:text-white" : "text-gray-400 dark:text-zinc-500"} />
+                      {item.href.endsWith("/chat") && unread.count > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-950" />
+                      )}
+                    </span>
                     {item.name}
                   </span>
                   <ChevronRight size={14} className={isActive ? "text-black dark:text-white" : "text-gray-300 dark:text-zinc-700"} />

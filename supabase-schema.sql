@@ -437,6 +437,24 @@ AS $$
     AND m.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz);
 $$;
 
+-- Booking ids with unread messages for the caller (per-conversation dots).
+CREATE OR REPLACE FUNCTION public.unread_booking_ids()
+RETURNS uuid[]
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT COALESCE(array_agg(DISTINCT m.booking_id), '{}')
+  FROM public.messages m
+  JOIN public.bookings b ON b.id = m.booking_id
+  LEFT JOIN public.conversation_reads r
+    ON r.booking_id = m.booking_id AND r.user_id = auth.uid()
+  WHERE (b.client_id = auth.uid() OR b.photographer_id = auth.uid())
+    AND m.sender_id IS DISTINCT FROM auth.uid()
+    AND m.created_at > COALESCE(r.last_read_at, 'epoch'::timestamptz);
+$$;
+
 -- ─── 7. Reviews (linked to bookings, gated post-completion) ──
 CREATE TABLE IF NOT EXISTS public.reviews (
   id                 UUID DEFAULT gen_random_uuid() PRIMARY KEY,

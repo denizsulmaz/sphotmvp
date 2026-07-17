@@ -4,44 +4,57 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 
+export interface UnreadState {
+  /** Number of conversations with unread messages. */
+  count: number;
+  /** Booking ids of those conversations (for per-conversation dots). */
+  bookingIds: string[];
+}
+
 /**
- * Returns the number of conversations with unread messages for the
- * signed-in user. Refreshes on new incoming messages (realtime) and on
- * the "sphot:unread-refresh" window event (fired when a chat is marked read).
+ * Unread-message state for the signed-in user. Refreshes on new incoming
+ * messages (realtime) and on the "sphot:unread-refresh" window event
+ * (fired when a chat is marked read).
  */
-export function useUnreadMessages(): number {
+export function useUnreadMessages(): UnreadState {
   const { user } = useAuth();
-  const [count, setCount] = useState(0);
+  const [state, setState] = useState<UnreadState>({ count: 0, bookingIds: [] });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user || !supabase) {
-      setCount(0);
+      setState({ count: 0, bookingIds: [] });
       return;
     }
     const client = supabase;
     let cancelled = false;
 
-    const fetchCount = async () => {
+    const fetchUnread = async () => {
       try {
-        const { data, error } = await client.rpc("unread_conversations_count");
+        const { data, error } = await client.rpc("unread_booking_ids");
         if (cancelled) return;
-        if (error || typeof data !== "number") {
-          setCount(0);
-        } else {
-          setCount(data);
+        if (!error && Array.isArray(data)) {
+          setState({ count: data.length, bookingIds: data });
+          return;
         }
+        // Fallback for a DB that only has the older count RPC.
+        const { data: count, error: cErr } = await client.rpc("unread_conversations_count");
+        if (cancelled) return;
+        setState({
+          count: !cErr && typeof count === "number" ? count : 0,
+          bookingIds: [],
+        });
       } catch {
-        if (!cancelled) setCount(0);
+        if (!cancelled) setState({ count: 0, bookingIds: [] });
       }
     };
 
     const debouncedFetch = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(fetchCount, 1000);
+      debounceRef.current = setTimeout(fetchUnread, 1000);
     };
 
-    fetchCount();
+    fetchUnread();
 
     // Realtime: RLS scopes INSERT events to conversations the user belongs to.
     const channel = client
@@ -55,7 +68,7 @@ export function useUnreadMessages(): number {
       )
       .subscribe();
 
-    const onRefresh = () => fetchCount();
+    const onRefresh = () => fetchUnread();
     window.addEventListener("sphot:unread-refresh", onRefresh);
 
     return () => {
@@ -66,5 +79,5 @@ export function useUnreadMessages(): number {
     };
   }, [user]);
 
-  return count;
+  return state;
 }

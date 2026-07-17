@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import ChatWindow from "@/components/ChatWindow";
 import { MessageSquare, Calendar } from "lucide-react";
 
@@ -26,6 +27,7 @@ const oneToOne = <T,>(v: T | T[] | null | undefined): T | null =>
 
 export default function ClientChatPortal() {
   const { user } = useAuth();
+  const unread = useUnreadMessages();
   const [chatBookings, setChatBookings] = useState<ChatBooking[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<ChatBooking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,8 +140,13 @@ export default function ClientChatPortal() {
                       : "border-transparent hover:bg-gray-50 dark:hover:bg-zinc-900"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800 shrink-0">
+                  <div className="relative shrink-0">
+                    {unread.bookingIds.includes(booking.id) && (
+                      <span className="absolute -top-0.5 -right-0.5 z-10 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-950" />
+                    )}
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 dark:bg-zinc-800">
                     <img src={photoAvatar} alt={photoName} className="w-full h-full object-cover" />
+                  </div>
                   </div>
                   <div className="overflow-hidden flex-1 space-y-0.5">
                     <p className="text-sm font-bold text-foreground dark:text-white truncate">
