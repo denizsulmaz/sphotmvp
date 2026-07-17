@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { CATEGORIES } from "@/lib/types";
-import { Save, AlertCircle, Camera, Check, Upload, Trash2, Globe, MapPin } from "lucide-react";
+import { Save, AlertCircle, Camera, Check, Upload, Trash2, Globe, MapPin, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
 
 export default function ProfileBuilder() {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { showToast } = useToast();
   
   // Profile settings state
@@ -17,6 +17,8 @@ export default function ProfileBuilder() {
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [portfolioUrls, setPortfolioUrls] = useState<string[]>([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
   
   // Meta filters state
@@ -53,6 +55,16 @@ export default function ProfileBuilder() {
   const englishLevels = ["Basic", "Conversational", "Fluent", "Native"];
   const responseSpeeds = ["Under 1 hour", "1–3 hours", "3–6 hours", "Over 6 hours"];
   const deliveryTimes = ["2-3 days", "1 week", "2 weeks", "Over 2 weeks"];
+
+  // Close the preview modal on Escape.
+  useEffect(() => {
+    if (!previewUrl) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreviewUrl(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewUrl]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -135,9 +147,8 @@ export default function ProfileBuilder() {
 
       setAvatarUrl(publicUrl);
       showToast("Profile picture updated successfully.", "success");
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Refresh the cached profile so the navbar avatar updates — no page reload.
+      await refreshProfile();
     } catch (err: any) {
       console.error("Avatar upload failed:", err);
       setError(err.message || "Failed to upload avatar.");
@@ -164,9 +175,7 @@ export default function ProfileBuilder() {
 
       setAvatarUrl("");
       showToast("Profile picture removed.", "success");
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      await refreshProfile();
     } catch (err: any) {
       console.error("Avatar removal failed:", err);
       setError(err.message || "Failed to remove avatar.");
@@ -229,62 +238,64 @@ export default function ProfileBuilder() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !user || !supabase) return;
-    
-    if (portfolioUrls.length >= 10) {
-      alert("You can only upload a maximum of 10 portfolio images.");
+
+    const remaining = 10 - portfolioUrls.length;
+    if (remaining <= 0) {
+      showToast("You can only upload a maximum of 10 portfolio images.", "error");
       return;
     }
 
-    const file = e.target.files[0];
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${user.id}/${fileName}`;
+    const files = Array.from(e.target.files);
+    if (files.length > remaining) {
+      showToast(`Only ${remaining} more image(s) allowed — uploading the first ${remaining}.`, "info");
+    }
+    const toUpload = files.slice(0, remaining);
+    e.target.value = "";
+    setUploadingCount(toUpload.length);
 
-    try {
-      // 1. Upload to Supabase Storage bucket 'portfolios'
+    const uploadedUrls: string[] = [];
+    let failed = 0;
+    for (const file of toUpload) {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
       const { error: uploadError } = await supabase.storage
         .from("portfolios")
         .upload(filePath, file);
-
       if (uploadError) {
-        // If bucket doesn't exist or isn't writable, try letting user insert raw URLs
-        throw uploadError;
+        console.error("Storage upload failed:", uploadError);
+        failed++;
+        setUploadingCount((c) => Math.max(0, c - 1));
+        continue;
       }
-
-      // 2. Get public url
       const { data: { publicUrl } } = supabase.storage
         .from("portfolios")
         .getPublicUrl(filePath);
+      uploadedUrls.push(publicUrl);
+      // Show the image as soon as its upload finishes (DB save happens once at the end).
+      setPortfolioUrls((prev) => [...prev, publicUrl]);
+      setUploadingCount((c) => Math.max(0, c - 1));
+    }
+    setUploadingCount(0);
 
-      const newUrls = [...portfolioUrls, publicUrl];
+    if (uploadedUrls.length > 0) {
+      const newUrls = [...portfolioUrls, ...uploadedUrls];
       setPortfolioUrls(newUrls);
-
       const { error: dbUpdateError } = await supabase
         .from("photographer_profiles")
         .update({ portfolio_urls: newUrls })
         .eq("id", user.id);
-      if (dbUpdateError) throw dbUpdateError;
-
-      showToast("Portfolio image uploaded and saved.", "success");
-    } catch (err: any) {
-      console.error("Storage upload failed, trying local fallback:", err);
-      // Ask user to enter URL manually as fallback
-      const manualUrl = prompt("Upload failed. Enter public image URL manually:");
-      if (manualUrl) {
-        try {
-          const newUrls = [...portfolioUrls, manualUrl];
-          setPortfolioUrls(newUrls);
-          const { error: dbUpdateError } = await supabase
-            .from("photographer_profiles")
-            .update({ portfolio_urls: newUrls })
-            .eq("id", user.id);
-          if (dbUpdateError) throw dbUpdateError;
-          showToast("Portfolio URL saved successfully.", "success");
-        } catch (dbErr: any) {
-          console.error("Failed to save manual URL:", dbErr);
-          showToast("Failed to save URL to database.", "error");
-        }
+      if (dbUpdateError) {
+        console.error("Failed to save portfolio URLs:", dbUpdateError);
+        showToast("Images uploaded but could not be saved. Please try again.", "error");
+        return;
       }
+    }
+
+    if (failed > 0) {
+      showToast(`${uploadedUrls.length} image(s) saved, ${failed} failed to upload.`, "error");
+    } else {
+      showToast(`${uploadedUrls.length} portfolio image(s) uploaded and saved.`, "success");
     }
   };
 
@@ -576,19 +587,25 @@ export default function ProfileBuilder() {
                 </span>
                 Portfolio ({portfolioUrls.length}/10)
               </h3>
-              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-black bg-black dark:bg-white text-white dark:text-black px-3.5 py-2 rounded-full hover:opacity-90 transition-opacity">
-                <Upload size={12} />
-                Upload Photo
+              <label className={`flex items-center gap-1.5 text-xs font-black bg-black dark:bg-white text-white dark:text-black px-3.5 py-2 rounded-full transition-opacity ${uploadingCount > 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:opacity-90"}`}>
+                {uploadingCount > 0 ? (
+                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Upload size={12} />
+                )}
+                {uploadingCount > 0 ? "Uploading…" : "Upload Photos"}
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleFileUpload}
                   className="hidden"
+                  disabled={uploadingCount > 0}
                 />
               </label>
             </div>
 
-            {portfolioUrls.length === 0 ? (
+            {portfolioUrls.length === 0 && uploadingCount === 0 ? (
               <div className="py-12 border-2 border-dashed border-gray-200 dark:border-zinc-800 text-center rounded-2xl">
                 <p className="text-sm text-gray-400 dark:text-zinc-500">No images uploaded. Add up to 10 photos.</p>
               </div>
@@ -596,7 +613,28 @@ export default function ProfileBuilder() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {portfolioUrls.map((url, idx) => (
                   <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-gray-100 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-900">
-                    <img src={url} alt={`Portfolio ${idx}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPreviewUrl(url)}
+                      className="w-full h-full cursor-zoom-in"
+                      title="Click to preview"
+                    >
+                      <img
+                        src={url}
+                        alt={`Portfolio ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Broken URL (e.g. legacy manually-entered link): show a
+                          // neutral placeholder so the photographer can still remove it.
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.parentElement!.classList.add("flex", "items-center", "justify-center");
+                          e.currentTarget.parentElement!.insertAdjacentHTML(
+                            "beforeend",
+                            '<span class="text-[10px] font-bold text-gray-400 dark:text-zinc-500 px-2 text-center">Image unavailable — remove it</span>'
+                          );
+                        }}
+                      />
+                    </button>
                     <button
                       type="button"
                       onClick={() => removePortfolioImage(idx)}
@@ -605,6 +643,14 @@ export default function ProfileBuilder() {
                     >
                       <Trash2 size={14} />
                     </button>
+                  </div>
+                ))}
+                {Array.from({ length: uploadingCount }).map((_, i) => (
+                  <div
+                    key={`uploading-${i}`}
+                    className="relative aspect-square rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 flex items-center justify-center"
+                  >
+                    <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                   </div>
                 ))}
               </div>
@@ -706,6 +752,31 @@ export default function ProfileBuilder() {
         </div>
 
       </form>
+
+      {/* Portfolio image preview modal */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 sm:p-8"
+          onClick={() => setPreviewUrl(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewUrl(null)}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+            title="Close preview"
+          >
+            <X size={20} />
+          </button>
+          <img
+            src={previewUrl}
+            alt="Portfolio preview"
+            className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

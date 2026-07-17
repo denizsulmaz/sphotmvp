@@ -82,25 +82,32 @@ export default function PhotographerOnboarding() {
   };
 
   const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user || !supabase) return;
-    if (portfolioUrls.length >= 12) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !user || !supabase) return;
+    const remaining = 12 - portfolioUrls.length;
+    if (remaining <= 0) return;
 
-    const idx = portfolioUrls.length;
-    setUploadingIdx(idx);
-    const ext = file.name.split(".").pop();
-    const filePath = `${user.id}/${Date.now()}.${ext}`;
+    setUploadingIdx(portfolioUrls.length);
+    e.target.value = "";
+    let failed = 0;
 
     try {
-      const { error: uploadErr } = await supabase.storage.from("portfolios").upload(filePath, file);
-      if (uploadErr) throw uploadErr;
-      const { data: { publicUrl } } = supabase.storage.from("portfolios").getPublicUrl(filePath);
-      setPortfolioUrls((prev) => [...prev, publicUrl]);
-    } catch {
-      setError("Upload failed. Please try again.");
+      for (const file of files.slice(0, remaining)) {
+        const ext = file.name.split(".").pop();
+        const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("portfolios").upload(filePath, file);
+        if (uploadErr) {
+          failed++;
+          continue;
+        }
+        const { data: { publicUrl } } = supabase.storage.from("portfolios").getPublicUrl(filePath);
+        setPortfolioUrls((prev) => [...prev, publicUrl]);
+      }
+      if (failed > 0) {
+        setError(`${failed} image(s) failed to upload. Please try again.`);
+      }
     } finally {
       setUploadingIdx(null);
-      e.target.value = "";
     }
   };
 
@@ -391,7 +398,7 @@ export default function PhotographerOnboarding() {
             {portfolioUrls.length < 12 && (
               <label className="flex items-center gap-1.5 cursor-pointer text-xs font-black bg-black dark:bg-white text-white dark:text-black px-3.5 py-2 rounded-full hover:opacity-90 transition-opacity">
                 <Upload size={12} /> Add Photo
-                <input type="file" accept="image/*" onChange={handlePortfolioUpload} className="hidden" disabled={uploadingIdx !== null} />
+                <input type="file" accept="image/*" multiple onChange={handlePortfolioUpload} className="hidden" disabled={uploadingIdx !== null} />
               </label>
             )}
           </div>
@@ -401,7 +408,7 @@ export default function PhotographerOnboarding() {
               <Camera size={36} className="text-gray-300 dark:text-zinc-700 group-hover:text-accent transition-colors mb-3" />
               <p className="text-sm font-bold text-gray-400 dark:text-zinc-500">Click to upload your first photo</p>
               <p className="text-xs text-gray-300 dark:text-zinc-600 mt-1">Up to 12 images</p>
-              <input type="file" accept="image/*" onChange={handlePortfolioUpload} className="hidden" />
+              <input type="file" accept="image/*" multiple onChange={handlePortfolioUpload} className="hidden" />
             </label>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -18,6 +18,7 @@ interface AuthContextType {
   role: "admin" | "photographer" | "client" | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   loading: true,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -117,8 +119,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    if (user) await fetchProfile(user.id);
+  }, [user, fetchProfile]);
+
   return (
-    <AuthContext.Provider value={{ user, profile, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, role, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
