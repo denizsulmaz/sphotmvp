@@ -324,7 +324,15 @@ export default function ScheduleManager() {
         .insert(slotsToInsert)
         .select();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        // Unique-index collision: slots were added elsewhere (another tab/session)
+        // after this page loaded. Refresh so the local overlap check sees them.
+        if ((insertError as any).code === "23505") {
+          await fetchSlots();
+          throw new Error("Some of these times already exist in your schedule — it has been refreshed. Please try again.");
+        }
+        throw insertError;
+      }
 
       const insertedSlots = (data || []) as AvailabilitySlot[];
 

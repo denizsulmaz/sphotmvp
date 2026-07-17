@@ -489,6 +489,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
       if (signInError) throw signInError;
     } catch (err: any) {
       setError(err.message || "Sign in failed.");
+    } finally {
       setActionLoading(false);
     }
   };

@@ -466,7 +466,7 @@ export default function AdminApprovals() {
                       ? <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded text-[10px] font-black uppercase tracking-wider">Cancel requested</span>
                       : <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-[10px] font-black uppercase tracking-wider">Refunded</span>}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-zinc-400">Shoot: {fmtSlot(r.availability_slots?.start_time)} · Fee: {(r.fee_krw / 1000).toFixed(0)}k KRW</p>
+                  <p className="text-xs text-gray-500 dark:text-zinc-400">Shoot: {fmtSlot(r.availability_slots?.start_time)} · Fee: {((r.fee_krw || 0) / 1000).toFixed(0)}k KRW</p>
                   {r.cancel_reason && <p className="text-xs text-gray-600 dark:text-zinc-300"><span className="font-bold">Reason:</span> {r.cancel_reason}</p>}
                   {r.status === "refunded" && r.refunded_at && (
                     <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">

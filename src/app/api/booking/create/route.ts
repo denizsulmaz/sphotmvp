@@ -42,6 +42,9 @@ export async function POST(req: NextRequest) {
     // 1. Lock all selected availability slots atomically BEFORE creating the booking.
     // Only flips slots that are still 'available' and belong to this photographer;
     // if any slot was taken in the meantime, revert and reject.
+    if (body.extra_slot_ids !== undefined && !Array.isArray(body.extra_slot_ids)) {
+      return NextResponse.json({ error: "extra_slot_ids must be an array." }, { status: 400 });
+    }
     const extraSlotIds: string[] = (body.extra_slot_ids || []).filter(Boolean);
     const allSlotIds = Array.from(new Set<string>([slot_id, ...extraSlotIds]));
 

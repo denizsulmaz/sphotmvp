@@ -291,7 +291,7 @@ export default function ChatWindow({
   };
 
   return (
-    <div className="flex flex-col h-[560px] bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
       
       {/* Header bar */}
       <div className="flex items-center gap-3 bg-gray-50 dark:bg-zinc-900/40 p-4 border-b border-gray-100 dark:border-zinc-800 shrink-0">

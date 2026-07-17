@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, RefreshCw, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { WORKFLOW_STEPS, STATUS_PAST_LABEL, CANCELLABLE_STATUSES } from "@/lib/workflow";
 
 interface DBBooking {
   id: string;
@@ -88,7 +89,7 @@ export default function PhotographerDashboard() {
     fetchBookings();
   }, [fetchBookings]);
 
-  const markCompleted = async (bookingId: string) => {
+  const advanceStatus = async (bookingId: string, nextStatus: string) => {
     if (!supabase) return;
     setActionLoading(bookingId);
     try {
@@ -99,17 +100,18 @@ export default function PhotographerDashboard() {
         body: JSON.stringify({
           access_token: session?.access_token,
           bookingId,
-          nextStatus: "completed",
+          nextStatus,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update booking status.");
       setBookings(prev =>
-        prev.map(b => (b.id === bookingId ? { ...b, status: "completed" } : b))
+        prev.map(b => (b.id === bookingId ? { ...b, status: nextStatus } : b))
       );
+      showToast(`Booking marked as ${STATUS_PAST_LABEL[nextStatus] || nextStatus}.`, "success");
     } catch (err: any) {
       console.error("Error updating booking status:", err);
-      showToast("Failed to update booking status.", "error");
+      showToast(err.message || "Failed to update booking status.", "error");
     } finally {
       setActionLoading(null);
     }
@@ -173,7 +175,7 @@ export default function PhotographerDashboard() {
       <div className="flex justify-between items-center bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 p-6 rounded-3xl shadow-sm">
         <div>
           <h1 className="text-2xl font-black text-foreground dark:text-white">Studio Bookings</h1>
-          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Review reserve payments and booking status.</p>
+          <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">Review booking requests and move shoots through your workflow.</p>
         </div>
         <button
           onClick={fetchBookings}
@@ -240,7 +242,7 @@ export default function PhotographerDashboard() {
 
               {/* Right Column: Status & Actions */}
               <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-4 shrink-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center flex-wrap justify-end gap-2">
                   {/* Status Badge */}
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
@@ -256,6 +258,18 @@ export default function PhotographerDashboard() {
                     {booking.status}
                   </span>
 
+                  {/* Workflow: advance to the next step */}
+                  {WORKFLOW_STEPS[booking.status] && (
+                    <button
+                      onClick={() => advanceStatus(booking.id, WORKFLOW_STEPS[booking.status].next)}
+                      disabled={actionLoading === booking.id}
+                      className="flex items-center gap-1.5 text-xs font-black bg-accent text-black px-3 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>{actionLoading === booking.id ? "Updating…" : WORKFLOW_STEPS[booking.status].actionLabel}</span>
+                    </button>
+                  )}
+
                   {/* Chat CTA - Enabled for active/completed bookings */}
                   {["booking", "shooted", "edited", "sent", "completed", "paid", "confirmed"].includes(booking.status) && (
                     <Link
@@ -265,6 +279,19 @@ export default function PhotographerDashboard() {
                       <MessageSquare size={13} />
                       <span>Chat</span>
                     </Link>
+                  )}
+
+                  {/* Request cancellation (admin reviews any refund) */}
+                  {CANCELLABLE_STATUSES.includes(booking.status) && (
+                    <button
+                      onClick={() => requestCancellation(booking.id)}
+                      disabled={actionLoading === booking.id}
+                      className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-600 px-2 py-2 transition-colors disabled:opacity-50"
+                      title="Request cancellation"
+                    >
+                      <XCircle size={13} />
+                      <span>Cancel</span>
+                    </button>
                   )}
                 </div>
               </div>

@@ -86,18 +86,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updErr.message }, { status: 500 });
   }
 
-  // Release the slot(s) so they can be re-booked while the request is reviewed.
-  const releaseIds = [booking.slot_id, ...((booking.extra_slot_ids as string[] | null) || [])].filter(Boolean);
-  if (releaseIds.length > 0) {
-    await supabase
-      .from("availability_slots")
-      .update({ status: "available" })
-      .in("id", releaseIds);
+  // Release the slot(s) only on a final cancel. While a cancellation request is
+  // under admin review the booking stays active — releasing the slot here would
+  // let a new client pass the availability lock and then hit the one-active-
+  // booking-per-slot unique index (409 loop) until the admin resolves it.
+  // The refund/cancel routes release the slots when the admin decides.
+  if (nextStatus === "cancelled") {
+    const releaseIds = [booking.slot_id, ...((booking.extra_slot_ids as string[] | null) || [])].filter(Boolean);
+    if (releaseIds.length > 0) {
+      await supabase
+        .from("availability_slots")
+        .update({ status: "available" })
+        .in("id", releaseIds);
+    }
   }
 
   // System message into the chat.
   const note = wasPaid
-    ? "🕊️ A cancellation was requested. Our team will review and process any eligible refund. The time slot has been released."
+    ? "🕊️ A cancellation was requested. Our team will review and process any eligible refund."
     : "❌ This booking was cancelled. The time slot has been released.";
   await supabase
     .from("messages")

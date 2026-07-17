@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import ChatWindow from "@/components/ChatWindow";
-import { MessageSquare, Calendar } from "lucide-react";
+import { MessageSquare, Calendar, CheckCircle2 } from "lucide-react";
+import { useToast } from "@/components/Toast";
+import { WORKFLOW_STEPS, STATUS_PAST_LABEL } from "@/lib/workflow";
 
 interface ChatBooking {
   id: string;
@@ -26,6 +28,8 @@ export default function PhotographerChatPortal() {
   const [selectedBooking, setSelectedBooking] = useState<ChatBooking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [advancing, setAdvancing] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const fetchChatBookings = async () => {
@@ -67,6 +71,37 @@ export default function PhotographerChatPortal() {
     fetchChatBookings();
   }, [user]);
 
+  const advanceSelectedBooking = async () => {
+    if (!supabase || !selectedBooking) return;
+    const step = WORKFLOW_STEPS[selectedBooking.status];
+    if (!step) return;
+    setAdvancing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/booking/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: session?.access_token,
+          bookingId: selectedBooking.id,
+          nextStatus: step.next,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update booking status.");
+      setChatBookings(prev =>
+        prev.map(b => (b.id === selectedBooking.id ? { ...b, status: step.next } : b))
+      );
+      setSelectedBooking(prev => (prev ? { ...prev, status: step.next } : prev));
+      showToast(`Booking marked as ${STATUS_PAST_LABEL[step.next] || step.next}.`, "success");
+    } catch (err: any) {
+      console.error("Error updating booking status:", err);
+      showToast(err.message || "Failed to update booking status.", "error");
+    } finally {
+      setAdvancing(false);
+    }
+  };
+
   const formatSlotDate = (isoString: string) => {
     const date = new Date(isoString);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -92,14 +127,14 @@ export default function PhotographerChatPortal() {
             </span>
             User Chats
           </h3>
-          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Paid reservations messaging.</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Messaging for your active bookings.</p>
         </div>
 
         {chatBookings.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4 text-gray-400 dark:text-zinc-500 space-y-2">
             <MessageSquare size={28} className="mx-auto text-gray-300 dark:text-zinc-700" />
             <h4 className="text-sm font-bold text-foreground dark:text-white">No active chats</h4>
-            <p className="text-xs">Chat will unlock as soon as a booking slot is confirmed.</p>
+            <p className="text-xs">Chat opens as soon as a client books one of your slots.</p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-1 pr-1 hide-scrollbar">
@@ -143,14 +178,35 @@ export default function PhotographerChatPortal() {
       </div>
 
       {/* Main chat viewport */}
-      <div className="md:col-span-8 h-full">
+      <div className="md:col-span-8 h-full flex flex-col gap-3">
         {selectedBooking && user ? (
-          <ChatWindow
-            bookingId={selectedBooking.id}
-            currentUserId={user.id}
-            otherPartyName={selectedBooking.profiles?.full_name || "User"}
-            otherPartyAvatar={selectedBooking.profiles?.avatar_url || "/media/default-profile.webp"}
-          />
+          <>
+            {/* Workflow bar: current status + next-step action */}
+            <div className="flex items-center justify-between gap-3 bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-2xl px-4 py-2.5 shadow-sm shrink-0">
+              <span className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                Status:{" "}
+                <span className="text-foreground dark:text-white">{selectedBooking.status}</span>
+              </span>
+              {WORKFLOW_STEPS[selectedBooking.status] && (
+                <button
+                  onClick={advanceSelectedBooking}
+                  disabled={advancing}
+                  className="flex items-center gap-1.5 text-xs font-black bg-accent text-black px-3 py-2 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  <CheckCircle2 size={13} />
+                  <span>{advancing ? "Updating…" : WORKFLOW_STEPS[selectedBooking.status].actionLabel}</span>
+                </button>
+              )}
+            </div>
+            <div className="flex-1 min-h-0">
+              <ChatWindow
+                bookingId={selectedBooking.id}
+                currentUserId={user.id}
+                otherPartyName={selectedBooking.profiles?.full_name || "User"}
+                otherPartyAvatar={selectedBooking.profiles?.avatar_url || "/media/default-profile.webp"}
+              />
+            </div>
+          </>
         ) : (
           <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-12 text-center shadow-sm h-full flex flex-col items-center justify-center">
             <MessageSquare size={48} className="text-gray-300 dark:text-zinc-700 mb-4" />

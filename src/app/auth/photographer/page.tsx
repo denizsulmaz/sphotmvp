@@ -161,7 +161,6 @@ export default function PhotographerAuthPage() {
               instagram_url: finalUrl,
               languages: selectedLangs,
               english_level: selectedLangs.includes("English") ? "Fluent" : "Basic",
-              is_approved: false
             })
             .eq("id", data.user.id);
 

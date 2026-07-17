@@ -153,6 +153,17 @@ BEGIN
 END;
 $$;
 
+-- Owners may create their own photographer_profiles row (recovery path when the
+-- signup trigger didn't fire) — but never pre-approved or with an identity code.
+DROP POLICY IF EXISTS "Allow photographers to insert own profile" ON public.photographer_profiles;
+CREATE POLICY "Allow photographers to insert own profile" ON public.photographer_profiles
+  FOR INSERT WITH CHECK (
+    auth.uid() = id
+    AND is_approved IS NOT TRUE
+    AND approved_at IS NULL
+    AND public_code IS NULL
+  );
+
 DROP POLICY IF EXISTS "Allow photographers to update own profile" ON public.photographer_profiles;
 CREATE POLICY "Allow photographers to update own profile" ON public.photographer_profiles
   FOR UPDATE USING (auth.uid() = id)
@@ -422,7 +433,9 @@ BEGIN
   VALUES (
     new.id,
     COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
-    COALESCE(new.raw_user_meta_data->>'role', 'client'),
+    -- Only 'photographer' or 'client' can come from signup metadata; 'admin'
+    -- must never be self-assignable (admins are promoted via service role).
+    CASE WHEN new.raw_user_meta_data->>'role' = 'photographer' THEN 'photographer' ELSE 'client' END,
     COALESCE(new.raw_user_meta_data->>'avatar_url', '')
   )
   ON CONFLICT (id) DO NOTHING;

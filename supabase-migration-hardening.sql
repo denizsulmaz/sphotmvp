@@ -112,9 +112,88 @@ $$;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS extra_slot_ids UUID[] NOT NULL DEFAULT '{}';
 
 -- ─── 6. One active booking per slot ──────────────────────────
+-- If this fails, two ACTIVE bookings share a slot (real double-booking).
+-- Inspect with:
+--   SELECT slot_id, array_agg(id) AS booking_ids, array_agg(status)
+--     FROM public.bookings
+--    WHERE slot_id IS NOT NULL AND status NOT IN ('cancelled','refunded')
+--    GROUP BY slot_id HAVING COUNT(*) > 1;
+-- and cancel the duplicate booking(s) manually — do NOT auto-delete bookings.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_bookings_active_slot ON public.bookings (slot_id)
   WHERE slot_id IS NOT NULL AND status NOT IN ('cancelled', 'refunded');
 
 -- ─── 7. No duplicate slot start times per photographer ───────
+-- 7a. De-duplicate existing data first (stale-tab duplicates).
+-- For each (photographer_id, start_time) group, keep ONE slot — preferring
+-- a 'booked' one, then one referenced by any booking, then the oldest —
+-- and delete the rest, but never delete a slot a booking points at.
+WITH ranked AS (
+  SELECT s.id,
+         ROW_NUMBER() OVER (
+           PARTITION BY s.photographer_id, s.start_time
+           ORDER BY (s.status = 'booked') DESC,
+                    EXISTS (SELECT 1 FROM public.bookings b WHERE b.slot_id = s.id) DESC,
+                    s.created_at ASC,
+                    s.id ASC
+         ) AS rn
+  FROM public.availability_slots s
+)
+DELETE FROM public.availability_slots a
+WHERE a.id IN (SELECT id FROM ranked WHERE rn > 1)
+  AND NOT EXISTS (SELECT 1 FROM public.bookings b WHERE b.slot_id = a.id);
+
+-- 7b. The index. If this still fails, two bookings point at duplicate
+-- slots for the same start time — inspect with:
+--   SELECT photographer_id, start_time, array_agg(id) AS slot_ids,
+--          array_agg(status) AS statuses
+--     FROM public.availability_slots
+--    GROUP BY 1, 2 HAVING COUNT(*) > 1;
+-- and resolve those bookings manually before re-running.
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_slots_photographer_start
   ON public.availability_slots (photographer_id, start_time);
+
+-- ─── 8. handle_new_user: never trust 'admin' from signup metadata ───
+-- Anyone with the anon key can pass options.data.role to auth.signUp; the old
+-- trigger copied it verbatim, minting admin accounts. Clamp to client/photographer.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, avatar_url)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
+    CASE WHEN new.raw_user_meta_data->>'role' = 'photographer' THEN 'photographer' ELSE 'client' END,
+    COALESCE(new.raw_user_meta_data->>'avatar_url', '')
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  IF COALESCE(new.raw_user_meta_data->>'role', 'client') = 'photographer' THEN
+    INSERT INTO public.photographer_profiles (id, instagram, instagram_url)
+    VALUES (
+      new.id,
+      COALESCE(new.raw_user_meta_data->>'instagram', ''),
+      COALESCE(new.raw_user_meta_data->>'instagram_url', '')
+    )
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+
+  RETURN new;
+END;
+$$;
+
+-- Clean up any accounts that already self-assigned 'admin' via metadata:
+-- inspect first, then demote any that you don't recognize:
+--   SELECT id, full_name, role, created_at FROM public.profiles WHERE role = 'admin';
+--   -- UPDATE public.profiles SET role = 'client' WHERE id = '<rogue-id>';
+
+-- ─── 9. photographer_profiles: owner INSERT policy ───────────
+-- Recovery path for onboarding's upsert when the signup trigger didn't create
+-- the row. Never pre-approved, never with an identity code.
+DROP POLICY IF EXISTS "Allow photographers to insert own profile" ON public.photographer_profiles;
+CREATE POLICY "Allow photographers to insert own profile" ON public.photographer_profiles
+  FOR INSERT WITH CHECK (
+    auth.uid() = id
+    AND is_approved IS NOT TRUE
+    AND approved_at IS NULL
+    AND public_code IS NULL
+  );
