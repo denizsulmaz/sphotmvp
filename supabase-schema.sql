@@ -477,6 +477,14 @@ CREATE POLICY "Admins manage error logs" ON public.error_logs
   FOR DELETE USING (public.is_admin());
 -- No INSERT policy: writes go through the service role only.
 
+-- ─── 6d. Availability reminder log (cron) ───────────────────
+CREATE TABLE IF NOT EXISTS public.availability_reminder_log (
+  photographer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  last_sent_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE public.availability_reminder_log ENABLE ROW LEVEL SECURITY;
+-- No policies on purpose: only the service role reads/writes it.
+
 -- ─── 7. Reviews (linked to bookings, gated post-completion) ──
 CREATE TABLE IF NOT EXISTS public.reviews (
   id                 UUID DEFAULT gen_random_uuid() PRIMARY KEY,
