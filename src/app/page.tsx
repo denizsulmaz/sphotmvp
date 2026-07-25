@@ -210,9 +210,9 @@ export default function Home() {
 
       <HomeBanner />
 
-      <div className="px-4 md:px-8 mt-6 md:mt-10 mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-3xl font-extrabold tracking-tight dark:text-white shrink-0">{t("exploreHeading")}</h2>
-        <div className="relative w-48 sm:w-56">
+      <div className="px-4 md:px-8 mt-6 md:mt-10 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight dark:text-white shrink-0">{t("exploreHeading")}</h2>
+        <div className="relative w-full sm:w-56">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500 pointer-events-none" />
           <input
             type="text"
