@@ -86,7 +86,7 @@ export default function FooterContent() {
                 <li><a href="https://instagram.com/booksphot" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Instagram</a></li>
                 <li><a href="https://tiktok.com/@booksphot" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">TikTok</a></li>
                 <li><a href="mailto:hi@booksphot.com" className="hover:text-white transition-colors">hi@booksphot.com</a></li>
-                <li><a href="https://wa.me/821079059788" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Customer Support (WhatsApp)</a></li>
+                <li><a href="https://wa.me/821079059788" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Get in touch</a></li>
               </ul>
             </div>
           </div>
