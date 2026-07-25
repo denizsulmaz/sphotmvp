@@ -57,16 +57,27 @@ export function useUnreadMessages(): UnreadState {
     fetchUnread();
 
     // Realtime: RLS scopes INSERT events to conversations the user belongs to.
-    const channel = client
-      .channel(`unread-messages:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload: { new?: { sender_id?: string | null } }) => {
-          if (payload.new?.sender_id !== user.id) debouncedFetch();
-        }
-      )
-      .subscribe();
+    // IMPORTANT: the channel name must be unique per hook instance — several
+    // components (header, sidebar, chat list) mount this hook at once, and
+    // supabase-js returns the SAME channel object for an existing name, so a
+    // second `.on()` after `.subscribe()` throws and crashes the page.
+    let channel: ReturnType<typeof client.channel> | null = null;
+    try {
+      channel = client
+        .channel(`unread-messages:${user.id}:${Math.random().toString(36).slice(2)}`)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload: { new?: { sender_id?: string | null } }) => {
+            if (payload.new?.sender_id !== user.id) debouncedFetch();
+          }
+        )
+        .subscribe();
+    } catch (e) {
+      // Realtime is an enhancement — never let it take the page down.
+      console.error("[useUnreadMessages] realtime subscribe failed:", e);
+      channel = null;
+    }
 
     const onRefresh = () => fetchUnread();
     window.addEventListener("sphot:unread-refresh", onRefresh);
@@ -75,7 +86,7 @@ export function useUnreadMessages(): UnreadState {
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
       window.removeEventListener("sphot:unread-refresh", onRefresh);
-      client.removeChannel(channel);
+      if (channel) client.removeChannel(channel);
     };
   }, [user]);
 
