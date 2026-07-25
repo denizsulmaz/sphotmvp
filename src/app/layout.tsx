@@ -11,6 +11,7 @@ import HeaderNav from '@/components/HeaderNav';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/Toast';
+import GlobalErrorReporter from '@/components/GlobalErrorReporter';
 import CookieConsent from '@/components/CookieConsent';
 
 // Exposes the font as the `--font-brand` CSS variable consumed by Tailwind's
@@ -72,6 +73,7 @@ export default function RootLayout({
         <AuthProvider>
         <LanguageProvider>
         <ToastProvider>
+        <GlobalErrorReporter />
         <ErrorBoundary>
         <div className="min-h-screen bg-white dark:bg-black text-foreground dark:text-zinc-100 flex flex-col w-full overflow-x-hidden">
 
