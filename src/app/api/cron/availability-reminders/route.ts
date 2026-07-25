@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabaseServer";
 import { sendEmailTo, sendNotificationEmail } from "@/lib/notify";
 import { addDays, todayIn } from "@/lib/availability";
+import { buildReminderHtml, formatHorizon } from "@/lib/availabilityReminderEmail";
 
 // A photographer needs a reminder when their availability horizon (latest
 // rule valid_until or latest legacy available slot) is less than this many
@@ -9,6 +10,7 @@ import { addDays, todayIn } from "@/lib/availability";
 const HORIZON_DAYS = 7;
 // Don't remind the same photographer more often than this.
 const RESEND_COOLDOWN_DAYS = 7;
+
 
 /**
  * Daily cron: remind photographers whose set availability covers less than
@@ -103,20 +105,12 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    const scheduleUrl = "https://www.booksphot.com/photographer/schedule";
     const subject = "Your SPHOT availability is running out";
-    const bodyLine = neverSet
-      ? "You haven't set any availability yet, so clients can't book you."
-      : `Your bookable schedule only covers until <strong>${horizon}</strong>.`;
     const sent = await sendEmailTo(
       email,
       subject,
-      `<h2>Hi ${name},</h2>
-       <p>${bodyLine}</p>
-       <p>Keep your calendar open so clients can find and book you — one recurring rule can cover up to a year.</p>
-       <p><a href="${scheduleUrl}" style="display:inline-block;padding:10px 18px;background:#000;color:#fff;border-radius:10px;text-decoration:none;font-weight:bold;">Update my schedule</a></p>
-       <hr/><p><em>SPHOT</em></p>`,
-      `Hi ${name}, your SPHOT bookable schedule ${neverSet ? "is empty" : `only covers until ${horizon}`}. Update it here: ${scheduleUrl}`
+      buildReminderHtml(name, neverSet ? null : horizon),
+      `Hi ${name}, your SPHOT bookable schedule ${neverSet ? "is empty" : `only covers until ${formatHorizon(horizon!)}`}. Update it here: https://www.booksphot.com/photographer/schedule`
     );
     entry.emailed = sent;
     if (sent) {
