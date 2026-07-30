@@ -10,7 +10,7 @@ export const translations = {
 
     // Home page
     homeBannerTitle: 'Book your perfect photographer in minutes',
-    homeBannerSubtitle: 'The easiest way to discover and book vetted pros across Seoul.',
+    homeBannerSubtitle: 'The easiest way to discover and book trusted creatives across Seoul.',
     homeBannerStep1: 'Explore by style & availability.',
     homeBannerStep2: 'Review portfolio & pricing.',
     homeBannerStep3: 'Request your slot online.',
