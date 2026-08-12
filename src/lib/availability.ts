@@ -3,7 +3,8 @@
 // only exist as availability_slots rows once booked (or as legacy 'available'
 // rows, which are unioned in). This module turns those into concrete bookable
 // hours for a date range, entirely in memory — used by the checkout page, the
-// schedule page, and the booking API (server-side validation).
+// schedule page, and the booking API (server-side validation). Photographers
+// with no schedule of their own fall back to a default (see DEFAULT_* below).
 
 export interface AvailabilityRule {
   id: string;
@@ -41,6 +42,12 @@ export interface ExpandedSlot {
 }
 
 const MS_PER_MIN = 60_000;
+
+// Photographers who never filled in their schedule are bookable by default
+// every day between these hours (studio timezone — Asia/Seoul unless the
+// profile overrides it). Any self-set schedule replaces the default entirely.
+export const DEFAULT_START_MINUTE = 9 * 60; // 09:00
+export const DEFAULT_END_MINUTE = 20 * 60; // 20:00
 
 // ── timezone helpers ─────────────────────────────────────────
 
@@ -210,10 +217,31 @@ export function expandAvailability(opts: {
     });
   }
 
+  // Default schedule: a photographer with no rule covering any day in range
+  // and no legacy 'available' rows never filled in their schedule — treat
+  // them as available 09:00–20:00 (studio tz) every day. Exceptions (days
+  // marked off) still apply to the default.
+  const hasOwnSchedule =
+    rules.some((r) => r.valid_until >= fromDate && r.valid_from <= toDate) ||
+    legacyAvailable.length > 0;
+  const effectiveRules: AvailabilityRule[] = hasOwnSchedule
+    ? rules
+    : [
+        {
+          id: "default",
+          photographer_id: "",
+          days_of_week: [0, 1, 2, 3, 4, 5, 6],
+          start_minute: DEFAULT_START_MINUTE,
+          end_minute: DEFAULT_END_MINUTE,
+          valid_from: fromDate,
+          valid_until: toDate,
+        },
+      ];
+
   // 2. Expand rules day by day (skipping hours a legacy row already covers).
   for (let day = fromDate; day <= toDate; day = addDays(day, 1)) {
     const dow = weekdayOf(day);
-    for (const rule of rules) {
+    for (const rule of effectiveRules) {
       if (day < rule.valid_from || day > rule.valid_until) continue;
       if (!rule.days_of_week.includes(dow)) continue;
       for (let m = rule.start_minute; m + slotMinutes <= rule.end_minute; m += slotMinutes) {
