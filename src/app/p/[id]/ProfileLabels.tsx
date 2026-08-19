@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import { MapPin, Globe, Clock, Zap, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import ViewCounter from "@/components/ViewCounter";
@@ -40,6 +41,7 @@ export default function ProfileLabels({
   responseSpeed,
 }: Props) {
   const { t, tCategory, tStyle } = useLanguage();
+  const { formatPriceString } = useCurrency();
   const [imgError, setImgError] = useState(false);
 
   const formatLanguages = () => {
@@ -95,7 +97,7 @@ export default function ProfileLabels({
           )}
           <h1 className="text-3xl font-black text-foreground dark:text-white">{name}</h1>
           <p className="text-gray-500 dark:text-zinc-400 font-medium mt-1">
-            {t("from")} <span className="text-foreground dark:text-zinc-200 font-bold">{minPrice}</span>
+            {t("from")} <span className="text-foreground dark:text-zinc-200 font-bold">{formatPriceString(minPrice)}</span>
           </p>
           <div className="mt-2 flex items-center gap-3">
             {isStudio && (

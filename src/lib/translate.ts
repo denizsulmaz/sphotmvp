@@ -12,6 +12,7 @@ const LANG_MAP: Record<string, string> = {
   ru: "ru",
   ko: "ko",
   tr: "tr",
+  zh: "zh-CN",
 };
 
 function cacheKey(slug: string, lang: string, field: string, textLength: number = 0) {

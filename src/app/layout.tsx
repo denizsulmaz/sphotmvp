@@ -6,6 +6,7 @@ import './globals.css';
 import { BRAND } from '@/lib/brand';
 import FooterContent from '@/components/FooterContent';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
 import { AuthProvider } from '@/context/AuthContext';
 import HeaderNav from '@/components/HeaderNav';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -73,6 +74,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <AuthProvider>
         <LanguageProvider>
+        <CurrencyProvider>
         <ToastProvider>
         <GlobalErrorReporter />
         <SupportBubble />
@@ -94,6 +96,7 @@ export default function RootLayout({
         </ErrorBoundary>
         <CookieConsent />
         </ToastProvider>
+        </CurrencyProvider>
         </LanguageProvider>
         </AuthProvider>
         </ThemeProvider>

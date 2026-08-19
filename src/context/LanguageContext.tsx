@@ -36,7 +36,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem("sphot_lang") as Lang | null;
-    if (stored && ["en", "ru", "ko", "tr"].includes(stored)) {
+    if (stored && ["en", "ru", "ko", "tr", "zh"].includes(stored)) {
       setLangState(stored);
     }
   }, []);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Photographer } from "@/lib/types";
 import { useLanguage } from "@/context/LanguageContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import ViewCounter from "./ViewCounter";
 
 interface Props {
@@ -15,6 +16,7 @@ const RECOMMENDED_IDS = ["S01005"];
 
 export default function PhotographerCard({ photographer, priority = false }: Props) {
   const { t, tCategory } = useLanguage();
+  const { formatPriceString } = useCurrency();
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
 
@@ -134,7 +136,7 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
             {photographer.Name}
           </h2>
           <p className="text-sm text-gray-500 dark:text-zinc-400 font-medium mt-0.5">
-            From <span className="text-foreground dark:text-zinc-200 font-bold">{photographer["Min Price KRW(per hour & starting from)"]}</span>
+            From <span className="text-foreground dark:text-zinc-200 font-bold">{formatPriceString(photographer["Min Price KRW(per hour & starting from)"])}</span>
           </p>
         </div>
 
