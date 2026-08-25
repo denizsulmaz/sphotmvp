@@ -19,6 +19,9 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
   const { formatPriceString } = useCurrency();
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(photographer.ID);
+  // DB photographers are addressed by UUID or by their public code; only
+  // legacy static-JSON photographers have neither and use local /media files.
+  const isDbPhotographer = isUuid || Boolean(photographer.publicCode);
 
   // Recommended if flagged in data OR matches a known recommended ID/public code.
   const isRecommended =
@@ -39,12 +42,12 @@ export default function PhotographerCard({ photographer, priority = false }: Pro
       ]
     : ["", "", ""];
 
-  const images = isUuid ? dbImages : localImages;
+  const images = photographer.portfolioUrls?.length ? dbImages : localImages;
   // Prefer the uploaded avatar from the DB; static seed image only for
   // legacy seed profiles that never uploaded one.
   const profilePic = photographer.avatarUrl
     ? photographer.avatarUrl
-    : isUuid
+    : isDbPhotographer
     ? "/media/default-profile.webp"
     : `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/media/p/${photographer.ID}/${photographer.ID}.webp`;
 
