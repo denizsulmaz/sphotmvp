@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Eye } from "lucide-react";
+import photographersData from "@/data/photographers.json";
+
+const LEGACY_IDS = new Set(
+  (photographersData as { ID: string }[]).map((p) => p.ID)
+);
 
 interface Props {
   photographerId: string;
@@ -10,8 +15,11 @@ interface Props {
   showText?: boolean;
 }
 
-// Deterministic seeded baseline so counts feel organic from day 1
+// Deterministic seeded baseline so the legacy roster's counts feel organic.
+// Photographers registered through the DB (whether addressed by UUID or
+// public code) start from 0 real views.
 function getSeededBaseline(id: string): number {
+  if (!LEGACY_IDS.has(id)) return 0;
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     hash = id.charCodeAt(i) + ((hash << 5) - hash);
