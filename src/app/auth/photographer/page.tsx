@@ -34,6 +34,29 @@ export default function PhotographerAuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    if (!supabase) return;
+    setError(null);
+    setSuccess(null);
+    if (!email.trim()) {
+      setError("Enter your email address above first, then tap \"Forgot my password\".");
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+      if (resetErr) throw resetErr;
+      setSuccess("Password reset link sent — check your inbox (and spam folder).");
+    } catch (err: any) {
+      setError(err.message || "Could not send the reset email. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
   const [showPassword, setShowPassword] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
 
@@ -570,6 +593,18 @@ export default function PhotographerAuthPage() {
                   className="absolute right-4 top-3.5 text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              {/* Forgot password */}
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resetLoading}
+                  className="text-xs font-bold text-gray-400 dark:text-zinc-500 hover:text-black dark:hover:text-white underline transition-colors disabled:opacity-50"
+                >
+                  {resetLoading ? "Sending…" : "Forgot my password"}
                 </button>
               </div>
             </div>
