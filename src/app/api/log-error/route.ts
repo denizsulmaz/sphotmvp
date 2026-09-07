@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabaseServer";
-import { sendNotificationEmail } from "@/lib/notify";
 
 const MAX_MESSAGE = 500;
 const MAX_STACK = 4000;
 const MAX_PAGE = 300;
-// Email hi@ at most once per hour per distinct error message.
-const ALERT_COOLDOWN_MS = 60 * 60 * 1000;
 
 /** Records a client-side error. Always returns 200 — logging must not fail loudly. */
 export async function POST(req: NextRequest) {
@@ -40,26 +37,8 @@ export async function POST(req: NextRequest) {
       source,
     });
 
-    // Alert email for NEW errors (same message not seen in the last hour).
-    const since = new Date(Date.now() - ALERT_COOLDOWN_MS).toISOString();
-    const { count } = await supabase
-      .from("error_logs")
-      .select("id", { count: "exact", head: true })
-      .eq("message", message)
-      .gte("created_at", since);
-    if ((count ?? 0) <= 1) {
-      await sendNotificationEmail(
-        `[SPHOT] Client error: ${message.slice(0, 80)}`,
-        `<h2>Client error reported</h2>
-         <p><strong>Message:</strong> ${message}</p>
-         <p><strong>Page:</strong> ${page || "unknown"}</p>
-         <p><strong>User:</strong> ${userId || "anonymous"}</p>
-         <p><strong>Source:</strong> ${source}</p>
-         <pre style="font-size:11px;background:#f5f5f5;padding:8px;border-radius:6px;">${(stack || "no stack").slice(0, 1500)}</pre>
-         <p>Full details in Admin → Errors.</p>`,
-        `Client error: ${message}\nPage: ${page}\nUser: ${userId || "anonymous"}`
-      ).catch(() => {});
-    }
+    // Errors are recorded in error_logs only (Admin → Errors).
+    // Alert emails were intentionally removed — they were too noisy.
 
     return NextResponse.json({ ok: true });
   } catch {
