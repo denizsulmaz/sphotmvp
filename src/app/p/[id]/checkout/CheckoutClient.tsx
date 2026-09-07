@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
@@ -161,6 +161,16 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   // Step 1: Schedule selection states
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<ExpandedSlot[]>([]);
+  // On mobile the time-slot list sits below the calendar — scroll it into
+  // view when a date is picked so the user sees the hours immediately.
+  const timeSlotsRef = useRef<HTMLDivElement>(null);
+  const scrollToTimeSlots = () => {
+    if (window.innerWidth < 768) {
+      setTimeout(() => {
+        timeSlotsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  };
 
   // Step 2: Shoot details states
   const [locationType, setLocationType] = useState("Outdoor");
@@ -722,8 +732,8 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                 
                 {/* Calendly-like Left Side: month-by-month day list */}
                 <div className="md:col-span-7 space-y-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                  <div className="flex items-center justify-center sm:justify-between mb-2">
+                    <h3 className="hidden sm:block text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
                       {t("coSelectDate")}
                     </h3>
                     <div className="flex items-center gap-2">
@@ -764,6 +774,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                             setSelectedDate(day);
                             setSelectedSlots([]);
                             setError(null);
+                            scrollToTimeSlots();
                           }}
                           className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
                             isSelected
@@ -789,7 +800,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                 </div>
 
                 {/* Calendly-like Right Side: Available hours list */}
-                <div className="md:col-span-5 border-t md:border-t-0 md:border-l border-gray-100 dark:border-zinc-800 pt-6 md:pt-0 md:pl-6 space-y-3">
+                <div ref={timeSlotsRef} className="md:col-span-5 border-t md:border-t-0 md:border-l border-gray-100 dark:border-zinc-800 pt-6 md:pt-0 md:pl-6 space-y-3 scroll-mt-24">
                   <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2">
                     {t("coAvailableSlots")}
                   </h3>
