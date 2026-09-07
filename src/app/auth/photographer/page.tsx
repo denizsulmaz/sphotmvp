@@ -52,7 +52,12 @@ export default function PhotographerAuthPage() {
       if (resetErr) throw resetErr;
       setSuccess("Reset link sent. Please check your inbox.");
     } catch (err: any) {
-      setError(err.message || "Could not send the reset email. Please try again.");
+      const msg = typeof err?.message === "string" ? err.message.trim() : "";
+      setError(
+        msg && msg !== "{}"
+          ? msg
+          : "Could not send the reset email right now. Please try again later."
+      );
     } finally {
       setResetLoading(false);
     }

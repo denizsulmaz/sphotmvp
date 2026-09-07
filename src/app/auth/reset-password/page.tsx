@@ -36,6 +36,16 @@ export default function ResetPasswordPage() {
 
     const establishSession = async () => {
       try {
+        // The global client (detectSessionInUrl) may have already consumed the
+        // recovery code and created a session — check that first, otherwise a
+        // second exchange of the same code fails with a spurious error.
+        const { data: existing } = await sb.auth.getSession();
+        if (existing.session) {
+          setReady(true);
+          setChecking(false);
+          return;
+        }
+
         const params = new URLSearchParams(window.location.search);
         const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const code = params.get("code");
@@ -72,9 +82,16 @@ export default function ResetPasswordPage() {
         }
         setReady(true);
       } catch {
-        setError(
-          "This reset link is invalid or has expired. Please request a new one from the sign-in page."
-        );
+        // The exchange may have failed only because the code was already
+        // consumed by the global client — if a session exists, we're fine.
+        const { data: after } = await sb.auth.getSession();
+        if (after.session) {
+          setReady(true);
+        } else {
+          setError(
+            "This reset link is invalid or has expired. Please request a new one from the sign-in page."
+          );
+        }
       } finally {
         setChecking(false);
       }
