@@ -100,6 +100,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, session: Session | null) => {
+        // A password-recovery link can land on any page (e.g. the home page
+        // when the redirect URL is not allowlisted). Always send the user to
+        // the reset screen instead of silently logging them in.
+        if (_event === "PASSWORD_RECOVERY" && window.location.pathname !== "/auth/reset-password") {
+          window.location.replace("/auth/reset-password");
+          return;
+        }
         if (session?.user) {
           // Same user re-emitted on focus/token refresh: keep the existing
           // object identity and cached profile — do nothing.
