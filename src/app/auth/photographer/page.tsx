@@ -50,7 +50,7 @@ export default function PhotographerAuthPage() {
         redirectTo: `${window.location.origin}/auth/reset-password`,
       });
       if (resetErr) throw resetErr;
-      setSuccess("Password reset link sent — check your inbox (and spam folder).");
+      setSuccess("Reset link sent. Please check your inbox.");
     } catch (err: any) {
       setError(err.message || "Could not send the reset email. Please try again.");
     } finally {
