@@ -697,7 +697,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
         {/* ─── LEFT COLUMN: CURRENT STEP VIEW ─── */}
         <div className="lg:col-span-8 space-y-6">
           {error && (
-            <div className="bg-red-500/10 border-l-4 border-red-500 p-4 rounded-xl text-xs text-red-600 dark:text-red-400 flex items-center gap-2 font-bold animate-fadeIn">
+            <div className="bg-red-500/10 border border-red-500 p-4 rounded-xl text-xs text-red-600 dark:text-red-400 flex items-center gap-2 font-bold animate-fadeIn">
               <AlertCircle size={16} className="text-red-500 shrink-0" />
               <span>{error}</span>
             </div>
@@ -750,7 +750,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-[430px] overflow-y-auto pr-1 hide-scrollbar">
                     {monthDays.map((day, idx) => {
                       const isSelected = selectedDate?.toDateString() === day.toDateString();
                       const hasSlots = daysWithSlots.has(getTzDateString(day, photographer?.timezone));
@@ -807,7 +807,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 hide-scrollbar">
+                    <div className="space-y-3 max-h-[430px] overflow-y-auto pr-1 hide-scrollbar">
                       {availableTimeSlots.map((slotItem) => {
                         const isSelected = selectedSlots.some(s => s.start_time === slotItem.start_time);
 
@@ -1339,7 +1339,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                   </div>
 
                   {/* Pricing Notice Yellow Accent Warning Callout */}
-                  <div className="bg-amber-500/10 border-l-4 border-accent p-4 rounded-xl space-y-2 text-xs text-amber-800 dark:text-amber-300">
+                  <div className="bg-amber-500/10 border border-accent p-4 rounded-xl space-y-2 text-xs text-amber-800 dark:text-amber-300">
                     <p className="font-extrabold uppercase tracking-wide flex items-center gap-1.5 text-black dark:text-white">
                       <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
                       {t("coFeeOnly")}
@@ -1360,9 +1360,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
             </div>
           )}
 
-          {/* ─── NAVIGATION BUTTONS ─── */}
-          <div className="flex justify-between items-center pt-2">
-            {step > 1 ? (
+          {/* ─── NAVIGATION: back only — forward CTA lives in the summary sidebar ─── */}
+          {step > 1 && (
+            <div className="flex justify-between items-center pt-2">
               <button
                 type="button"
                 onClick={handlePrevStep}
@@ -1372,21 +1372,8 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
                 <ChevronLeft size={16} />
                 {t("coBack")}
               </button>
-            ) : (
-              <div />
-            )}
-
-            {step < 4 ? (
-              <button
-                type="button"
-                onClick={handleNextStep}
-                className="flex items-center gap-1 bg-black dark:bg-white text-white dark:text-black font-black px-6 py-3.5 rounded-xl text-sm hover:opacity-90 transition-all shadow-sm"
-              >
-                <span>{t("coContinue")}</span>
-                <ChevronRight size={16} />
-              </button>
-            ) : null}
-          </div>
+            </div>
+          )}
 
         </div>
 

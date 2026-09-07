@@ -49,7 +49,7 @@ export default function BlogContentClient({ post }: Props) {
       .replace(/\*\*Step (\d+): ([^*]+)\*\*\n([^\n]+)/gi, '<div class="flex flex-col sm:flex-row gap-5 bg-gray-50 dark:bg-zinc-900 p-6 rounded-2xl my-6 border border-gray-100 dark:border-zinc-800"><div class="flex-shrink-0 w-12 h-12 bg-accent text-black font-black text-xl rounded-full flex items-center justify-center">$1</div><div><h4 class="text-xl font-bold dark:text-white mb-2 !mt-0">$2</h4><p class="text-gray-600 dark:text-zinc-400 !mb-0 leading-relaxed">$3</p></div></div>')
       .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-      .replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-accent pl-4 italic my-4">$1</blockquote>')
+      .replace(/^> (.*$)/gim, '<blockquote class="border border-accent rounded-xl p-4 italic my-4">$1</blockquote>')
       .replace(/!\[Photo by ([^\]]+)\]\(([^)]+)\)/gim, '<figure class="my-8"><img src="$2" alt="Photo by $1" class="w-full rounded-2xl object-cover max-h-[480px]" loading="lazy" /><figcaption class="text-xs text-gray-400 dark:text-zinc-500 mt-2 text-center italic">Photo by $1</figcaption></figure>')
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<figure class="my-8"><img src="$2" alt="$1" class="w-full rounded-2xl object-cover max-h-[480px]" loading="lazy" /><figcaption class="text-xs text-gray-400 dark:text-zinc-500 mt-2 text-center italic">$1</figcaption></figure>')
       .replace(/\n\n/g, '<br/><br/>')
