@@ -187,11 +187,24 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState(false);
 
-  // Generate list of the next 21 days
-  const next21Days = Array.from({ length: 21 }, (_, idx) => {
-    const day = new Date();
-    day.setDate(day.getDate() + idx);
-    return day;
+  // Booking window: today through the end of the month after next (this
+  // month + 2), navigated one month at a time.
+  const [monthOffset, setMonthOffset] = useState(0);
+  const MAX_MONTH_OFFSET = 2;
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const viewedMonth = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const daysInViewedMonth = new Date(
+    viewedMonth.getFullYear(),
+    viewedMonth.getMonth() + 1,
+    0
+  ).getDate();
+  const monthDays = Array.from({ length: daysInViewedMonth }, (_, idx) =>
+    new Date(viewedMonth.getFullYear(), viewedMonth.getMonth(), idx + 1)
+  ).filter((d) => d >= todayStart);
+  const viewedMonthLabel = viewedMonth.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
   });
 
   // Days (as TZ date string keys) that actually have available slots.
@@ -201,11 +214,13 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
   // Fetch the photographer's availability rules, exceptions, and slot rows
   // (both statuses — booked rows block hours), then expand them into concrete
-  // bookable hours for today → 60 days ahead in the studio timezone.
+  // bookable hours for today → end of month+2 in the studio timezone.
   const fetchAvailability = async (photographerUuid: string, tz: string): Promise<ExpandedSlot[]> => {
     if (!supabase) return [];
     const fromDate = todayIn(tz);
-    const toDate = addDays(fromDate, 60);
+    // Through the end of the month after next — matches the date picker window.
+    const [fy, fm] = fromDate.split("-").map(Number);
+    const toDate = new Date(Date.UTC(fy, fm - 1 + 3, 0)).toISOString().slice(0, 10);
     const [{ data: rules }, { data: exceptions }, { data: slotRows }] = await Promise.all([
       supabase.from("availability_rules").select("*").eq("photographer_id", photographerUuid),
       supabase.from("availability_exceptions").select("*").eq("photographer_id", photographerUuid),
@@ -705,13 +720,38 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[350px]">
                 
-                {/* Calendly-like Left Side: 21 Days list */}
+                {/* Calendly-like Left Side: month-by-month day list */}
                 <div className="md:col-span-7 space-y-3">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500 mb-2">
-                    {t("coSelectDate")}
-                  </h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                      {t("coSelectDate")}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label="Previous month"
+                        disabled={monthOffset === 0}
+                        onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-100 dark:border-zinc-800 flex items-center justify-center text-gray-600 dark:text-zinc-300 hover:border-gray-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className="text-xs font-black text-foreground dark:text-white min-w-[110px] text-center">
+                        {viewedMonthLabel}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Next month"
+                        disabled={monthOffset >= MAX_MONTH_OFFSET}
+                        onClick={() => setMonthOffset((o) => Math.min(MAX_MONTH_OFFSET, o + 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-100 dark:border-zinc-800 flex items-center justify-center text-gray-600 dark:text-zinc-300 hover:border-gray-300 dark:hover:border-zinc-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 max-h-[300px] overflow-y-auto pr-1 hide-scrollbar">
-                    {next21Days.map((day, idx) => {
+                    {monthDays.map((day, idx) => {
                       const isSelected = selectedDate?.toDateString() === day.toDateString();
                       const hasSlots = daysWithSlots.has(getTzDateString(day, photographer?.timezone));
                       return (
