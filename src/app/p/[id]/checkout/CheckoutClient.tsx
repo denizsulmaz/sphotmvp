@@ -717,9 +717,9 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           {step === 1 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm">
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
-                    <CalendarIcon size={20} />
+                <h2 className="text-lg sm:text-2xl font-black text-foreground dark:text-white flex items-center gap-2.5 sm:gap-3">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
+                    <CalendarIcon size={18} />
                   </div>
                   {t("coChooseDateTime")}
                 </h2>
@@ -851,7 +851,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           {step === 2 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
               <div>
-                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
+                <h2 className="text-lg sm:text-2xl font-black text-foreground dark:text-white flex items-center gap-2.5 sm:gap-3">
                   <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
                     <Sparkles size={20} />
                   </div>
@@ -1270,7 +1270,7 @@ export default function CheckoutClient({ id }: CheckoutClientProps) {
           {step === 4 && (
             <div className="bg-white dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
               <div>
-                <h2 className="text-2xl font-black text-foreground dark:text-white flex items-center gap-3">
+                <h2 className="text-lg sm:text-2xl font-black text-foreground dark:text-white flex items-center gap-2.5 sm:gap-3">
                   <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 flex items-center justify-center text-accent shrink-0">
                     <MessageSquare size={20} />
                   </div>
